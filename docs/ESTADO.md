@@ -60,8 +60,14 @@ Três repositórios, com papéis distintos:
 
 ## 3. Onde estamos
 
-**Fase: plano fechado, execução iniciada na F0.** O control plane existe; o design
-**não** está tokenizado.
+**Fase: loop único rodando end-to-end, `APPLY` não implementado.** O app de
+referência **já está ~99% tokenizado** — a medição é 10.190 de 10.693 consumos
+(95,3%) conformes, 9 hex cravados, 0 valores arbitrários. O trabalho que resta
+não é tokenizar, é **renomear**: as 504 ocorrências que violam a lei de naming.
+
+Uma corrida completa hoje, medida: 504 ocorrências → 311 clusters de contexto →
+**41 contratos** em 4 iterações, 211 fusões automáticas, **9 ocorrências (2,2%)**
+para decisão humana. Nada aplicado no código.
 
 **O v2 já é superior ao v1?** Num eixo, sim e medido (§4.4): recall de reescrita de
 utility, 3,3×, superconjunto estrito. Em todos os outros eixos, **não sabemos** — o
@@ -207,8 +213,16 @@ discordâncias** entre os dois scripts, 12/12 valores dentro do vocabulário fec
 ✅ **10 imports pendurados** no repo publicado, corrigidos espelhando o layout do
 fonte — cópias seguem **byte-idênticas** (`cmp`), zero pendurado.
 
-✅ **Ponte fase→executor** (`lib/phase-executors.mjs`): 17 fases, 10
-determinísticas, 2 model, 3 human, **0 problemas** na auditoria contra o contrato.
+⚠️ **Ponte fase→executor** (`lib/phase-executors.mjs`): 17 fases, 10
+determinísticas, 2 model, 3 human, **0 problemas** na auditoria contra o contrato
+— mas a auditoria mediu a coisa errada. O mapa estava íntegro e **ninguém o
+invocava**: `rg -l "phase-executors"` retornava só o próprio arquivo. O
+`tokenization-runner.mjs` tinha 5 comandos (`init`, `transition`, `validate`,
+`resume`, `status`) e nenhum executava nada — só rastreava estado.
+
+Resolvido em 2026-07-30 por `scripts/tokenize.mjs`, o entrypoint único. Auditar
+um registro contra seu contrato não prova que ele está ligado; a pergunta que
+faltava era **quem chama**.
 
 ✅ **45/45 testes fail-closed** dos módulos de extração, normalização, eixos e
 contrato visual, com `TOKENIZE_TEST_ROOT` no app de referência.
@@ -246,6 +260,8 @@ Registro porque erro escondido reaparece.
 "7 de 12 no checklist" | **6 de 12** | contei agora |
 "26 D, 3 IA" no grafo | **24 D, 4 IA, 2 H** | contei no próprio diagrama |
 "Lightning CSS exige Rust" | **falso**, npm distribui binário | review adversarial |
+"o design **não** está tokenizado" | está **~99%** — 10.190/10.693 conformes; o que falta é **renomear** | o dono insistiu; medi |
+"ponte fase→executor validada, 0 problemas" | íntegra e **invocada por ninguém**; o runner não executava nada | o dono perguntou por que eu misturava as bolas |
 
 Padrão dominante: **diagnosticar código lendo documentação**, e **aceitar exemplo
 de terceiro sem verificar**. Os dois são a mesma falha — evidência adjacente

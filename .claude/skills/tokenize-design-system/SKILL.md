@@ -11,6 +11,63 @@ description: >
 
 # Tokenize design system — end-to-end orchestration
 
+## Start here: one command, the whole loop
+
+```bash
+node .claude/skills/tokenize-design-system/scripts/tokenize.mjs --root <app>
+```
+
+`scripts/tokenize.mjs` is the **only** entrypoint. It drives every phase in
+order and prints what each one decided:
+
+| Phase | Who decides | What it produces |
+|---|---|---|
+| `PREFLIGHT` | deterministic | target compiler and colour library resolve, or the loop stops |
+| `EXTRACT` + `CLUSTER` | deterministic | occurrences violating the law, grouped by **semantic context** |
+| `CONVERGE` | deterministic | Newton–Raphson merge until two consecutive iterations change nothing |
+| `REPORT` | deterministic | three chapters: decided alone / exposed / needs the owner |
+| `DECIDE` | **human** | only pairs above the uncertainty cut |
+| `APPLY` | — | declared, **not implemented**: token creation, AST codemod, pixel proof |
+
+Useful flags: `--until <PHASE>` stops early, `--max-uncertainty <n>` moves the
+human cut, `--json` emits machine-readable output.
+
+**The loop fails closed at every phase.** A missing compiler, colour library or
+token file stops the run instead of continuing with a signal switched off — a
+run once reported *"0 merges, 400 queued"* purely because the colour library
+did not resolve, and that number looked like a result.
+
+**`tokenize.mjs` never mutates the target.** It produces a proposal and the
+evidence behind it. Rendered visual proof for the mutation phase is
+`reference/visual-evidence.md`, and its engine inventory is
+`reference/visual-evidence-engine.md` — the same loop, not a separate skill.
+
+### What each script is, so nothing looks orphaned
+
+Only three scripts run as processes in the loop; three more are imported by
+them. The rest are **standalone diagnostics** you invoke on purpose — they are
+not dead code, and they are not part of the loop either.
+
+| script | role |
+|---|---|
+| `tokenize.mjs` | **the entrypoint.** Everything below is reached through it or run by hand |
+| `context-clusters.mjs` | loop — walks the tree itself and groups occurrences by semantic context |
+| `converge-tokens.mjs` | loop — Newton–Raphson merge with weighted measured signals |
+| `tokenization-report.mjs` | loop — writes the three-chapter report into the **target** repo |
+| `find-owner.mjs` | module — owner from rendered context; imported by `context-clusters` |
+| `score-naming.mjs` | module — the naming oracle and closed vocabulary; imported by `context-clusters` |
+| `tokenization-runner.mjs` | module — durable control plane for the unimplemented `APPLY` phase |
+| `discover-axes.mjs` | diagnostic — measures the target's axis policy (`rem`, collapse, logical) |
+| `inventory-surface.mjs`, `inventory-usage.mjs` | diagnostic — census of declared tokens and of consumption |
+| `cluster-leftovers.mjs` | diagnostic — clusters the occurrences with no owner, feeding the AI queue |
+| `classname-miner-v2.mjs` | diagnostic — AST/JSX miner for repeated `className` |
+| `derive-tokens.mjs`, `extract-design-occurrences.mjs`, `normalize-occurrences.mjs` | earlier pipeline stages, **superseded** by `context-clusters.mjs`, which scans on its own |
+| `validate-contract.mjs`, `validate-token-build.mjs`, `evaluate-absolute-completion.mjs` | for `APPLY`: artifact schemas, the target's `tokens:build`, completion predicates |
+
+The superseded three are kept because they still answer narrower questions in
+isolation; they are not wired into the loop and must not be re-added to it
+without deciding which scan is authoritative.
+
 ## Scope and guarantees
 
 This skill is self-contained as the **orchestration and decision contract** for

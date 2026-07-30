@@ -17,3 +17,12 @@ medição é refeita.
 | `2026-07-26-tokenization.md` | arquitetura dos 3 tiers, contrato dos pares coloridos, guards |
 | `assets/` | 66 PNGs de evidência: ocorrências contornadas por rota × tema, e o nome do token escrito em cima de cada elemento |
 | `sources/` | triagem dos 128 clusters de `className` e o relatório de n-grams do miner |
+
+## Fontes da mineração
+
+Os documentos que originaram o processo — mineração de `className` repetido e a
+triagem dos clusters. Ficam citados um a um porque `sources/` é nome genérico e
+o lint recusa, de propósito, que um diretório genérico cubra arquivos:
+
+- [`sources/classname-token-mining-v2.md`](sources/classname-token-mining-v2.md) — o minerador AST/JSX e o que ele extrai
+- [`sources/2026-07-26-classname-cluster-triagem.md`](sources/2026-07-26-classname-cluster-triagem.md) — triagem dos clusters minerados

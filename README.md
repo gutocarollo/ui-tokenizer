@@ -18,6 +18,39 @@ estimados.
 > o que está validado com evidência, o que falta, retratações e risco declarado.
 > Plano vigente: [`docs/plans/2026-07-30-v2-upstream-como-oraculo-rev2.md`](docs/plans/2026-07-30-v2-upstream-como-oraculo-rev2.md).
 
+## Um comando
+
+```bash
+node .claude/skills/tokenize-design-system/scripts/tokenize.mjs --root <app>
+```
+
+Esse é o **único** entrypoint. Ele roda o loop inteiro e imprime o que cada fase
+decidiu:
+
+```
+PREFLIGHT   compilador e lib de cor resolvem, ou o loop para
+EXTRACT     censo das ocorrências que violam a lei
+CLUSTER     agrupa por CONTEXTO semântico e deriva o nome
+CONVERGE    itera até duas rodadas consecutivas não mudarem nada
+REPORT      3 capítulos: decidido sozinho / exposto / precisa do dono
+DECIDE      só o que passou do corte de incerteza          [HUMANO]
+APPLY       declarado, NÃO implementado
+```
+
+Flags: `--until <FASE>` para cedo, `--max-uncertainty <n>` move o corte humano,
+`--json` para saída legível por máquina.
+
+Medido no `makers-ai-hub`, uma corrida completa: **504 ocorrências → 311
+clusters → 41 contratos** em 4 iterações, 211 fusões automáticas, e **9
+ocorrências (2,2%) sobrando para decisão humana**.
+
+**O loop falha fechado em toda fase.** Faltando compilador, lib de cor ou
+arquivo de token, ele para em vez de seguir com um sinal desligado — uma corrida
+já reportou *"0 fusões, 400 na fila"* só porque a lib de cor não resolveu, e
+aquele número parecia resultado.
+
+**`tokenize.mjs` não muta o alvo.** Ele entrega proposta e prova.
+
 ## O problema que ele resolve
 
 Design artesanal falha de quatro maneiras que ferramenta comum não pega:
@@ -41,7 +74,7 @@ Design artesanal falha de quatro maneiras que ferramenta comum não pega:
 flowchart TD
     START([preciso mudar cor/token/UI]) --> Q{"o NOME do token<br/>já está decidido?"}
 
-    subgraph A["ETAPA A — decidir o nome (tokenize-design-system)"]
+    subgraph A["ETAPA A — decidir o nome (CLUSTER + CONVERGE)"]
         Q -->|não| A1["censo: o que existe e por<br/>quantas vias é consumido"]
         A1 --> A2["nota do NOME e da APLICAÇÃO<br/>corte 70/100"]
         A2 --> A3{"nota ≥ 70?"}
@@ -66,7 +99,7 @@ flowchart TD
     Q -->|sim| H
     A15 -->|não| H([HANDOFF: token pronto,<br/>agora aplicar no código])
 
-    subgraph B["ETAPA B — provar o pixel (refactor-ui-with-evidence)"]
+    subgraph B["ETAPA B — provar o pixel (reference/visual-evidence.md)"]
         H --> B1["que TELAS o diff afeta<br/>BFS de import reverso"]
         B1 --> B2{"sobrou rota :param<br/>sem fixture?"}
         B2 -->|sim| B3["materializar com dado REAL"]
@@ -103,16 +136,25 @@ imagem mostrando o que não devia, e review adversarial reprovando.
 
 ---
 
-## As duas skills
+## Uma skill, um loop
 
-| skill | responde | auto-contida? |
+`tokenize-design-system` é a **única** skill. Ela contém as duas etapas do
+diagrama, porque são o mesmo loop: a etapa A decide o nome, a etapa B prova o
+pixel, e a etapa B realimenta a A quando a imagem mostra o que não devia.
+
+| parte | responde | portátil? |
 |---|---|---|
-| **`tokenize-design-system`** | *que nome o token deve ter, e a migração mexeu no pixel?* | **sim** — roda contra qualquer repo com `--root <raiz>` |
-| **`refactor-ui-with-evidence`** | *que telas o meu diff afeta, e o que mudou de fato na tela?* | **não**, e por um motivo: exige o app no ar, sessão autenticada e Playwright. Ver `reference/engine.md` |
+| `scripts/tokenize.mjs` + `reference/` | *que nome o token deve ter?* | **sim** — roda contra qualquer repo com `--root` |
+| `reference/visual-evidence.md` | *o que mudou de fato na tela?* | o **protocolo** viaja; o motor não |
 
-A assimetria não é descuido. A etapa A decide **nome de token** — problema de
-texto, portátil. A etapa B decide **se o pixel ficou certo** — exige o app
-rodando, e app rodando não cabe dentro de uma skill.
+A assimetria não é descuido. Decidir nome é problema de texto, portátil. Provar
+pixel exige o app no ar com sessão autenticada, e app rodando não cabe dentro de
+uma skill — por isso o inventário das dependências que ficam no repo-alvo está
+em [`visual-evidence-engine.md`](.claude/skills/tokenize-design-system/reference/visual-evidence-engine.md).
+
+Antes existiam duas skills irmãs. Era erro de recorte: quem chegava não sabia
+por onde começar, e o loop de volta B→A atravessava uma fronteira que não devia
+existir.
 
 ---
 
@@ -154,7 +196,6 @@ scripts realmente leem em
 ```bash
 # 1. as skills
 cp -r .claude/skills/tokenize-design-system   <alvo>/.claude/skills/
-cp -r .claude/skills/refactor-ui-with-evidence <alvo>/.claude/skills/
 # Codex: espelhar em .agents/skills/ por symlink
 
 # 2. os oráculos rodam de qualquer lugar
@@ -176,7 +217,7 @@ cp tools/hooks/ui-evidence-gate.sh <alvo>/…   # registrar como Stop hook
 | pasta | conteúdo |
 |---|---|
 | `.claude/skills/tokenize-design-system/` | a skill auto-contida: `SKILL.md`, 10 arquivos de `reference/`, 11 oráculos + `lib/` + 8 arquivos de teste |
-| `.claude/skills/refactor-ui-with-evidence/` | `SKILL.md` + `reference/engine.md` (manifesto das 13 dependências) |
+| `tools/gates/`, `tools/hooks/` | guards determinísticos + Stop hooks (`ds-*`, `docs_wiki_lint`, `ref_integrity`, `clarification-gate`, `ui-evidence-gate`) |
 | `tools/gates/` | ratchets: lei de naming (3 camadas), coesão (5 eixos), anti-hardcode, variedade, classes mortas, avaliador de contraste ΔE, lint de wiki |
 | `scripts/` e `scripts/lib/` | impacto de rota por import reverso, manifest de evidência, comparação de pixel, relatório antes/depois, contrato visual v2 + teste |
 | `tests/visual/` | motor de captura, config de projetos, mapa de temas |

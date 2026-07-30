@@ -228,7 +228,7 @@ invalidates all final evidence generated before it.
 > files / 4.303 lines living in the repo, 74% of them wired to Playwright test
 > discovery, a `package.json` script, a Stop hook, or project data. Every file,
 > its role, and why it stays in the repo:
-> [`reference/engine.md`](reference/engine.md). The protocol in this SKILL.md
+> [`visual-evidence-engine.md`](visual-evidence-engine.md). The protocol in this SKILL.md
 > travels to another repo; the 13 files do not.
 
 

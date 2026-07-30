@@ -71,7 +71,7 @@ rodando — e app rodando não cabe dentro de uma skill.
 ## Verificação
 
 ```bash
-cd /home/augusto/code/makers-ai-hub
+cd <target-repo>
 for f in frontend/scripts/{ui-evidence.sh,affected-routes.mjs,evidence-report.mjs,evidence-manifest.mjs,compare-evidence.mjs,gen-visual-routes.mjs} \
          frontend/scripts/lib/visual-contract{,.test}.mjs \
          frontend/tests/visual/{evidence.spec.ts,theme-map.config.ts,routes.json} \
