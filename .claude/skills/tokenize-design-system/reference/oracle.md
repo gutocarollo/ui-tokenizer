@@ -105,7 +105,7 @@ export const PREFIX_PROPERTY = {
   "outline": "outline-color", "fill": "fill", "stroke": "stroke",
   "shadow": "box-shadow", "divide": "border-color",
   "ring": "outline-color", "caret": "color", "placeholder": "color",
-  "from": "background-color", "to": "background-color", "via": "background-color",
+  "accent": "color",
 };
 ```
 

@@ -209,7 +209,27 @@ export function scoreName(name, vocabulary, universe) {
 
 /* ------------------------------------------------------ application score --- */
 
-/** Tailwind utility prefix -> CSS property that it actually sets. */
+/**
+ * Tailwind utility prefix -> the §4.3 property the prefix PAINTS.
+ *
+ * This is a projection onto the closed vocabulary, NOT the literal CSS property
+ * name. The compiler emits `caret-color` for `caret-`, `accent-color` for
+ * `accent-`, `--tw-ring-color` for `ring-` and `--tw-shadow-color` for
+ * `shadow-` — none of which exist in §4.3, and none of which may appear in a
+ * token id.
+ *
+ * The projection is REQUIRED, not sloppy: `scoreApplication` compares this value
+ * by strict equality against the property slot parsed out of the token NAME,
+ * and that slot can only ever hold a §4.3 term. `derive-tokens.mjs` puts this
+ * value straight into the generated DTCG id. Returning raw CSS here would make
+ * the match impossible forever and would emit ids like
+ * `button.--tw-ring-color`.
+ *
+ * The previous wording of this comment claimed literal CSS, which the code never
+ * did and does not need to — and that claim caused a review to conclude the
+ * table was broken and propose replacing it with compiler derivation. Keep the
+ * wording honest.
+ */
 export const PREFIX_PROPERTY = {
   bg: "background-color", text: "color", border: "border-color",
   ring: "outline-color", divide: "border-color", outline: "outline-color",

@@ -14,9 +14,11 @@ const sourceRoot = path.join(root, "src");
 const propertyByPrefix = [
   [/^bg-/, "background-color"],
   [/^(text|placeholder)-/, "color"],
-  [/^(border|divide|outline)-/, "border-color"],
+  [/^(border|divide)-/, "border-color"],
+  [/^outline-/, "outline-color"],
   [/^ring-/, "outline-color"],
-  [/^(fill|stroke)-/, "fill"],
+  [/^fill-/, "fill"],
+  [/^stroke-/, "stroke"],
   [/^shadow-/, "box-shadow"],
   [/^(from|via|to)-/, "gradient-stop"],
 ];

@@ -65,7 +65,12 @@ function deriveAnatomy({ prefix, statePrefix, tag }) {
   return null;
 }
 
-/** CSS property from a utility prefix — what the utility actually sets. */
+/**
+ * §4.3 property a utility prefix PAINTS — a projection onto the closed
+ * vocabulary, not the literal CSS property name. This value lands directly in
+ * the generated DTCG id via `buildName`, so it must be a §4.3 term; raw CSS
+ * would emit ids like `button.--tw-ring-color`. See score-naming.mjs.
+ */
 function deriveProperty(prefix, anatomy) {
   const p = PREFIX_PROPERTY[prefix];
   // §7.2: an anatomy with one possible property need not spell it out.
