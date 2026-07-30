@@ -171,6 +171,10 @@ export function findUseOwner({ file, tag, role, type }, owners) {
   if (type && TYPE_OWNER[type]) return { owner: TYPE_OWNER[type], signal: `type="${type}"`, strength: "high" };
 
   // 2. Native HTML tag.
+  // `tag` may be absent (a use outside a recognizable element): fall through to
+  // signals 4/5 instead of throwing. Without this, any caller that omits the tag
+  // dies at runtime.
+  tag = tag ?? "";
   const t = tag.toLowerCase();
   if (Object.prototype.hasOwnProperty.call(TAG_OWNER, t) && TAG_OWNER[t]) {
     return { owner: TAG_OWNER[t], signal: `<${t}>`, strength: "high" };
