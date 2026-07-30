@@ -1,5 +1,13 @@
 # Plano v2 — Tailwind oficial como oráculo, `ui-tokenizer` como orquestrador
 
+> ⛔ **SUPERSEDIDO** por
+> [`2026-07-30-v2-upstream-como-oraculo-rev2.md`](2026-07-30-v2-upstream-como-oraculo-rev2.md).
+> Review adversarial retornou `REPLANEJAR` com 7 gaps ALTA. **Este documento
+> contém um erro factual conhecido:** o exemplo do §3 (`mt-2 mb-2 → my-2` com
+> `logicalToPhysical: false`) é impossível — `my-2` compila para `margin-block`,
+> propriedade lógica, e o colapso só existe sob `l2p: true`. Mantido como
+> registro da rodada 1, não como instrução.
+
 > Branch: `v2` do `gutocarollo/ui-tokenizer`, a partir de `1dcaf16`.
 > Nada é alterado no `makers-ai-hub`. O v1 continua rodando lá, intocado, para
 > comparação.
