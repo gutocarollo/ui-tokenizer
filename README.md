@@ -14,6 +14,10 @@ estimados.
 
 ---
 
+> **Estado atual da empreitada:** [`docs/ESTADO.md`](docs/ESTADO.md) — objetivo,
+> o que está validado com evidência, o que falta, retratações e risco declarado.
+> Plano vigente: [`docs/plans/2026-07-30-v2-upstream-como-oraculo-rev2.md`](docs/plans/2026-07-30-v2-upstream-como-oraculo-rev2.md).
+
 ## O problema que ele resolve
 
 Design artesanal falha de quatro maneiras que ferramenta comum não pega:
