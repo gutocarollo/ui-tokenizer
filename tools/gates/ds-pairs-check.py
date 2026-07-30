@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+"""ds-pairs-check — generic guard of the COLORED PAIRS CONTRACT (globals.css).
+
+PORTED from apps/web/scripts/ds-pairs-check.py (reference donor harness) —
+rescue plan §R1a. Structural rule (shadcn-style design-system contract):
+  - Action/status colored pairs (primary, destructive, success, info, premium):
+    `X-foreground` MUST be white (#fff family) and contrast >= 4.5:1 with `X`.
+    The label contrasts with its PARENT (container), never with the page.
+  - Exception:
+    - warning (amber + dark label is the canonical pair; requires >= 4.5:1 too).
+  - surface-selected is inverted NEUTRAL (the pair inverts together) — checks contrast only.
+
+GENERICITY (vs. the source version): zero hardcoded brand string.
+  - CSS path: HARNESS_WEB_APP_DIR + DS_GATE_CSS_PATH (.harness/harness.conf),
+    default "styles/globals.css" relative to the web app. Missing = fail-open
+    (nothing to check, exit 0), not a crash.
+  - Theme blocks: PROJECT_THEMES (CSV of data-theme attribute values).
+    Empty = only evaluates the base :root/.dark (no brand overlay) — no brand
+    name stays hardcoded in the engine.
+
+Usage: python3 .harness/lib/ds-pairs-check.py   (exit 1 if any pair violates)
+"""
+from __future__ import annotations
+
+import math
+import re
+import sys
+import pathlib
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _tooling_conf import get_config, get_config_csv, project_root  # noqa: E402
+
+ROOT = project_root()
+WEB_APP_DIR = (get_config("HARNESS_WEB_APP_DIR", ".") or ".").strip("/") or "."
+CSS_REL = get_config("DS_GATE_CSS_PATH", "styles/globals.css") or "styles/globals.css"
+BASE_DIR = ROOT if WEB_APP_DIR == "." else ROOT / WEB_APP_DIR
+
+# FORK-PATCH (ver .harness/README-FORK.md): DS_GATE_CSS_PATH aceita CSV.
+# Neste fork os tokens vivem em styles/generated/color-tokens.css e o tier 3
+# (aliases --theme-*) em index.css; um único caminho não cobre os dois, e o
+# guard não resolve @import. A ordem do CSV É a ordem da cascata.
+CSS_PATHS = [BASE_DIR / p.strip() for p in CSS_REL.split(",") if p.strip()]
+_existing = [p for p in CSS_PATHS if p.is_file()]
+
+if not _existing:
+    print(
+        "ds-pairs-check: tokens CSS not found at "
+        f"{', '.join(str(p) for p in CSS_PATHS)} — nothing to check (fail-open)."
+    )
+    sys.exit(0)
+
+CSS = _existing[0]  # compat: mensagens que citam um caminho único
+
+PAIRS = ['primary', 'destructive', 'success', 'info', 'premium', 'warning', 'surface-selected']
+WHITE_REQUIRED = {'primary', 'destructive', 'success', 'info', 'premium'}
+
+src = "\n".join(p.read_text() for p in _existing)
+# strip /* */ comments (the pair regex was catching examples inside comments)
+src_nc = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
+
+
+def block_body(start_pat):
+    m = re.search(start_pat, src_nc)
+    if not m:
+        return ''
+    depth = 0
+    i = src_nc.index('{', m.start())
+    for j in range(i, len(src_nc)):
+        if src_nc[j] == '{':
+            depth += 1
+        elif src_nc[j] == '}':
+            depth -= 1
+            if depth == 0:
+                return src_nc[i:j]
+    return ''
+
+
+def all_bodies(start_pat):
+    out = []
+    for m in re.finditer(start_pat, src_nc):
+        i = src_nc.index('{', m.start())
+        depth = 0
+        for j in range(i, len(src_nc)):
+            if src_nc[j] == '{':
+                depth += 1
+            elif src_nc[j] == '}':
+                depth -= 1
+                if depth == 0:
+                    out.append(src_nc[i:j])
+                    break
+    return out
+
+
+OKLCH_RE = re.compile(
+    r'oklch\(\s*([\d.]+)(%)?\s+([\d.]+)\s+([\d.]+)(?:deg)?\s*(?:/[^)]*)?\)',
+    re.IGNORECASE,
+)
+
+
+def oklch_to_hex(l, c, h):
+    """OKLCH -> sRGB hex. Deterministic formulas by Björn Ottosson
+    (OKLab -> linear LMS -> linear sRGB -> sRGB gamma), the same base that
+    TweakCN/oklch.com use to generate the tokens AGENTS.md recommends.
+    Alpha (`/ N`) is ignored — resolves as opaque; a pair with alpha < 1
+    truly depends on the backdrop and is not attempted here (see `resolve`)."""
+    hr = math.radians(h)
+    a = c * math.cos(hr)
+    b = c * math.sin(hr)
+    l_ = l + 0.3963377774 * a + 0.2158037573 * b
+    m_ = l - 0.1055613458 * a - 0.0638541728 * b
+    s_ = l - 0.0894841775 * a - 1.2914855480 * b
+    ll, mm, ss = l_ ** 3, m_ ** 3, s_ ** 3
+    r_lin = 4.0767416621 * ll - 3.3077115913 * mm + 0.2309699292 * ss
+    g_lin = -1.2684380046 * ll + 2.6097574011 * mm - 0.3413193965 * ss
+    b_lin = -0.0041960863 * ll - 0.7034186147 * mm + 1.7076147010 * ss
+
+    def to_srgb_byte(ch):
+        ch = max(0.0, min(1.0, ch))
+        v = 12.92 * ch if ch <= 0.0031308 else 1.055 * (ch ** (1 / 2.4)) - 0.055
+        return max(0, min(255, round(v * 255)))
+
+    return '#%02x%02x%02x' % (to_srgb_byte(r_lin), to_srgb_byte(g_lin), to_srgb_byte(b_lin))
+
+
+def resolve(val, scope):
+    val = val.strip()
+    m = re.match(r'var\((--[\w-]+)\)', val)
+    if m:
+        d = re.search(re.escape(m.group(1)) + r':\s*([^;]+);', scope) or \
+            re.search(re.escape(m.group(1)) + r':\s*([^;]+);', src_nc)
+        return resolve(d.group(1), scope) if d else None
+    m = re.match(r'#([0-9a-fA-F]{6})\b', val)
+    if m:
+        return m.group(0).lower()
+    # H2/A6.1 (post-v1.0.0 adversarial audit): the previous version only
+    # resolved var()/hex — a pair defined in OKLCH (the format this same
+    # repo's AGENTS.md recommends via TweakCN) became a silent SKIP and the
+    # summary said "CONTRACT OK in all pairs", even with a ~zero-contrast pair
+    # left unevaluated. Fix: parse `oklch(L C H)` (L in [0,1] or "L%", H in
+    # degrees, alpha ignored) and convert to hex via `oklch_to_hex` to enter
+    # the same contrast pipeline that hex/var() already use.
+    m = OKLCH_RE.match(val)
+    if m:
+        l = float(m.group(1))
+        if m.group(2):  # "L%"
+            l = l / 100.0
+        c = float(m.group(3))
+        h = float(m.group(4))
+        try:
+            return oklch_to_hex(l, c, h)
+        except (ValueError, OverflowError):
+            return None
+    return None
+
+
+def lum(h):
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    f = lambda c: c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = f(r), f(g), f(b)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    la, lb = lum(a), lum(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+SOFT_PAIRS = ['success-soft', 'info-soft', 'warning-soft', 'destructive-soft', 'premium-soft']
+FILLS = ['success-fill', 'warning-fill', 'destructive-fill', 'info-fill', 'premium-fill']
+
+# ── theme blocks: generic via PROJECT_THEMES (CSV of data-theme). Empty =
+# only the base :root/.dark (no brand overlay) — no brand name hardcoded in
+# the engine (the opposite of the source version, which cited the donor
+# harness's brand name literally). ──
+# FORK-PATCH (ver .harness/README-FORK.md): a cascata DESTE app e o INVERSO do
+# harness-doador. Aqui `:root` = tema DARK (src/index.css L9) e
+# `[data-theme="light"]` e o override (L108); useTheme.js faz
+# setAttribute('data-theme', ...) e NAO existe classe `.dark` em lugar nenhum
+# (grep = 0). O modelo generico do template (base :root/.dark + [data-theme].dark)
+# avaliaria blocos inexistentes e, com o fail-closed da Fase 1, sairia 1 sempre.
+BLOCKS: dict[str, str] = {
+    'dark (:root)': r':root\s*\{',
+    'light (overlay)': r'\[data-theme="light"\]\s*\{',
+}
+
+BLOCKS = {k: v for k, v in BLOCKS.items()}  # (materializes; block_body called below by name)
+
+# Cascade inheritance: the brand blocks override :root/.dark; tokens not
+# declared locally inherit from the base. Without folding, the guard silently
+# skips the inherited token and gives a false "OK". Generic simplification:
+# uses the FIRST :root/.dark found as the base (the source version
+# fingerprinted by `--background: #ffffff` to disambiguate multiple :root —
+# not preserved here: rare case, and it would require hardcoding the
+# `--background` token name; if the project has real multiple :root, adjust
+# manually).
+_all_root = all_bodies(r':root\s*\{')
+_all_dark = all_bodies(r'(?<![\]"])\.dark\s*\{')
+BASE_LIGHT = '\n'.join(_all_root)
+BASE_DARK = _all_dark[0] if _all_dark else ''
+# FORK-PATCH: o overlay light herda do :root (dark); o :root nao herda de ninguem.
+BASE = {'light (overlay)': BASE_LIGHT, 'dark (:root)': ''}
+
+
+def eff(name, body, base):
+    """effective value (cascade): the own block wins; otherwise inherits from the base."""
+    m = re.search(rf'--{name}:\s*([^;]+);', body)
+    if not m and base:
+        m = re.search(rf'--{name}:\s*([^;]+);', base)
+    return m
+
+
+fails = 0
+evaluated = 0  # FORK-PATCH: pares realmente comparados (ver README-FORK.md)
+missing = 0    # FORK-PATCH: pares AUSENTES no CSS (antes viravam silêncio)
+skips = 0  # H2/A6.1: pairs that exist in the CSS but could not be resolved to
+           # an evaluable color (neither var()/hex/oklch) — do NOT count as "OK".
+print(f'{"BLOCK":24} {"PAIR":18} {"tone":9} {"label":9} {"ratio":>6}  verdict')
+print('-' * 82)
+for bname, bpat in BLOCKS.items():
+    # FORK-PATCH: all_bodies (nao block_body). Com DS_GATE_CSS_PATH em CSV, a
+    # concatenacao tem MAIS DE UM `:root` (index.css vem antes do artefato
+    # gerado); block_body pega so o PRIMEIRO e os pares — que estao no
+    # color-tokens.css — ficavam invisiveis (0 avaliados, 24 missing).
+    body = "\n".join(all_bodies(bpat))
+    if not body:
+        continue
+    base = BASE.get(bname, '')
+    scope = body + '\n' + base  # inherited var() resolves in the base
+    for p in PAIRS:
+        mx = eff(p, body, base)
+        mf = eff(p + '-foreground', body, base)
+        if not mx or not mf:
+            # FORK-PATCH: par AUSENTE não é "OK", é NÃO-AVALIADO. Antes caía
+            # aqui sem contar em fails nem skips e o sumário imprimia
+            # "CONTRACT OK in all pairs" com exit 0 tendo avaliado ZERO pares.
+            missing += 1
+            continue
+        evaluated += 1
+        x = resolve(mx.group(1), scope)
+        fg = resolve(mf.group(1), scope)
+        if not x or not fg:
+            skips += 1
+            print(f'{bname:24} {p:18} {"?":9} {"?":9} {"—":>6}  SKIP (unresolvable: rgba/external alias)')
+            continue
+        r = contrast(x, fg)
+        ok_contrast = r >= 4.5
+        ok_white = (
+            (p not in WHITE_REQUIRED)
+            or (fg in ('#ffffff', '#fafafa', '#fffbeb', '#f8f8f2'))
+        )
+        verdict = 'OK' if (ok_contrast and ok_white) else 'VIOLATES'
+        if verdict == 'VIOLATES':
+            fails += 1
+        why = '' if verdict == 'OK' else (' label-not-white' if not ok_white else '') + ('' if ok_contrast else ' contrast<4.5')
+        print(f'{bname:24} {p:18} {x:9} {fg:9} {r:6.2f}  {verdict}{why}')
+    # *-soft pairs — text over the chip itself (>=4.5)
+    for p in SOFT_PAIRS:
+        mx = eff(p, body, base)
+        mf = eff(p + '-foreground', body, base)
+        if not mx or not mf:
+            # FORK-PATCH: par AUSENTE não é "OK", é NÃO-AVALIADO. Antes caía
+            # aqui sem contar em fails nem skips e o sumário imprimia
+            # "CONTRACT OK in all pairs" com exit 0 tendo avaliado ZERO pares.
+            missing += 1
+            continue
+        evaluated += 1
+        x = resolve(mx.group(1), scope)
+        fg = resolve(mf.group(1), scope)
+        if not x or not fg:
+            skips += 1
+            print(f'{bname:24} {p:18} {"?":9} {"?":9} {"—":>6}  SKIP (unresolvable: rgba/external alias)')
+            continue
+        r = contrast(x, fg)
+        verdict = 'OK' if r >= 4.5 else 'VIOLATES'
+        if verdict == 'VIOLATES':
+            fails += 1
+        print(f'{bname:24} {p:18} {x:9} {fg:9} {r:6.2f}  {verdict}{"" if r >= 4.5 else " contrast<4.5"}')
+    # progress fills vs --muted (the bar's real surface). non-text >=3.
+    mt = eff('muted', body, base)
+    surf = resolve(mt.group(1), scope) if mt else None
+    if surf:
+        for p in FILLS:
+            mx = eff(p, body, base)
+            if not mx:
+                continue
+            x = resolve(mx.group(1), scope)
+            if not x:
+                continue
+            r = contrast(x, surf)
+            verdict = 'OK' if r >= 3.0 else 'VIOLATES'
+            if verdict == 'VIOLATES':
+                fails += 1
+            print(f'{bname:24} {p + " vs muted":18} {x:9} {surf:9} {r:6.2f}  {verdict}{"" if r >= 3.0 else " fill<3.0"}')
+print('-' * 82)
+# H2/A6.1: a SKIP never becomes "OK in all pairs" in the summary — before
+# adding the OKLCH parser, an unresolvable pair (e.g. a ~zero-contrast OKLCH)
+# silently became a SKIP and the summary said "OK", contradicting AGENTS.md
+# itself (which recommends OKLCH/TweakCN). With the OKLCH parser, a SKIP
+# should only remain for a REALLY unresolvable format (translucent rgba,
+# external alias, alpha<1) — and even then the summary reports it explicitly,
+# never "OK".
+if evaluated == 0:
+    # FORK-PATCH (fail-closed): zero pares avaliados NUNCA é "OK". Sem isto, um
+    # DS_GATE_CSS_PATH apontando para um CSS sem os pares passava verde.
+    print(f'CONTRACT: 0 pairs evaluated ({missing} missing) -- NOT OK')
+    sys.exit(1)
+if fails:
+    print('CONTRACT', 'VIOLATED in %d pair(s)' % fails)
+elif skips:
+    print(f'CONTRACT: {skips} pair(s) NOT EVALUATED (unresolvable format) -- not "OK", review manually')
+else:
+    print(f'CONTRACT OK in all {evaluated} evaluated pair(s)'
+          + (f' ({missing} pair(s) missing from CSS)' if missing else ''))
+sys.exit(1 if fails else (2 if skips else 0))

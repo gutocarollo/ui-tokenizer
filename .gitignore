@@ -1,0 +1,16 @@
+node_modules/
+.DS_Store
+*.log
+
+# estado de execucao, nunca versionado
+.claude/evidence/
+.claude/runs/
+.cache/
+*.tmp
+
+# segredos: allowlist e o unico modo seguro
+.env
+.env.*
+**/settings.json
+*.pem
+id_rsa*

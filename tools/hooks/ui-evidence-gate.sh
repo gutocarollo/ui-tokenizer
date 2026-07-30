@@ -1,0 +1,409 @@
+#!/usr/bin/env bash
+# ui-evidence-gate — Stop hook.
+# Blocks (once per stop; stop_hook_active prevents looping) when there is a UI
+# change in the working tree (HARNESS_WEB_APP_DIR/{app,components,styles} *.tsx|*.css)
+# WITHOUT visual evidence newer than the change (HARNESS_EVIDENCE_DIR/*/manifest.json).
+# Origin: friction audit 2026-07-03, cluster 2 (138 incidents of UI
+# reported via code diff, never via rendered pixel).
+# Documented escapes:
+#   - run the project's evidence engine (e.g.: npm run ui:evidence -- after [--routes ...])
+#   - no stack running / non-visual change: touch "$CLAUDE_PROJECT_DIR/<evidence-dir>/SKIP"
+#     (configurable TTL — HARNESS_UI_EVIDENCE_SKIP_TTL_SECONDS; the reason goes in the turn's verdict)
+#
+# MATERIALIZATION (F4, orions-belt): the SKIP TTL and the evidence directory
+# come from .harness/harness.conf (HARNESS_UI_EVIDENCE_SKIP_TTL_SECONDS,
+# HARNESS_EVIDENCE_DIR) via .harness/lib/_tooling_conf.py, same pattern as
+# subagent-throttle.sh — the original had both hardcoded (14400 / .claude/evidence).
+# HARNESS_WEB_APP_DIR (F9-fixes, rescue plan §1, item 2) replaces the
+# hardcoded "apps/web" — default "." (the target project IS the web app itself).
+#
+# REGRESSION FIXED (rescue plan §1, item 2; RE-FIXED in G2 of the
+# post-v1.0.0 adversarial review — the original "fix" had a real bug,
+# proven by a real install): `scripts/ui-evidence.sh` is materialized
+# UNCONDITIONALLY by `use_ui_evidence: true` (it is the ENGINE, always shipped) —
+# it does NOT prove that the `npm run ui:evidence` command exists, because Copier
+# never edits the target project's `package.json` (project content, outside
+# what the harness templates — see skill `ui-evidence` §0.2). The previous
+# version of this hook set `ENGINE_WIRED=1` just from the `.sh` existing on disk —
+# since it ALWAYS exists, the gate ALWAYS blocked (exit 2) telling you to run `npm run
+# ui:evidence`, even on a fresh install with NO package.json wiring at all —
+# breaking every UI commit, confirmed by a real install (`copier copy`
+# default + `git commit`). Fix: ENGINE_WIRED requires the command to ACTUALLY
+# exist — only the `"ui:evidence"` script inside `package.json` counts (the
+# presence of the `.sh` on disk is not enough). Without wiring -> gate INACTIVE
+# (exit 0, warning on stderr). With wiring -> blocks again when evidence is
+# missing.
+#
+# H2/A5 (post-v1.0.0 adversarial audit, 4 bypasses REPRODUCED and
+# closed in this round — see templates/tests/test_ui_evidence_gate_bypass.sh):
+#   1. A forged manifest (`echo '{"captures":1}' > manifest.json`, zero PNGs
+#      on disk) satisfied the gate because only the "captures" field was checked.
+#      Fix: `_manifest_has_real_captures()` below opens the manifest with
+#      python3, requires "files" listing exactly N ".png" == "captures" > 0
+#      AND CONFIRMS that every path is relative/contained, has a PNG signature,
+#      and matches its recorded SHA-256. Python 3 is a harness prerequisite;
+#      if absent, the hook emits an explicit warning instead of silently trusting.
+#   2. Deletion masked the change: deleting a .tsx made the path disappear
+#      from the mtime loop (`[ -e "$f" ] || continue`), NEWEST stayed 0 and the
+#      gate exited early (line `[ "$NEWEST" -eq 0 ] && exit 0`) — git-diff
+#      via `git diff --name-only HEAD` already LISTS deleted files, but their
+#      mtime no longer exists on disk. Fix: when the file no longer
+#      exists, use the mtime of the PARENT DIRECTORY (POSIX: removing an entry
+#      updates the mtime of the directory that contained it) as a stable proxy for
+#      the instant of deletion — not "now" on every run (which would create a
+#      moving target impossible to satisfy).
+#   3. See templates/{...}/tests/visual/evidence.spec.ts.jinja — HTTP 500
+#      now fails the test before generating PNG/manifest (status oracle
+#      aligned with baseline.spec.ts), so it never reaches this hook as a
+#      valid "captures:1".
+#   4. See templates/{...}/scripts/ui-evidence.sh.jinja — preflight of an
+#      unavailable host fixed (curl produced "000000" via duplicated output
+#      from `-w` + `|| echo 000`, not matching the branch `[ "$code" = "000" ]`).
+set -uo pipefail
+IN=$(cat)
+command -v python3 >/dev/null 2>&1 || {
+  echo "ui-evidence-gate: WARN python3 unavailable; gate inactive" >&2
+  exit 0
+}
+STOP_ACTIVE="$(python3 -c 'import json,sys
+try: print(str(bool(json.load(sys.stdin).get("stop_hook_active", False))).lower())
+except Exception: print("false")' <<<"$IN")"
+[ "$STOP_ACTIVE" = "true" ] && exit 0
+
+ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}"
+[ -n "$ROOT" ] && cd "$ROOT" || exit 0
+
+CONF_PY="$ROOT/.harness/lib/_tooling_conf.py"
+_conf_get() {
+  local val
+  if command -v python3 >/dev/null 2>&1 && [ -f "$CONF_PY" ]; then
+    val="$(HARNESS_PROJECT_ROOT="$ROOT" python3 "$CONF_PY" get "$1" "$2" 2>/dev/null)"
+    [ -n "$val" ] && { echo "$val"; return 0; }
+  fi
+  echo "$2"
+}
+_conf_int() {
+  local val
+  if command -v python3 >/dev/null 2>&1 && [ -f "$CONF_PY" ]; then
+    val="$(HARNESS_PROJECT_ROOT="$ROOT" python3 "$CONF_PY" getint "$1" "$2" 2>/dev/null)"
+    [[ "$val" =~ ^-?[0-9]+$ ]] && { echo "$val"; return 0; }
+  fi
+  echo "$2"
+}
+EVIDENCE_DIR="$(_conf_get HARNESS_EVIDENCE_DIR .claude/evidence)"
+SKIP_TTL="$(_conf_int HARNESS_UI_EVIDENCE_SKIP_TTL_SECONDS 14400)"
+WEB_APP_DIR="$(_conf_get HARNESS_WEB_APP_DIR .)"
+WEB_APP_DIR="${WEB_APP_DIR%/}"
+[ -z "$WEB_APP_DIR" ] && WEB_APP_DIR="."
+
+# Evidence storage is project-local. Reject absolute/traversal configuration
+# before reading a SKIP or manifest from an unrelated directory.
+EVIDENCE_ROOT="$(python3 - "$ROOT" "$EVIDENCE_DIR" <<'PYEOF'
+import os, pathlib, sys
+root = pathlib.Path(sys.argv[1]).resolve()
+raw = pathlib.Path(sys.argv[2])
+if raw.is_absolute() or ".." in raw.parts:
+    raise SystemExit(1)
+candidate = (root / raw).resolve()
+try:
+    if os.path.commonpath((str(root), str(candidate))) != str(root):
+        raise SystemExit(1)
+except ValueError:
+    raise SystemExit(1)
+print(candidate)
+PYEOF
+)" || {
+  echo "UI-EVIDENCE-GATE: invalid HARNESS_EVIDENCE_DIR '$EVIDENCE_DIR' (must be a project-relative path without '..')." >&2
+  exit 2
+}
+
+# FORK-PATCH (ver .harness/README-FORK.md): UI_PATHS e a extensao vem do
+# harness.conf. O default do template ({app,components,styles} + *.tsx|*.css)
+# nao existe neste fork — a UI e frontend/src/{components,pages} + index.css —,
+# entao o gate vigiava 3 diretorios inexistentes e deixava 505 arquivos .jsx
+# INVISIVEIS: qualquer mudanca visual fechava o turno sem evidencia.
+_UI_PATHS_CONF="$(_conf_get HARNESS_UI_PATHS '')"
+if [ -n "$_UI_PATHS_CONF" ]; then
+  IFS=',' read -r -a UI_PATHS <<< "$_UI_PATHS_CONF"
+  if [ "$WEB_APP_DIR" = "." ]; then WEB_DIR="$ROOT"; else WEB_DIR="$ROOT/$WEB_APP_DIR"; fi
+elif [ "$WEB_APP_DIR" = "." ]; then
+  WEB_DIR="$ROOT"
+  UI_PATHS=(app components styles)
+else
+  WEB_DIR="$ROOT/$WEB_APP_DIR"
+  UI_PATHS=("$WEB_APP_DIR/app" "$WEB_APP_DIR/components" "$WEB_APP_DIR/styles")
+fi
+_UI_EXT_ERE="$(_conf_get HARNESS_UI_EXT_ERE '\.(tsx|css)$')"
+
+# fail-open: the evidence engine (Playwright or equivalent) is not yet
+# WIRED in this project -> gate inactive, never blocks without a means to comply.
+# It is NOT enough to check `scripts/ui-evidence.sh` on disk (it is materialized
+# unconditionally by `use_ui_evidence: true` — always exists, even without
+# any package.json wiring); the only proof that `npm run ui:evidence`
+# actually runs is the "ui:evidence" script inside the app's `package.json`.
+ENGINE_WIRED=0
+if [ -f "$WEB_DIR/package.json" ]; then
+  if python3 - "$WEB_DIR/package.json" <<'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as fh:
+        package = json.load(fh)
+    command = (package.get("scripts") or {}).get("ui:evidence")
+except (OSError, AttributeError, json.JSONDecodeError):
+    raise SystemExit(1)
+raise SystemExit(0 if isinstance(command, str) and command.strip() else 1)
+PYEOF
+  then
+    ENGINE_WIRED=1
+  fi
+fi
+if [ "$ENGINE_WIRED" -eq 0 ]; then
+  echo "ui-evidence-gate: command \"npm run ui:evidence\" not wired (missing \"ui:evidence\" script in $WEB_DIR/package.json — Copier does not edit package.json, see skill ui-evidence §0.2) — gate INACTIVE (fail-open)." >&2
+  exit 0
+fi
+
+CHANGED=$( { git diff --name-only HEAD -- "${UI_PATHS[@]}" 2>/dev/null
+             git ls-files --others --exclude-standard -- "${UI_PATHS[@]}" 2>/dev/null
+           } | grep -E "$_UI_EXT_ERE" | sort -u)
+[ -z "$CHANGED" ] && exit 0
+
+# newest mtime among the changed UI files. Deletion (bypass A5.2):
+# the path stays listed by `git diff --name-only HEAD` even after being
+# deleted, but `[ -e "$f" ]` fails — use the mtime of the parent directory (POSIX:
+# `rm` updates the mtime of the directory that contained the file) as the
+# instant of the change, instead of skipping the entry (which zeroed NEWEST and
+# exited the gate early).
+NEWEST=0
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  if [ -e "$f" ]; then
+    m=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+  else
+    d=$(dirname "$f")
+    if [ -d "$d" ]; then
+      m=$(stat -c %Y "$d" 2>/dev/null || echo 0)
+    else
+      m=$(date +%s)  # the whole directory is gone too: conservative fallback
+    fi
+  fi
+  [ "$m" -gt "$NEWEST" ] && NEWEST=$m
+done <<<"$CHANGED"
+[ "$NEWEST" -eq 0 ] && exit 0
+
+# escape hatch SKIP (configurable TTL)
+SKIP="$EVIDENCE_ROOT/SKIP"
+if [ -f "$SKIP" ]; then
+  now=$(date +%s); sm=$(stat -c %Y "$SKIP" 2>/dev/null || echo 0)
+  [ $((now - sm)) -lt "$SKIP_TTL" ] && exit 0
+fi
+
+# any evidence newer than the last UI change, AND with a REAL capture
+# on disk? (G3, defense in depth — mtime alone is not enough; RE-REINFORCED
+# in A5.1 of the post-v1.0.0 audit: `grep captures>0` alone is also not enough,
+# because `echo '{"captures":1}' > manifest.json` (zero PNGs) already matched that
+# grep. `_manifest_has_real_captures` opens the manifest, requires "files" listing
+# exactly N ".png" == "captures" > 0 AND confirms that each referenced PNG
+# EXISTS in the same directory as the manifest — forging the JSON without the real PNGs
+# is no longer enough.)
+_manifest_has_real_captures() {
+  local mf="$1"
+  python3 - "$mf" "$EVIDENCE_ROOT" <<'PYEOF'
+import binascii, hashlib, json, os, pathlib, re, struct, sys, zlib
+
+def valid_png(content):
+    """Decode enough PNG structure to prove a complete, real pixel stream."""
+    max_compressed = 32 * 1024 * 1024
+    max_decoded = 128 * 1024 * 1024
+    if len(content) > max_compressed or not content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return False
+    offset = 8
+    ihdr = None
+    idat = bytearray()
+    saw_iend = False
+    while offset < len(content):
+        if offset + 12 > len(content):
+            return False
+        length = struct.unpack(">I", content[offset:offset + 4])[0]
+        chunk_type = content[offset + 4:offset + 8]
+        end = offset + 12 + length
+        if length > 128 * 1024 * 1024 or end > len(content):
+            return False
+        payload = content[offset + 8:offset + 8 + length]
+        expected_crc = struct.unpack(">I", content[offset + 8 + length:end])[0]
+        if binascii.crc32(chunk_type + payload) & 0xFFFFFFFF != expected_crc:
+            return False
+        if ihdr is None and chunk_type != b"IHDR":
+            return False
+        if chunk_type == b"IHDR":
+            if ihdr is not None or length != 13:
+                return False
+            ihdr = struct.unpack(">IIBBBBB", payload)
+        elif chunk_type == b"IDAT":
+            if saw_iend:
+                return False
+            idat.extend(payload)
+        elif chunk_type == b"IEND":
+            if length != 0 or saw_iend:
+                return False
+            saw_iend = True
+            offset = end
+            break
+        offset = end
+    if ihdr is None or not idat or not saw_iend or offset != len(content):
+        return False
+    width, height, depth, color_type, compression, filtering, interlace = ihdr
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color_type)
+    valid_depths = {
+        0: {1, 2, 4, 8, 16}, 2: {8, 16}, 3: {1, 2, 4, 8},
+        4: {8, 16}, 6: {8, 16},
+    }
+    if (
+        channels is None or depth not in valid_depths[color_type]
+        or compression != 0 or filtering != 0 or interlace != 0
+        or width <= 0 or height <= 0 or width > 32768 or height > 32768
+        or width * height > 32_000_000
+    ):
+        return False
+    row_bytes = (width * channels * depth + 7) // 8
+    expected_size = height * (row_bytes + 1)
+    if expected_size > max_decoded:
+        return False
+    try:
+        decoder = zlib.decompressobj()
+        pixels = decoder.decompress(bytes(idat), expected_size + 1)
+    except zlib.error:
+        return False
+    if (
+        len(pixels) != expected_size
+        or not decoder.eof
+        or decoder.unconsumed_tail
+        or decoder.unused_data
+    ):
+        return False
+    return all(pixels[row * (row_bytes + 1)] <= 4 for row in range(height))
+mf = pathlib.Path(sys.argv[1]).resolve()
+evidence_root = pathlib.Path(sys.argv[2]).resolve()
+try:
+    if os.path.commonpath((str(evidence_root), str(mf))) != str(evidence_root):
+        raise ValueError("manifest outside evidence root")
+    d = mf.parent.resolve()
+    if os.path.commonpath((str(evidence_root), str(d))) != str(evidence_root):
+        raise ValueError("capture directory outside evidence root")
+    with mf.open(encoding="utf-8") as fh:
+        data = json.load(fh)
+except (OSError, ValueError, json.JSONDecodeError):
+    sys.exit(1)
+captures = data.get("captures")
+requested = data.get("requestedScenarioIds")
+produced = data.get("producedScenarioIds")
+coverage = data.get("coverage") or {}
+fingerprint_fields = (
+    "sourceFingerprint", "worktreeFingerprint", "toolchainFingerprint",
+    "tokenSourceFingerprint", "generatedCssFingerprint",
+    "routeRegistryFingerprint", "fixtureRegistryFingerprint",
+    "matrixFingerprint",
+)
+if (
+    data.get("schemaVersion") != "2.0.0"
+    or data.get("artifactType") != "evidence-manifest"
+    or data.get("exactCoverage") is not True
+    or coverage.get("exact") is not True
+    or not isinstance(captures, list) or not captures
+    or not isinstance(requested, list) or not requested
+    or not isinstance(produced, list) or not produced
+    or len(set(requested)) != len(requested)
+    or len(set(produced)) != len(produced)
+    or sorted(requested) != sorted(produced)
+    or sorted(requested) != sorted(
+        capture.get("scenarioId") for capture in captures
+        if isinstance(capture, dict)
+    )
+    or any(
+        not re.fullmatch(r"[0-9a-f]{64}", str(data.get(field) or ""))
+        for field in fingerprint_fields
+    )
+):
+    sys.exit(1)
+for capture in captures:
+    if not isinstance(capture, dict):
+        sys.exit(1)
+    name = capture.get("pngPath")
+    meta_name = capture.get("metaPath")
+    expected = capture.get("sha256")
+    expected_meta = capture.get("metaSha256")
+    rel = pathlib.Path(str(name or ""))
+    meta_rel = pathlib.Path(str(meta_name or ""))
+    if (
+        rel.is_absolute() or ".." in rel.parts
+        or meta_rel.is_absolute() or ".." in meta_rel.parts
+        or not re.fullmatch(r"[0-9a-f]{64}", str(expected or ""))
+        or not re.fullmatch(r"[0-9a-f]{64}", str(expected_meta or ""))
+    ):
+        sys.exit(1)
+    try:
+        p = (d / rel).resolve(strict=True)
+        meta_path = (d / meta_rel).resolve(strict=True)
+        if os.path.commonpath((str(d), str(p))) != str(d) or not p.is_file():
+            sys.exit(1)
+        if (
+            os.path.commonpath((str(d), str(meta_path))) != str(d)
+            or not meta_path.is_file()
+        ):
+            sys.exit(1)
+        if p.stat().st_size > 32 * 1024 * 1024:
+            sys.exit(1)
+        content = p.read_bytes()
+        meta_content = meta_path.read_bytes()
+    except (OSError, ValueError):
+        sys.exit(1)
+    if not valid_png(content):
+        sys.exit(1)
+    digest = hashlib.sha256(content).hexdigest()
+    meta_digest = hashlib.sha256(meta_content).hexdigest()
+    width, height = struct.unpack(">II", content[16:24])
+    if (
+        digest != expected
+        or meta_digest != expected_meta
+        or len(content) != capture.get("bytes")
+        or width != capture.get("width")
+        or height != capture.get("height")
+    ):
+        sys.exit(1)
+    try:
+        metadata = json.loads(meta_content)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        sys.exit(1)
+    if (
+        metadata.get("scenarioId") != capture.get("scenarioId")
+        or not isinstance(metadata.get("consoleErrors"), list)
+        or not isinstance(metadata.get("pageErrors"), list)
+        or not isinstance(metadata.get("networkFailures"), list)
+        or not isinstance(metadata.get("axeViolationIds"), list)
+        or not isinstance(metadata.get("overflow"), bool)
+    ):
+        sys.exit(1)
+sys.exit(0)
+PYEOF
+}
+for mf in "$EVIDENCE_ROOT"/*/manifest.json; do
+  [ -e "$mf" ] || continue
+  mm=$(stat -c %Y "$mf" 2>/dev/null || echo 0)
+  [ "$mm" -ge "$NEWEST" ] || continue
+  _manifest_has_real_captures "$mf" && exit 0
+done
+
+N=$(wc -l <<<"$CHANGED")
+if [ "$WEB_APP_DIR" = "." ]; then
+  RUN_HINT="npm run ui:evidence -- after --routes /route1,/route2"
+else
+  RUN_HINT="cd $WEB_APP_DIR && npm run ui:evidence -- after --routes /route1,/route2"
+fi
+cat >&2 <<EOF
+UI-EVIDENCE-GATE: $N UI file(s) changed without visual evidence produced after the change.
+UI work is only "done" with a rendered pixel, not a code diff (contract of AGENTS.md/CLAUDE.md).
+Options:
+1. $RUN_HINT  (generates PNG+console+manifest in $EVIDENCE_DIR/after/)
+2. Provably non-visual change OR stack not running: touch $EVIDENCE_DIR/SKIP and declare the reason in the verdict.
+Files: $(head -5 <<<"$CHANGED" | tr '\n' ' ')
+EOF
+exit 2

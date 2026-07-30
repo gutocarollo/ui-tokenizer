@@ -1,0 +1,1991 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:makers-ai-hub:tokenize-design-system:artifact-schemas:1.0.0",
+  "title": "Tokenize design system artifact bundle",
+  "description": "Closed schemas for every durable artifact exchanged by the end-to-end tokenization state machine.",
+  "oneOf": [
+    { "$ref": "#/$defs/runConfig" },
+    { "$ref": "#/$defs/runState" },
+    { "$ref": "#/$defs/designOccurrence" },
+    { "$ref": "#/$defs/normalizedOccurrence" },
+    { "$ref": "#/$defs/axisDiscovery" },
+    { "$ref": "#/$defs/inventoryReport" },
+    { "$ref": "#/$defs/clusterPacket" },
+    { "$ref": "#/$defs/decision" },
+    { "$ref": "#/$defs/batchContract" },
+    { "$ref": "#/$defs/impactedContext" },
+    { "$ref": "#/$defs/scenario" },
+    { "$ref": "#/$defs/evidenceManifest" },
+    { "$ref": "#/$defs/mutationManifest" },
+    { "$ref": "#/$defs/deterministicChecks" },
+    { "$ref": "#/$defs/comparison" },
+    { "$ref": "#/$defs/visualReview" },
+    { "$ref": "#/$defs/adversarialReview" },
+    { "$ref": "#/$defs/acceptance" },
+    { "$ref": "#/$defs/finalProof" }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stringSet": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" },
+      "uniqueItems": true
+    },
+    "nonEmptyStringSet": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "artifactHeader": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "artifactType",
+        "runId",
+        "sourceFingerprint",
+        "toolchainFingerprint",
+        "generatedAt"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "artifactType": { "$ref": "#/$defs/nonEmptyString" },
+        "runId": {
+          "type": "string",
+          "pattern": "^tokenize-[a-zA-Z0-9._-]+$"
+        },
+        "sourceFingerprint": { "$ref": "#/$defs/sha256" },
+        "toolchainFingerprint": { "$ref": "#/$defs/sha256" },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "artifactRef": {
+      "type": "object",
+      "required": ["artifactType", "path", "sha256"],
+      "properties": {
+        "artifactType": { "$ref": "#/$defs/nonEmptyString" },
+        "path": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "location": {
+      "type": "object",
+      "required": ["file", "line", "column"],
+      "properties": {
+        "file": { "$ref": "#/$defs/nonEmptyString" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "reentryCode": {
+      "enum": [
+        "E-EXTRACT",
+        "E-NORMALIZE",
+        "E-CLASSIFY",
+        "E-FIXTURE",
+        "E-IMPACT",
+        "E-MIGRATION",
+        "E-COMPARE",
+        "E-DECISION"
+      ]
+    },
+    "expectedVisualEffect": {
+      "enum": ["preserve", "change", "mixed"]
+    },
+    "axis": {
+      "enum": [
+        "color",
+        "spacing",
+        "sizing",
+        "typography",
+        "border",
+        "radius",
+        "elevation",
+        "opacity",
+        "motion",
+        "iconography",
+        "layout",
+        "breakpoint",
+        "z-index"
+      ]
+    },
+    "designAxis": {
+      "oneOf": [
+        { "$ref": "#/$defs/axis" },
+        { "const": "unmapped" }
+      ]
+    },
+    "occurrenceKind": {
+      "enum": [
+        "utility-class",
+        "css-declaration",
+        "css-custom-property",
+        "inline-style",
+        "css-in-js",
+        "svg-presentation",
+        "chart-config",
+        "canvas-draw",
+        "typography",
+        "font-asset",
+        "motion-keyframe",
+        "motion-transition",
+        "image-asset",
+        "icon-asset",
+        "gradient",
+        "illustration",
+        "token-definition",
+        "token-alias",
+        "generated-class"
+      ]
+    },
+    "equivalenceLevel": {
+      "enum": [
+        "EXACT_SET",
+        "COMPILER_EQUIVALENT",
+        "OBSERVED_EQUIVALENT",
+        "CONDITIONAL_EQUIVALENT",
+        "NOT_EQUIVALENT",
+        "UNKNOWN"
+      ]
+    },
+    "runConfig": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "objective",
+            "sourceRoots",
+            "sourceKindRegistry",
+            "axisRegistry",
+            "matrix",
+            "toolchain",
+            "adapters",
+            "completionPolicy"
+          ],
+          "properties": {
+            "artifactType": { "const": "run-config" },
+            "objective": { "$ref": "#/$defs/nonEmptyString" },
+            "sourceRoots": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "sourceKindRegistry": {
+              "type": "array",
+              "minItems": 19,
+              "maxItems": 19,
+              "items": {
+                "type": "object",
+                "required": [
+                  "occurrenceKind",
+                  "disposition",
+                  "adapter",
+                  "rationale"
+                ],
+                "properties": {
+                  "occurrenceKind": { "$ref": "#/$defs/occurrenceKind" },
+                  "disposition": {
+                    "enum": ["scan", "approved-out-of-scope"]
+                  },
+                  "adapter": {
+                    "oneOf": [
+                      { "$ref": "#/$defs/nonEmptyString" },
+                      { "type": "null" }
+                    ]
+                  },
+                  "rationale": { "$ref": "#/$defs/nonEmptyString" }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "disposition": { "const": "scan" }
+                      },
+                      "required": ["disposition"]
+                    },
+                    "then": {
+                      "properties": {
+                        "adapter": { "$ref": "#/$defs/nonEmptyString" }
+                      }
+                    }
+                  }
+                ],
+                "additionalProperties": false
+              }
+            },
+            "axisRegistry": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "axis",
+                  "tokenTypes",
+                  "validator",
+                  "namingContract",
+                  "emitter",
+                  "completionPredicateIds"
+                ],
+                "properties": {
+                  "axis": { "$ref": "#/$defs/axis" },
+                  "tokenTypes": { "$ref": "#/$defs/nonEmptyStringSet" },
+                  "validator": { "$ref": "#/$defs/nonEmptyString" },
+                  "namingContract": { "$ref": "#/$defs/nonEmptyString" },
+                  "emitter": { "$ref": "#/$defs/nonEmptyString" },
+                  "completionPredicateIds": {
+                    "$ref": "#/$defs/nonEmptyStringSet"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "matrix": {
+              "type": "object",
+              "required": [
+                "themes",
+                "projects",
+                "browsers",
+                "locales",
+                "writingModes"
+              ],
+              "properties": {
+                "themes": { "$ref": "#/$defs/nonEmptyStringSet" },
+                "projects": { "$ref": "#/$defs/nonEmptyStringSet" },
+                "browsers": { "$ref": "#/$defs/nonEmptyStringSet" },
+                "locales": { "$ref": "#/$defs/nonEmptyStringSet" },
+                "writingModes": { "$ref": "#/$defs/nonEmptyStringSet" }
+              },
+              "additionalProperties": false
+            },
+            "toolchain": {
+              "type": "object",
+              "required": ["versions", "configurationFingerprints"],
+              "properties": {
+                "versions": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  }
+                },
+                "configurationFingerprints": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": {
+                    "$ref": "#/$defs/sha256"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "adapters": {
+              "type": "object",
+              "required": [
+                "extractor",
+                "normalizer",
+                "inventory",
+                "tokenBuild",
+                "impact",
+                "fixture",
+                "evidence",
+                "comparator",
+                "reviewer"
+              ],
+              "properties": {
+                "extractor": { "$ref": "#/$defs/nonEmptyString" },
+                "normalizer": { "$ref": "#/$defs/nonEmptyString" },
+                "inventory": { "$ref": "#/$defs/nonEmptyString" },
+                "tokenBuild": { "$ref": "#/$defs/nonEmptyString" },
+                "impact": { "$ref": "#/$defs/nonEmptyString" },
+                "fixture": { "$ref": "#/$defs/nonEmptyString" },
+                "evidence": { "$ref": "#/$defs/nonEmptyString" },
+                "comparator": { "$ref": "#/$defs/nonEmptyString" },
+                "reviewer": { "$ref": "#/$defs/nonEmptyString" }
+              },
+              "additionalProperties": false
+            },
+            "completionPolicy": {
+              "type": "object",
+              "required": [
+                "unapprovedDebtTarget",
+                "exceptionPolicy",
+                "predicateIds"
+              ],
+              "properties": {
+                "unapprovedDebtTarget": { "const": 0 },
+                "exceptionPolicy": { "$ref": "#/$defs/nonEmptyString" },
+                "predicateIds": { "$ref": "#/$defs/nonEmptyStringSet" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "runState": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "currentPhase",
+            "activeBatchId",
+            "journal",
+            "artifacts"
+          ],
+          "properties": {
+            "artifactType": { "const": "run-state" },
+            "currentPhase": {
+              "enum": [
+                "ANCHORED",
+                "PREFLIGHTED",
+                "INVENTORIED",
+                "NORMALIZED",
+                "CLASSIFIED",
+                "DECIDED",
+                "BEFORE_CAPTURED",
+                "MIGRATED",
+                "BUILT",
+                "AFTER_CAPTURED",
+                "COMPARED",
+                "REVIEWED",
+                "ACCEPTED",
+                "REINVENTORIED",
+                "COMPLETE",
+                "PENDING",
+                "BLOCKED"
+              ]
+            },
+            "activeBatchId": {
+              "type": ["string", "null"],
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "journal": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "sequence",
+                  "from",
+                  "to",
+                  "at",
+                  "reason",
+                  "artifactRefs"
+                ],
+                "properties": {
+                  "sequence": { "type": "integer", "minimum": 1 },
+                  "from": { "$ref": "#/$defs/nonEmptyString" },
+                  "to": { "$ref": "#/$defs/nonEmptyString" },
+                  "at": { "type": "string", "format": "date-time" },
+                  "reason": { "$ref": "#/$defs/nonEmptyString" },
+                  "reentryCode": {
+                    "oneOf": [
+                      { "$ref": "#/$defs/reentryCode" },
+                      { "type": "null" }
+                    ]
+                  },
+                  "artifactRefs": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/artifactRef" }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "artifacts": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/artifactRef" }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "designOccurrence": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "occurrenceId",
+            "occurrenceKind",
+            "axis",
+            "location",
+            "sourceLanguage",
+            "rawValue",
+            "property",
+            "context",
+            "sourcePayload",
+            "reconciliation"
+          ],
+          "properties": {
+            "artifactType": { "const": "design-occurrence" },
+            "occurrenceId": { "$ref": "#/$defs/nonEmptyString" },
+            "occurrenceKind": { "$ref": "#/$defs/occurrenceKind" },
+            "axis": { "$ref": "#/$defs/designAxis" },
+            "location": { "$ref": "#/$defs/location" },
+            "sourceLanguage": { "$ref": "#/$defs/nonEmptyString" },
+            "rawValue": { "type": "string" },
+            "property": {
+              "oneOf": [
+                { "$ref": "#/$defs/nonEmptyString" },
+                { "type": "null" }
+              ]
+            },
+            "context": {
+              "type": "object",
+              "required": [
+                "component",
+                "nativeTag",
+                "implicitRole",
+                "explicitRole",
+                "nearestLandmark",
+                "routeAreas",
+                "interactionState"
+              ],
+              "properties": {
+                "component": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/nonEmptyString" },
+                    { "type": "null" }
+                  ]
+                },
+                "nativeTag": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/nonEmptyString" },
+                    { "type": "null" }
+                  ]
+                },
+                "implicitRole": { "type": ["string", "null"] },
+                "explicitRole": { "type": ["string", "null"] },
+                "nearestLandmark": { "type": ["string", "null"] },
+                "routeAreas": { "$ref": "#/$defs/stringSet" },
+                "interactionState": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            },
+            "sourcePayload": {
+              "type": "object",
+              "required": [
+                "selectorOrObjectPath",
+                "classExpression",
+                "asset"
+              ],
+              "properties": {
+                "selectorOrObjectPath": { "type": ["string", "null"] },
+                "classExpression": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "expressionKind",
+                        "resolverKind",
+                        "branchId",
+                        "conditionExpression",
+                        "rawClassName",
+                        "rawTokens",
+                        "unresolvedDynamicFragments",
+                        "branchExpansionTruncated"
+                      ],
+                      "properties": {
+                        "expressionKind": {
+                          "$ref": "#/$defs/nonEmptyString"
+                        },
+                        "resolverKind": {
+                          "enum": [
+                            "direct",
+                            "clsx",
+                            "twMerge",
+                            "cva",
+                            "template",
+                            "conditional",
+                            "unknown"
+                          ]
+                        },
+                        "branchId": {
+                          "$ref": "#/$defs/nonEmptyString"
+                        },
+                        "conditionExpression": {
+                          "type": ["string", "null"]
+                        },
+                        "rawClassName": { "type": "string" },
+                        "rawTokens": {
+                          "type": "array",
+                          "items": { "$ref": "#/$defs/nonEmptyString" }
+                        },
+                        "unresolvedDynamicFragments": {
+                          "type": "array",
+                          "items": { "$ref": "#/$defs/nonEmptyString" }
+                        },
+                        "branchExpansionTruncated": { "type": "boolean" }
+                      },
+                      "additionalProperties": false
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "asset": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": ["path", "mimeType", "contentSha256"],
+                      "properties": {
+                        "path": { "$ref": "#/$defs/nonEmptyString" },
+                        "mimeType": { "$ref": "#/$defs/nonEmptyString" },
+                        "contentSha256": { "$ref": "#/$defs/sha256" }
+                      },
+                      "additionalProperties": false
+                    },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "reconciliation": {
+              "type": "object",
+              "required": [
+                "status",
+                "decisionId",
+                "exceptionId",
+                "reason"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "discovered",
+                    "approved-token",
+                    "approved-contract",
+                    "approved-exception",
+                    "approved-out-of-scope",
+                    "invalid-source",
+                    "opaque"
+                  ]
+                },
+                "decisionId": { "type": ["string", "null"] },
+                "exceptionId": { "type": ["string", "null"] },
+                "reason": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "occurrenceKind": {
+                    "enum": ["utility-class", "generated-class"]
+                  }
+                },
+                "required": ["occurrenceKind"]
+              },
+              "then": {
+                "properties": {
+                  "sourcePayload": {
+                    "properties": {
+                      "classExpression": { "type": "object" }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "occurrenceKind": {
+                    "enum": [
+                      "font-asset",
+                      "image-asset",
+                      "icon-asset",
+                      "illustration"
+                    ]
+                  }
+                },
+                "required": ["occurrenceKind"]
+              },
+              "then": {
+                "properties": {
+                  "sourcePayload": {
+                    "properties": {
+                      "asset": { "type": "object" }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "reconciliation": {
+                    "properties": {
+                      "status": {
+                        "enum": ["approved-token", "approved-contract"]
+                      }
+                    },
+                    "required": ["status"]
+                  }
+                },
+                "required": ["reconciliation"]
+              },
+              "then": {
+                "properties": {
+                  "reconciliation": {
+                    "properties": {
+                      "decisionId": {
+                        "$ref": "#/$defs/nonEmptyString"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "reconciliation": {
+                    "properties": {
+                      "status": { "const": "approved-exception" }
+                    },
+                    "required": ["status"]
+                  }
+                },
+                "required": ["reconciliation"]
+              },
+              "then": {
+                "properties": {
+                  "reconciliation": {
+                    "properties": {
+                      "exceptionId": {
+                        "$ref": "#/$defs/nonEmptyString"
+                      },
+                      "reason": { "$ref": "#/$defs/nonEmptyString" }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "reconciliation": {
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "approved-out-of-scope",
+                          "invalid-source"
+                        ]
+                      }
+                    },
+                    "required": ["status"]
+                  }
+                },
+                "required": ["reconciliation"]
+              },
+              "then": {
+                "properties": {
+                  "reconciliation": {
+                    "properties": {
+                      "reason": { "$ref": "#/$defs/nonEmptyString" }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "axisDiscovery": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "discoveryId",
+            "configuredAxes",
+            "discoveredAxes",
+            "reconciledAxes",
+            "uncoveredAxes",
+            "registeredOccurrenceKinds",
+            "discoveredOccurrenceKinds",
+            "coveredOccurrenceKinds",
+            "uncoveredOccurrenceKinds",
+            "occurrenceCounts",
+            "exhaustive"
+          ],
+          "properties": {
+            "artifactType": { "const": "axis-discovery" },
+            "discoveryId": { "$ref": "#/$defs/nonEmptyString" },
+            "configuredAxes": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/axis" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "discoveredAxes": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "reconciledAxes": { "$ref": "#/$defs/stringSet" },
+            "uncoveredAxes": { "$ref": "#/$defs/stringSet" },
+            "registeredOccurrenceKinds": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/occurrenceKind" },
+              "minItems": 19,
+              "maxItems": 19,
+              "uniqueItems": true
+            },
+            "discoveredOccurrenceKinds": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/occurrenceKind" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "coveredOccurrenceKinds": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/occurrenceKind" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "uncoveredOccurrenceKinds": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/occurrenceKind" },
+              "uniqueItems": true
+            },
+            "occurrenceCounts": {
+              "type": "object",
+              "required": ["byAxis", "byOccurrenceKind"],
+              "properties": {
+                "byAxis": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "byOccurrenceKind": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "exhaustive": { "type": "boolean" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "candidate": {
+      "type": "object",
+      "required": [
+        "raw",
+        "variants",
+        "important",
+        "negative",
+        "utilityRoot",
+        "value",
+        "modifier",
+        "canonicalCandidate",
+        "status"
+      ],
+      "properties": {
+        "raw": { "$ref": "#/$defs/nonEmptyString" },
+        "variants": { "$ref": "#/$defs/stringSet" },
+        "important": { "type": "boolean" },
+        "negative": { "type": "boolean" },
+        "utilityRoot": { "type": ["string", "null"] },
+        "value": { "type": ["string", "null"] },
+        "modifier": { "type": ["string", "null"] },
+        "canonicalCandidate": { "type": ["string", "null"] },
+        "status": { "enum": ["valid", "opaque", "invalid"] }
+      },
+      "additionalProperties": false
+    },
+    "normalizedOccurrence": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "occurrenceId",
+            "designOccurrenceId",
+            "location",
+            "context",
+            "source",
+            "rawClassName",
+            "rawTokens",
+            "candidates",
+            "fingerprints",
+            "normalizerProvenance",
+            "reconciliationStatus"
+          ],
+          "properties": {
+            "artifactType": { "const": "normalized-occurrence" },
+            "occurrenceId": { "$ref": "#/$defs/nonEmptyString" },
+            "designOccurrenceId": { "$ref": "#/$defs/nonEmptyString" },
+            "location": { "$ref": "#/$defs/location" },
+            "context": {
+              "type": "object",
+              "required": [
+                "component",
+                "nativeTag",
+                "implicitRole",
+                "explicitRole",
+                "nearestLandmark",
+                "routeAreas",
+                "interactionState"
+              ],
+              "properties": {
+                "component": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/nonEmptyString" },
+                    { "type": "null" }
+                  ]
+                },
+                "nativeTag": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/nonEmptyString" },
+                    { "type": "null" }
+                  ]
+                },
+                "implicitRole": { "type": ["string", "null"] },
+                "explicitRole": { "type": ["string", "null"] },
+                "nearestLandmark": { "type": ["string", "null"] },
+                "routeAreas": { "$ref": "#/$defs/stringSet" },
+                "interactionState": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            },
+            "source": {
+              "type": "object",
+              "required": [
+                "expressionKind",
+                "resolverKind",
+                "branchId",
+                "conditionExpression",
+                "unresolvedDynamicFragments",
+                "branchExpansionTruncated"
+              ],
+              "properties": {
+                "expressionKind": { "$ref": "#/$defs/nonEmptyString" },
+                "resolverKind": {
+                  "enum": [
+                    "direct",
+                    "clsx",
+                    "twMerge",
+                    "cva",
+                    "template",
+                    "conditional",
+                    "unknown"
+                  ]
+                },
+                "branchId": { "$ref": "#/$defs/nonEmptyString" },
+                "conditionExpression": { "type": ["string", "null"] },
+                "unresolvedDynamicFragments": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "branchExpansionTruncated": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            },
+            "rawClassName": { "type": "string" },
+            "rawTokens": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "candidates": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/candidate" }
+            },
+            "fingerprints": {
+              "type": "object",
+              "required": [
+                "rawOrderHash",
+                "canonicalMultisetFingerprint",
+                "canonicalSetFingerprint",
+                "runtimeMergedFingerprint",
+                "compiledCssFingerprint",
+                "computedStyleFingerprints",
+                "semanticContextFingerprint"
+              ],
+              "properties": {
+                "rawOrderHash": { "$ref": "#/$defs/sha256" },
+                "canonicalMultisetFingerprint": { "$ref": "#/$defs/sha256" },
+                "canonicalSetFingerprint": { "$ref": "#/$defs/sha256" },
+                "runtimeMergedFingerprint": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/sha256" },
+                    { "type": "null" }
+                  ]
+                },
+                "compiledCssFingerprint": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/sha256" },
+                    { "type": "null" }
+                  ]
+                },
+                "computedStyleFingerprints": {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/sha256" },
+                  "uniqueItems": true
+                },
+                "semanticContextFingerprint": { "$ref": "#/$defs/sha256" }
+              },
+              "additionalProperties": false
+            },
+            "normalizerProvenance": {
+              "type": "object",
+              "required": [
+                "normalizerVersion",
+                "tailwindVersion",
+                "tailwindEntryCssFingerprint",
+                "tailwindConfigFingerprint",
+                "tokenSourceFingerprint",
+                "twMergeVersion",
+                "twMergeConfigFingerprint"
+              ],
+              "properties": {
+                "normalizerVersion": { "$ref": "#/$defs/nonEmptyString" },
+                "tailwindVersion": { "$ref": "#/$defs/nonEmptyString" },
+                "tailwindEntryCssFingerprint": { "$ref": "#/$defs/sha256" },
+                "tailwindConfigFingerprint": { "$ref": "#/$defs/sha256" },
+                "tokenSourceFingerprint": { "$ref": "#/$defs/sha256" },
+                "twMergeVersion": { "type": ["string", "null"] },
+                "twMergeConfigFingerprint": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/sha256" },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "reconciliationStatus": {
+              "enum": ["valid", "opaque", "invalid", "truncated"]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "inventoryReport": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "reportId",
+            "inventoryKind",
+            "inputArtifactRefs",
+            "counts",
+            "detailArtifactRefs",
+            "reconciled"
+          ],
+          "properties": {
+            "artifactType": { "const": "inventory-report" },
+            "reportId": { "$ref": "#/$defs/nonEmptyString" },
+            "inventoryKind": {
+              "enum": [
+                "hardcodes",
+                "token-consumption",
+                "scale-cardinality",
+                "semantic-html",
+                "accessibility",
+                "coverage",
+                "equivalence",
+                "ownerless",
+                "invalid-source"
+              ]
+            },
+            "inputArtifactRefs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/artifactRef" },
+              "minItems": 1
+            },
+            "counts": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "detailArtifactRefs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/artifactRef" }
+            },
+            "reconciled": { "type": "boolean" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "clusterPacket": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "clusterId",
+            "occurrenceIds",
+            "contextFingerprint",
+            "styleVariants",
+            "evidenceRefs",
+            "classificationStatus"
+          ],
+          "properties": {
+            "artifactType": { "const": "cluster-packet" },
+            "clusterId": { "$ref": "#/$defs/nonEmptyString" },
+            "occurrenceIds": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "contextFingerprint": { "$ref": "#/$defs/sha256" },
+            "styleVariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "styleFingerprint",
+                  "rawValues",
+                  "frequency",
+                  "locations",
+                  "equivalenceLevel"
+                ],
+                "properties": {
+                  "styleFingerprint": { "$ref": "#/$defs/sha256" },
+                  "rawValues": { "$ref": "#/$defs/nonEmptyStringSet" },
+                  "frequency": { "type": "integer", "minimum": 1 },
+                  "locations": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/location" }
+                  },
+                  "equivalenceLevel": {
+                    "$ref": "#/$defs/equivalenceLevel"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "evidenceRefs": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/artifactRef" }
+            },
+            "classificationStatus": {
+              "enum": ["unclassified", "classified", "requires-human"]
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "tradeoffRecord": {
+      "type": "object",
+      "required": [
+        "qualityDelta",
+        "costDelta",
+        "breakeven",
+        "nonAdoptionCondition",
+        "reversibility",
+        "localPatternFit"
+      ],
+      "properties": {
+        "qualityDelta": { "$ref": "#/$defs/nonEmptyString" },
+        "costDelta": { "$ref": "#/$defs/nonEmptyString" },
+        "breakeven": { "$ref": "#/$defs/nonEmptyString" },
+        "nonAdoptionCondition": { "$ref": "#/$defs/nonEmptyString" },
+        "reversibility": { "$ref": "#/$defs/nonEmptyString" },
+        "localPatternFit": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "decision": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "decisionId",
+            "clusterIds",
+            "classification",
+            "status",
+            "proposal",
+            "rationale",
+            "decidedBy",
+            "tradeoff",
+            "evidenceRefs"
+          ],
+          "properties": {
+            "artifactType": { "const": "decision" },
+            "decisionId": { "$ref": "#/$defs/nonEmptyString" },
+            "clusterIds": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "classification": {
+              "enum": [
+                "primitive",
+                "semantic-token",
+                "component-token",
+                "component-contract",
+                "component-variant",
+                "hook-or-utility",
+                "keep-local",
+                "invalid-source",
+                "requires-human"
+              ]
+            },
+            "status": { "enum": ["approved", "pending", "rejected"] },
+            "proposal": {
+              "type": "object",
+              "required": ["name", "axis", "exception"],
+              "properties": {
+                "name": { "type": ["string", "null"] },
+                "axis": { "$ref": "#/$defs/axis" },
+                "exception": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            },
+            "rationale": { "$ref": "#/$defs/nonEmptyString" },
+            "decidedBy": { "enum": ["deterministic", "llm", "human"] },
+            "tradeoff": { "$ref": "#/$defs/tradeoffRecord" },
+            "evidenceRefs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/artifactRef" },
+              "minItems": 1
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "batchContract": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "batchId",
+            "targetClusterIds",
+            "decisionIds",
+            "plannedFiles",
+            "expectedVisualEffect",
+            "expectedChangedScenarioIds",
+            "expectedUnchangedScenarioIds",
+            "absoluteTargets",
+            "rollbackSourceFingerprint"
+          ],
+          "properties": {
+            "artifactType": { "const": "batch-contract" },
+            "batchId": {
+              "type": "string",
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "targetClusterIds": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "decisionIds": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "plannedFiles": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "expectedVisualEffect": {
+              "$ref": "#/$defs/expectedVisualEffect"
+            },
+            "expectedChangedScenarioIds": { "$ref": "#/$defs/stringSet" },
+            "expectedUnchangedScenarioIds": { "$ref": "#/$defs/stringSet" },
+            "absoluteTargets": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "rollbackSourceFingerprint": { "$ref": "#/$defs/sha256" }
+          },
+          "anyOf": [
+            {
+              "properties": {
+                "expectedChangedScenarioIds": { "minItems": 1 }
+              }
+            },
+            {
+              "properties": {
+                "expectedUnchangedScenarioIds": { "minItems": 1 }
+              }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "impactedContext": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "batchId",
+            "plannedFiles",
+            "consumerFiles",
+            "routes",
+            "scenarioIds",
+            "fanOutReasons",
+            "coverageComplete",
+            "uncoveredConsumers"
+          ],
+          "properties": {
+            "artifactType": { "const": "impacted-context" },
+            "batchId": {
+              "type": "string",
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "plannedFiles": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "consumerFiles": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "routes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "path",
+                  "componentModule",
+                  "dynamic",
+                  "fixtureId"
+                ],
+                "properties": {
+                  "path": { "$ref": "#/$defs/nonEmptyString" },
+                  "componentModule": { "$ref": "#/$defs/nonEmptyString" },
+                  "dynamic": { "type": "boolean" },
+                  "fixtureId": { "type": ["string", "null"] }
+                },
+                "additionalProperties": false
+              }
+            },
+            "scenarioIds": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "fanOutReasons": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "enum": [
+                  "planned-callsite",
+                  "reverse-import",
+                  "token-consumer",
+                  "global-css",
+                  "tailwind-config",
+                  "theme",
+                  "font",
+                  "shared-layout"
+                ]
+              },
+              "uniqueItems": true
+            },
+            "coverageComplete": { "type": "boolean" },
+            "uncoveredConsumers": { "$ref": "#/$defs/stringSet" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "scenarioAction": {
+      "type": "object",
+      "required": ["type", "target", "value"],
+      "properties": {
+        "type": {
+          "enum": [
+            "goto",
+            "click",
+            "hover",
+            "focus",
+            "fill",
+            "select",
+            "press",
+            "wait",
+            "assert"
+          ]
+        },
+        "target": { "type": ["string", "null"] },
+        "value": { "type": ["string", "number", "boolean", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "scenario": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "scenarioId",
+            "route",
+            "routeParams",
+            "fixtureId",
+            "authRole",
+            "theme",
+            "project",
+            "browser",
+            "locale",
+            "writingMode",
+            "interactionState",
+            "preconditions",
+            "actions",
+            "assertions",
+            "captureRegion",
+            "expectedVisualEffect"
+          ],
+          "properties": {
+            "artifactType": { "const": "scenario" },
+            "scenarioId": { "$ref": "#/$defs/nonEmptyString" },
+            "route": { "$ref": "#/$defs/nonEmptyString" },
+            "routeParams": {
+              "type": "object",
+              "additionalProperties": {
+                "type": ["string", "number", "boolean"]
+              }
+            },
+            "fixtureId": { "$ref": "#/$defs/nonEmptyString" },
+            "authRole": { "$ref": "#/$defs/nonEmptyString" },
+            "theme": { "$ref": "#/$defs/nonEmptyString" },
+            "project": { "$ref": "#/$defs/nonEmptyString" },
+            "browser": { "$ref": "#/$defs/nonEmptyString" },
+            "locale": { "$ref": "#/$defs/nonEmptyString" },
+            "writingMode": { "$ref": "#/$defs/nonEmptyString" },
+            "interactionState": { "$ref": "#/$defs/nonEmptyString" },
+            "preconditions": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/scenarioAction" }
+            },
+            "actions": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/scenarioAction" }
+            },
+            "assertions": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/scenarioAction" }
+            },
+            "captureRegion": { "type": ["string", "null"] },
+            "expectedVisualEffect": {
+              "$ref": "#/$defs/expectedVisualEffect"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "capture": {
+      "type": "object",
+      "required": [
+        "scenarioId",
+        "pngPath",
+        "bytes",
+        "width",
+        "height",
+        "sha256",
+        "consoleErrors",
+        "pageErrors",
+        "networkFailures",
+        "axeViolationIds",
+        "overflow"
+      ],
+      "properties": {
+        "scenarioId": { "$ref": "#/$defs/nonEmptyString" },
+        "pngPath": { "$ref": "#/$defs/nonEmptyString" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "consoleErrors": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "pageErrors": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "networkFailures": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "axeViolationIds": { "$ref": "#/$defs/stringSet" },
+        "overflow": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "evidenceManifest": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "phase",
+            "batchId",
+            "routeRegistryFingerprint",
+            "fixtureRegistryFingerprint",
+            "tokenSourceFingerprint",
+            "generatedCssFingerprint",
+            "requestedScenarioIds",
+            "producedScenarioIds",
+            "captures",
+            "exactCoverage"
+          ],
+          "properties": {
+            "artifactType": { "const": "evidence-manifest" },
+            "phase": { "enum": ["global-before", "before", "after", "final"] },
+            "batchId": {
+              "type": ["string", "null"],
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "routeRegistryFingerprint": { "$ref": "#/$defs/sha256" },
+            "fixtureRegistryFingerprint": { "$ref": "#/$defs/sha256" },
+            "tokenSourceFingerprint": { "$ref": "#/$defs/sha256" },
+            "generatedCssFingerprint": { "$ref": "#/$defs/sha256" },
+            "requestedScenarioIds": {
+              "$ref": "#/$defs/nonEmptyStringSet"
+            },
+            "producedScenarioIds": {
+              "$ref": "#/$defs/nonEmptyStringSet"
+            },
+            "captures": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/capture" }
+            },
+            "exactCoverage": { "type": "boolean" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "mutationManifest": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "batchId",
+            "beforeSourceFingerprint",
+            "afterSourceFingerprint",
+            "actualMutationFiles",
+            "changes",
+            "generatedArtifactRefs"
+          ],
+          "properties": {
+            "artifactType": { "const": "mutation-manifest" },
+            "batchId": {
+              "type": "string",
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "beforeSourceFingerprint": { "$ref": "#/$defs/sha256" },
+            "afterSourceFingerprint": { "$ref": "#/$defs/sha256" },
+            "actualMutationFiles": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "changes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["file", "changeType", "decisionIds"],
+                "properties": {
+                  "file": { "$ref": "#/$defs/nonEmptyString" },
+                  "changeType": {
+                    "enum": [
+                      "token-definition",
+                      "generated-artifact",
+                      "callsite",
+                      "semantic-html",
+                      "test",
+                      "fixture"
+                    ]
+                  },
+                  "decisionIds": { "$ref": "#/$defs/nonEmptyStringSet" }
+                },
+                "additionalProperties": false
+              }
+            },
+            "generatedArtifactRefs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/artifactRef" }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "checkResult": {
+      "type": "object",
+      "required": [
+        "checkId",
+        "command",
+        "exitCode",
+        "status",
+        "executedAt",
+        "outputSha256",
+        "reentryCode"
+      ],
+      "properties": {
+        "checkId": { "$ref": "#/$defs/nonEmptyString" },
+        "command": { "$ref": "#/$defs/nonEmptyString" },
+        "exitCode": { "type": "integer" },
+        "status": { "enum": ["pass", "fail", "blocked"] },
+        "executedAt": { "type": "string", "format": "date-time" },
+        "outputSha256": { "$ref": "#/$defs/sha256" },
+        "reentryCode": {
+          "oneOf": [
+            { "$ref": "#/$defs/reentryCode" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "deterministicChecks": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "scope",
+            "batchId",
+            "checks",
+            "allPassed"
+          ],
+          "properties": {
+            "artifactType": { "const": "deterministic-checks" },
+            "scope": { "enum": ["batch", "final"] },
+            "batchId": {
+              "type": ["string", "null"],
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "checks": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/checkResult" }
+            },
+            "allPassed": { "type": "boolean" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "comparisonPair": {
+      "type": "object",
+      "required": [
+        "scenarioId",
+        "beforeCapture",
+        "afterCapture",
+        "status",
+        "changedPixels",
+        "changedPixelRatio",
+        "diffBounds",
+        "heatmapPath",
+        "errorDelta",
+        "policyVerdict"
+      ],
+      "properties": {
+        "scenarioId": { "$ref": "#/$defs/nonEmptyString" },
+        "beforeCapture": { "$ref": "#/$defs/artifactRef" },
+        "afterCapture": { "$ref": "#/$defs/artifactRef" },
+        "status": {
+          "enum": ["identical", "changed", "only-before", "only-after"]
+        },
+        "changedPixels": { "type": "integer", "minimum": 0 },
+        "changedPixelRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "diffBounds": {
+          "type": ["object", "null"],
+          "required": ["x", "y", "width", "height"],
+          "properties": {
+            "x": { "type": "integer", "minimum": 0 },
+            "y": { "type": "integer", "minimum": 0 },
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false
+        },
+        "heatmapPath": { "type": ["string", "null"] },
+        "errorDelta": {
+          "type": "object",
+          "required": ["console", "page", "network", "axe", "overflow"],
+          "properties": {
+            "console": { "type": "integer" },
+            "page": { "type": "integer" },
+            "network": { "type": "integer" },
+            "axe": { "type": "integer" },
+            "overflow": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "policyVerdict": { "enum": ["pass", "fail", "review"] }
+      },
+      "additionalProperties": false
+    },
+    "comparison": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "batchId",
+            "beforeManifest",
+            "afterManifest",
+            "expectedVisualEffect",
+            "pairs",
+            "missingPairCount",
+            "exactCoverage",
+            "verdict"
+          ],
+          "properties": {
+            "artifactType": { "const": "comparison" },
+            "batchId": {
+              "type": "string",
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "beforeManifest": { "$ref": "#/$defs/artifactRef" },
+            "afterManifest": { "$ref": "#/$defs/artifactRef" },
+            "expectedVisualEffect": {
+              "$ref": "#/$defs/expectedVisualEffect"
+            },
+            "pairs": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/comparisonPair" }
+            },
+            "missingPairCount": { "type": "integer", "minimum": 0 },
+            "exactCoverage": { "type": "boolean" },
+            "verdict": { "enum": ["pass", "fail", "review"] }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "visualReviewEntry": {
+      "type": "object",
+      "required": [
+        "scenarioId",
+        "verdict",
+        "observation",
+        "requiredAction",
+        "evidenceRefs"
+      ],
+      "properties": {
+        "scenarioId": { "$ref": "#/$defs/nonEmptyString" },
+        "verdict": { "enum": ["expected", "unexpected", "ambiguous"] },
+        "observation": { "$ref": "#/$defs/nonEmptyString" },
+        "requiredAction": { "$ref": "#/$defs/nonEmptyString" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactRef" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "visualReview": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "batchId",
+            "reviewerId",
+            "requiredReviewScenarioIds",
+            "entries",
+            "complete",
+            "verdict"
+          ],
+          "properties": {
+            "artifactType": { "const": "visual-review" },
+            "batchId": {
+              "type": "string",
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "reviewerId": { "$ref": "#/$defs/nonEmptyString" },
+            "requiredReviewScenarioIds": {
+              "$ref": "#/$defs/nonEmptyStringSet"
+            },
+            "entries": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/visualReviewEntry" }
+            },
+            "complete": { "type": "boolean" },
+            "verdict": { "enum": ["pass", "fail", "requires-human"] }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "findingId",
+        "severity",
+        "summary",
+        "evidenceRefs",
+        "reentryCode"
+      ],
+      "properties": {
+        "findingId": { "$ref": "#/$defs/nonEmptyString" },
+        "severity": { "enum": ["blocker", "high", "medium", "low"] },
+        "summary": { "$ref": "#/$defs/nonEmptyString" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactRef" },
+          "minItems": 1
+        },
+        "reentryCode": { "$ref": "#/$defs/reentryCode" }
+      },
+      "additionalProperties": false
+    },
+    "adversarialReview": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "scope",
+            "batchId",
+            "round",
+            "reviewerId",
+            "reviewedArtifactRefs",
+            "findings",
+            "verdict"
+          ],
+          "properties": {
+            "artifactType": { "const": "adversarial-review" },
+            "scope": { "enum": ["plan", "batch", "final"] },
+            "batchId": {
+              "type": ["string", "null"],
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "round": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "reviewerId": { "$ref": "#/$defs/nonEmptyString" },
+            "reviewedArtifactRefs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/artifactRef" },
+              "minItems": 1
+            },
+            "findings": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/finding" }
+            },
+            "verdict": { "enum": ["satisfied", "correct", "blocked"] }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "acceptance": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "batchId",
+            "actualMutationFiles",
+            "contractRef",
+            "mutationRef",
+            "afterManifestRef",
+            "checksRef",
+            "comparisonRef",
+            "visualReviewRef",
+            "adversarialReviewRef",
+            "ledgerEntry",
+            "preSourceFingerprint",
+            "acceptedSourceFingerprint",
+            "verdict"
+          ],
+          "properties": {
+            "artifactType": { "const": "acceptance" },
+            "batchId": {
+              "type": "string",
+              "pattern": "^B[0-9]{4,}$"
+            },
+            "actualMutationFiles": { "$ref": "#/$defs/nonEmptyStringSet" },
+            "contractRef": { "$ref": "#/$defs/artifactRef" },
+            "mutationRef": { "$ref": "#/$defs/artifactRef" },
+            "afterManifestRef": { "$ref": "#/$defs/artifactRef" },
+            "checksRef": { "$ref": "#/$defs/artifactRef" },
+            "comparisonRef": { "$ref": "#/$defs/artifactRef" },
+            "visualReviewRef": { "$ref": "#/$defs/artifactRef" },
+            "adversarialReviewRef": { "$ref": "#/$defs/artifactRef" },
+            "ledgerEntry": { "$ref": "#/$defs/nonEmptyString" },
+            "preSourceFingerprint": { "$ref": "#/$defs/sha256" },
+            "acceptedSourceFingerprint": { "$ref": "#/$defs/sha256" },
+            "verdict": { "enum": ["accepted", "rejected", "pending"] }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "proofPredicate": {
+      "type": "object",
+      "required": [
+        "predicateId",
+        "status",
+        "observed",
+        "target",
+        "evidenceRefs"
+      ],
+      "properties": {
+        "predicateId": { "$ref": "#/$defs/nonEmptyString" },
+        "status": { "enum": ["pass", "fail", "blocked"] },
+        "observed": { "type": ["number", "string", "boolean"] },
+        "target": { "type": ["number", "string", "boolean"] },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactRef" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "finalProof": {
+      "allOf": [
+        { "$ref": "#/$defs/artifactHeader" },
+        {
+          "type": "object",
+          "required": [
+            "artifactType",
+            "predicates",
+            "residualCounts",
+            "finalMatrixRef",
+            "finalChecksRef",
+            "finalAdversarialReviewRef",
+            "finalSourceFingerprint",
+            "verdict"
+          ],
+          "properties": {
+            "artifactType": { "const": "final-proof" },
+            "predicates": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/proofPredicate" }
+            },
+            "residualCounts": {
+              "type": "object",
+              "required": [
+                "unclassifiedOccurrences",
+                "unreconciledDesignOccurrences",
+                "unapprovedHardcodes",
+                "unapprovedNamingViolations",
+                "missingOrDeadClasses",
+                "uncoveredAxes",
+                "uncoveredOccurrenceKinds",
+                "uncoveredScenarios",
+                "unreviewedPairs"
+              ],
+              "properties": {
+                "unclassifiedOccurrences": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unreconciledDesignOccurrences": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unapprovedHardcodes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unapprovedNamingViolations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "missingOrDeadClasses": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "uncoveredAxes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "uncoveredOccurrenceKinds": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "uncoveredScenarios": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unreviewedPairs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "finalMatrixRef": { "$ref": "#/$defs/artifactRef" },
+            "finalChecksRef": { "$ref": "#/$defs/artifactRef" },
+            "finalAdversarialReviewRef": { "$ref": "#/$defs/artifactRef" },
+            "finalSourceFingerprint": { "$ref": "#/$defs/sha256" },
+            "verdict": { "enum": ["done", "pending", "blocked"] }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "verdict": { "const": "done" }
+                },
+                "required": ["verdict"]
+              },
+              "then": {
+                "properties": {
+                  "predicates": {
+                    "items": {
+                      "properties": {
+                        "status": { "const": "pass" }
+                      }
+                    }
+                  },
+                  "residualCounts": {
+                    "properties": {
+                      "unclassifiedOccurrences": { "const": 0 },
+                      "unreconciledDesignOccurrences": { "const": 0 },
+                      "unapprovedHardcodes": { "const": 0 },
+                      "unapprovedNamingViolations": { "const": 0 },
+                      "missingOrDeadClasses": { "const": 0 },
+                      "uncoveredAxes": { "const": 0 },
+                      "uncoveredOccurrenceKinds": { "const": 0 },
+                      "uncoveredScenarios": { "const": 0 },
+                      "unreviewedPairs": { "const": 0 }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

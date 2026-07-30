@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor UI with Evidence"
+  short_description: "Run exact rendered before/after verification loops"
+  default_prompt: "Use $refactor-ui-with-evidence to refactor this UI through exact affected-context discovery, Playwright before/after capture, pixel comparison, and adversarial re-entry loops."

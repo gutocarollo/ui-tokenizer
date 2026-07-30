@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tokenize Design System"
+  short_description: "Tokenize complete frontend design systems"
+  default_prompt: "Use $tokenize-design-system to inventory, normalize, migrate, and prove an entire frontend design system end to end."

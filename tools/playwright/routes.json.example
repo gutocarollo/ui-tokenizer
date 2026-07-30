@@ -1,0 +1,190 @@
+[
+  {
+    "name": "home",
+    "path": "/"
+  },
+  {
+    "name": "not_found",
+    "path": "/__visual-404__"
+  },
+  {
+    "name": "design_system",
+    "path": "/design-system"
+  },
+  {
+    "name": "login",
+    "path": "/login"
+  },
+  {
+    "name": "onboarding",
+    "path": "/onboarding"
+  },
+  {
+    "name": "onboarding_llm_preference",
+    "path": "/onboarding/llm-preference"
+  },
+  {
+    "name": "settings_agents",
+    "path": "/settings/agents"
+  },
+  {
+    "name": "settings_agents_builder",
+    "path": "/settings/agents/builder"
+  },
+  {
+    "name": "settings_agents_builder_fixture",
+    "path": "/settings/agents/builder/00000000-0000-4000-8000-000000000101"
+  },
+  {
+    "name": "settings_api_keys",
+    "path": "/settings/api-keys"
+  },
+  {
+    "name": "settings_audio_preference",
+    "path": "/settings/audio-preference"
+  },
+  {
+    "name": "settings_beta_features",
+    "path": "/settings/beta-features"
+  },
+  {
+    "name": "settings_beta_features_live_document_sync_manage",
+    "path": "/settings/beta-features/live-document-sync/manage"
+  },
+  {
+    "name": "settings_branding",
+    "path": "/settings/branding"
+  },
+  {
+    "name": "settings_browser_extension",
+    "path": "/settings/browser-extension"
+  },
+  {
+    "name": "settings_chat",
+    "path": "/settings/chat"
+  },
+  {
+    "name": "settings_community_hub_authentication",
+    "path": "/settings/community-hub/authentication"
+  },
+  {
+    "name": "settings_community_hub_import_item",
+    "path": "/settings/community-hub/import-item"
+  },
+  {
+    "name": "settings_community_hub_trending",
+    "path": "/settings/community-hub/trending"
+  },
+  {
+    "name": "settings_default_system_prompt",
+    "path": "/settings/default-system-prompt"
+  },
+  {
+    "name": "settings_embed_chat_widgets",
+    "path": "/settings/embed-chat-widgets"
+  },
+  {
+    "name": "settings_embedding_preference",
+    "path": "/settings/embedding-preference"
+  },
+  {
+    "name": "settings_event_logs",
+    "path": "/settings/event-logs"
+  },
+  {
+    "name": "settings_external_connections_telegram",
+    "path": "/settings/external-connections/telegram"
+  },
+  {
+    "name": "settings_interface",
+    "path": "/settings/interface"
+  },
+  {
+    "name": "settings_invites",
+    "path": "/settings/invites"
+  },
+  {
+    "name": "settings_llm",
+    "path": "/settings/llm-preference"
+  },
+  {
+    "name": "settings_mobile_connections",
+    "path": "/settings/mobile-connections"
+  },
+  {
+    "name": "settings_routers",
+    "path": "/settings/model-routers"
+  },
+  {
+    "name": "settings_model_router_fixture",
+    "path": "/settings/model-routers/910001"
+  },
+  {
+    "name": "settings_privacy",
+    "path": "/settings/privacy"
+  },
+  {
+    "name": "settings_scheduled_jobs",
+    "path": "/settings/scheduled-jobs"
+  },
+  {
+    "name": "settings_scheduled_job_runs_fixture",
+    "path": "/settings/scheduled-jobs/920001/runs"
+  },
+  {
+    "name": "settings_scheduled_job_run_fixture",
+    "path": "/settings/scheduled-jobs/920001/runs/930001"
+  },
+  {
+    "name": "settings_security",
+    "path": "/settings/security"
+  },
+  {
+    "name": "settings_system_prompt_vars",
+    "path": "/settings/system-prompt-variables"
+  },
+  {
+    "name": "settings_text_splitter_preference",
+    "path": "/settings/text-splitter-preference"
+  },
+  {
+    "name": "settings_transcription",
+    "path": "/settings/transcription-preference"
+  },
+  {
+    "name": "settings_users",
+    "path": "/settings/users"
+  },
+  {
+    "name": "settings_vector_database",
+    "path": "/settings/vector-database"
+  },
+  {
+    "name": "settings_workspace_chats",
+    "path": "/settings/workspace-chats"
+  },
+  {
+    "name": "settings_workspaces",
+    "path": "/settings/workspaces"
+  },
+  {
+    "name": "sso_simple",
+    "path": "/sso/simple"
+  },
+  {
+    "name": "workspace_glm_test",
+    "path": "/workspace/glm-test"
+  },
+  {
+    "name": "ws_general_appearance",
+    "path": "/workspace/glm-test/settings/general-appearance"
+  },
+  {
+    "name": "ws_vector_database",
+    "path": "/workspace/glm-test/settings/vector-database"
+  },
+  {
+    "name": "ws_active_thread",
+    "path": "/workspace/glm-test/t/5ee546b3-f567-41be-b8a9-5e3b52df6d5a"
+  }
+]
