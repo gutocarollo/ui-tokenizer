@@ -50,6 +50,36 @@ const MAX_UNCERTAINTY = Number(arg("--max-uncertainty", "30"));
 /** ΔE abaixo do qual duas cores sao perceptualmente a mesma. JND ~ 2.3. */
 const DE_SAME = Number(arg("--de-same", "2.3"));
 
+/**
+ * REGRA DO OUTLIER — absorve o caso isolado sem baixar o corte de incerteza.
+ *
+ * Medido: os 16 pares que sobravam estavam TODOS a 1-2 pontos do corte, com cor
+ * identica (ΔE 0.00) e contrato identico, perdendo so em componente e funcao. E
+ * o lado B era quase sempre UMA ocorrencia contra 12, 13, 22. Mandar isso para
+ * decisao humana gasta a atencao do dono em ocorrencia unica.
+ *
+ * O criterio e RELATIVO, nao um numero magico. `B <= 2` sozinho fundia ate
+ * `sidebar-background-color` com UserFooter(1) x SourcesSidebar(1) — 1 contra 1,
+ * onde nao ha dominante e a fusao seria arbitraria. Exigir tambem que B seja no
+ * maximo 25% de A separa "outlier" de "metade do cluster":
+ *
+ *   button-...-destructive-hover  22 x 1   =  5%  -> outlier, funde
+ *   code-block-background-color    6 x 2   = 33%  -> um terco, decisao humana
+ *   sidebar-background-color       1 x 1   = 100% -> sem dominante, decisao humana
+ *
+ * Exige cor IMPERCEPTIVEL: sem isso a regra fundiria coisas que se veem
+ * diferentes so por serem pouco usadas.
+ */
+const OUTLIER_MAX_ABS = Number(arg("--outlier-max", "2"));
+const OUTLIER_MAX_RATIO = Number(arg("--outlier-ratio", "0.25"));
+
+function isOutlierMerge(ancora, outro, de) {
+  if (de === null || de > DE_SAME) return false;
+  if (outro.count > OUTLIER_MAX_ABS) return false;
+  const ratio = outro.count / Math.max(ancora.count, 1);
+  return ratio <= OUTLIER_MAX_RATIO;
+}
+
 /* --------------------------------------------------------------- cor real -- */
 
 /**
@@ -192,10 +222,19 @@ while (semMudanca < 2 && iteracao < 20) {
     const ancora = { ...ordenado[0], mergedFrom: [...(ordenado[0].mergedFrom ?? [])] };
     for (const outro of ordenado.slice(1)) {
       const m = mergeConfidence(ancora, outro);
-      if (m.uncertainty <= MAX_UNCERTAINTY) {
+      const deCor = deltaE(ancora.dominantPrimitive, outro.dominantPrimitive);
+      const outlier = m.uncertainty > MAX_UNCERTAINTY && isOutlierMerge(ancora, outro, deCor);
+      if (m.uncertainty <= MAX_UNCERTAINTY || outlier) {
         ancora.count += outro.count;
-        ancora.mergedFrom.push({ key: outro.key, count: outro.count, confidence: m.confidence });
-        fusoes.push({ iteracao, nome, absorveu: outro.key, count: outro.count, ...m });
+        ancora.mergedFrom.push({
+          key: outro.key, count: outro.count, confidence: m.confidence,
+          reason: outlier ? "absorvido-por-outlier" : "confianca",
+        });
+        fusoes.push({
+          iteracao, nome, absorveu: outro.key, count: outro.count, ...m,
+          reason: outlier ? "absorvido-por-outlier" : "confianca",
+          outlierRatio: outlier ? Number((outro.count / Math.max(ancora.count - outro.count, 1)).toFixed(3)) : null,
+        });
         fundiuNestaIteracao++;
       } else {
         proximo.push(outro);
@@ -229,7 +268,9 @@ if (argv.includes("--json")) {
   console.log(convergiu
     ? `CONVERGIU em ${iteracao} iteracoes — duas consecutivas sem mudanca`
     : `NAO convergiu em ${iteracao} iteracoes (limite)`);
-  console.log(`\nfusoes automaticas : ${fusoes.length}`);
+  const porConfianca = fusoes.filter((f) => f.reason !== "absorvido-por-outlier").length;
+  const porOutlier = fusoes.length - porConfianca;
+  console.log(`\nfusoes automaticas : ${fusoes.length}  (${porConfianca} por confianca, ${porOutlier} absorvidas por outlier)`);
   console.log(`fila humana        : ${humanoUnico.length} pares acima de ${MAX_UNCERTAINTY}% de incerteza\n`);
   if (humanoUnico.length) {
     console.log("OS QUE PRECISAM DE VOCE, do mais incerto para o menos:");
