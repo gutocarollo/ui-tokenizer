@@ -11,6 +11,12 @@ Catálogo por categoria, orientado a conteúdo. Para ordem cronológica, ver
 | [`ESTADO.md`](ESTADO.md) | onde a empreitada está: objetivo, o que tem evidência, o que falta, retratações, risco declarado | living |
 | [`SCHEMA.md`](SCHEMA.md) | a constituição desta wiki — naming, status, indexação temporal, lint | living |
 
+## Entendimento
+
+| doc | o que é | status |
+|---|---|---|
+| [`como-funciona.md`](como-funciona.md) | o processo em português, com os termos definidos e caso real por passo — **comece por aqui** | living |
+
 ## Lei
 
 | doc | o que é | status |

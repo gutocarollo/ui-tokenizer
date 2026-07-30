@@ -7,6 +7,15 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-07-30] didático · entendimento
+
+**O vocabulário explicado.** Os números do relatório não se explicavam sozinhos:
+"504 ocorrências → 311 clusters → 41 contratos" não diz o que é cada entidade.
+Descoberta que muda a leitura: as 504 ocorrências usam **12 tokens distintos**, e
+`surface-hover` sozinho responde por 336 deles.
+
+- [`como-funciona.md`](como-funciona.md) — cada termo com arquivo:linha real
+
 ## [2026-07-30] consolidação · processo
 
 **Um entrypoint, uma skill.** O processo tinha 17 entrypoints, um runner com 5
