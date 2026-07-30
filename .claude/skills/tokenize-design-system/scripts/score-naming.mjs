@@ -137,9 +137,29 @@ export function scoreName(name, vocabulary, universe) {
   }
 
   // 2. CONTEXT WORD (25) — answers a question that no grammar slot asks.
+  //
+  // Only words the parse did NOT consume are examined. A vocabulary term that
+  // filled a slot is, by definition, answering that slot's question — checking
+  // its constituent words again is a category error.
+  //
+  // Concretely: `background-color` is a §4.3 property, one closed-vocabulary
+  // term. Splitting it on the hyphen and testing `background` against the
+  // location list flagged EVERY token whose property is background-color —
+  // measured, 84 of 84 declared tokens, plus 26 of 29 proposed. The most common
+  // correct property in the system was losing 25 points for being correct.
+  //
+  // The residue still catches what matters, verified against a must-catch table:
+  // `surface-panel`, `semantic-color-surface-canvas`, `page-canvas-background-color`,
+  // `button-elevated-background-color` and `pink-medium` are all still flagged,
+  // because those words fill no slot.
+  const consumed = new Set();
+  for (const filled of [s.owner, s.anatomy, s.property, s.variant, s.state]) {
+    if (filled) for (const w of String(filled).split("-")) consumed.add(w);
+  }
+  const residue = parts.filter((p) => !consumed.has(p));
   const found = [];
   for (const [category, list] of Object.entries(NO_SLOT)) {
-    for (const p of parts) if (list.includes(p)) found.push(`${p} (${category})`);
+    for (const p of residue) if (list.includes(p)) found.push(`${p} (${category})`);
   }
   if (!found.length) {
     score += 25;
