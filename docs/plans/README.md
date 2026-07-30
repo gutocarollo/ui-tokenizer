@@ -6,7 +6,8 @@ repetir uma decisão já derrubada.
 
 | plano | assunto | status |
 |---|---|---|
-| [`2026-07-30-v2-upstream-como-oraculo-rev2.md`](2026-07-30-v2-upstream-como-oraculo-rev2.md) | usar o compilador do Tailwind como oráculo de equivalência — revisão pós-auditoria | **vigente** |
+| [`2026-07-30-plano-reconciliado.md`](2026-07-30-plano-reconciliado.md) | o projeto real: dois eixos, NORMALIZE+MINE, tetos medidos | **vigente (mestre)** |
+| [`2026-07-30-v2-upstream-como-oraculo-rev2.md`](2026-07-30-v2-upstream-como-oraculo-rev2.md) | compilador do Tailwind como oráculo de equivalência | vigente como **spec do eixo B** |
 | [`2026-07-30-v2-upstream-como-oraculo.md`](2026-07-30-v2-upstream-como-oraculo.md) | a primeira versão do mesmo plano | superado pela rev2 |
 
 ## O que a rev2 mudou

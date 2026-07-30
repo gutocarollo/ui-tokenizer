@@ -7,6 +7,19 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-07-30] plano · planos
+
+**Reconciliação.** O plano vigente descrevia "compilador do Tailwind como
+oráculo"; o código construído era um pipeline de naming de cor. Medido: **0 hits**
+no plano para cluster de contexto, convergência, lei de naming, ΔE, fila humana.
+Documento e código descreviam projetos diferentes.
+
+Números que passam a ser contrato: universo **32.662** usos de classe (+158
+`style={{}}`, +index.css), hoje **1,5%** tratado, meta **bloqueante 68,9%**, teto
+**81,4%**, e **18,6%** declarado fora de escopo por não haver padrão.
+
+- [`plans/2026-07-30-plano-reconciliado.md`](plans/2026-07-30-plano-reconciliado.md)
+
 ## [2026-07-30] didático · entendimento
 
 **O vocabulário explicado.** Os números do relatório não se explicavam sozinhos:
