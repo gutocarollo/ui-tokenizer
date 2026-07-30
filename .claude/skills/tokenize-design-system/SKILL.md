@@ -203,6 +203,22 @@ Repository-wide completion additionally requires every absolute predicate in
 `reference/end-to-end-workflow.md`. Existing ratchets demonstrate
 non-regression only; they must never be reported as proof of zero residual debt.
 
+## Clarification — asking the owner
+
+**A bare question to the owner is forbidden.** This process is 99.999% AI-driven;
+the human is asked at the limit, not in the routine. Before asking, apply the test
+in [`reference/clarification.md`](reference/clarification.md): if the answer
+depends on evidence you can measure, **decide and execute** — report the choice
+instead of asking.
+
+When the question IS legitimate (preference, business limit, destructive action,
+credential, or merge uncertainty above 30%), it must carry the `### D[n]` block:
+four items per option — Behaviour, Applied good example, Applied bad example, When
+to choose — **plus your own recommendation with the data behind it**.
+
+Enforced deterministically by the `clarification-gate` Stop hook, whose regression
+table was built from the bare questions this agent actually asked.
+
 ## References
 
 | File | Content |
