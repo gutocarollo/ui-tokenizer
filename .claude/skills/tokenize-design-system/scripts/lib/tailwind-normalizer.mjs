@@ -957,6 +957,31 @@ export async function createTargetNormalizer({
       if (resolverKind !== "twMerge" || !twMerge) return null;
       return twMerge(rawClassName);
     },
+    /**
+     * Group-level canonical PROPOSAL from the official canonicalizer.
+     *
+     * `compilerEvidence` stays 1:1 — one raw candidate, one record — because
+     * evidence must remain addressable per occurrence. Collapse is N→1, so it
+     * cannot live there. It lives here, as a parallel group projection, exactly
+     * like `compilerProjection` and `runtimeMerge` above.
+     *
+     * This is a PROPOSAL, never a substitute for evidence: the group call also
+     * dedupes (`p-2 p-2` → `p-2`) and reorders, so the multiset fingerprint must
+     * be computed from the 1:1 evidence, before this runs.
+     *
+     * Fail-closed to `null` when the compiler is unavailable, same as the two
+     * siblings — a missing compiler must never look like "nothing to collapse".
+     */
+    compilerCanonicalGroup(rawTokens, options = {}) {
+      if (!designSystem) return null;
+      if (typeof designSystem.canonicalizeCandidates !== "function") return null;
+      if (!Array.isArray(rawTokens) || rawTokens.length === 0) return null;
+      try {
+        return designSystem.canonicalizeCandidates(rawTokens, options);
+      } catch {
+        return null;
+      }
+    },
   };
 }
 
@@ -967,6 +992,7 @@ export function fingerprintsForCandidates({
   context,
   runtimeMergedClassName = null,
   compiledRecipeProjection = undefined,
+  compilerCanonicalGroupCandidates = null,
   provenance = null,
 }) {
   const canonical = evidence.map(
@@ -1009,6 +1035,16 @@ export function fingerprintsForCandidates({
               provenance,
               projection: "runtime-merged",
               className: runtimeMergedClassName,
+            })
+          ),
+    compilerCanonicalGroupFingerprint:
+      compilerCanonicalGroupCandidates === null
+        ? null
+        : sha256(
+            stableStringify({
+              provenance,
+              projection: "compiler-canonical-group",
+              candidates: compilerCanonicalGroupCandidates,
             })
           ),
     compiledCssFingerprint:

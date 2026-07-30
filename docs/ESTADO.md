@@ -154,9 +154,21 @@ dry-run "diff só nos alvos" se ele não tolerar reordenação.
 | | grupos que mudam | % |
 |---|---:|---:|
 **v1** — `canonicalizeCandidates([raw])`, 1 candidato, sem opções | **519** | 4,7% |
-**v2** — `canonicalizeCandidates(grupo, {collapse, logicalToPhysical, rem})` | **1.694** | 15,3% |
+**v2** — grupo, `{collapse, logicalToPhysical, rem:16}` | **1.821** | 16,4% |
+**v2** — grupo, sem `rem` | **1.649** | 14,9% |
 
-Interseção: ambos **519** · só v2 **1.175** · **só v1 = 0**.
+Recall **3,5×** com `rem`, **3,2×** sem. Interseção: ambos **519**, **só v1 = 0** —
+superconjunto estrito.
+
+⚠ **Retratação:** reportei antes `v2 = 1.694`. Esse número **não reproduz** e não é
+nenhum dos dois acima. Ele saiu de um laço único sem validação cruzada. Os valores
+atuais foram obtidos por **três caminhos independentes que concordam**: pela API
+nova (`compilerCanonicalGroup`), pela chamada direta no mesmo laço (0 divergências
+de saída entre as duas), e por um script isolado que nem importa o normalizador.
+Não sei explicar o 1.694, e não vou inventar causa — descartei as hipóteses de
+design system divergente (0 divergências medidas), de ordem de chamada (oráculo
+provado sem estado em 5 casos) e de contaminação por import (o isolado reproduz
+1.821 exato).
 
 ✅ O conjunto do v2 é **superconjunto estrito**. Recall **3,3×**, zero regressão.
 O que o v1 acha sozinho é alias-deprecado (`flex-shrink-0`→`shrink-0`), que

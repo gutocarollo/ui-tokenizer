@@ -187,6 +187,24 @@ for (const occurrence of classOccurrences) {
     rawClassName,
     source.resolverKind,
   );
+  /**
+   * Group-level canonical PROPOSAL. Computed after `evidence` (which is 1:1 and
+   * feeds the multiset fingerprint) precisely so the collapse never contaminates
+   * the record of what the source actually said.
+   *
+   * `logicalToPhysical` and `rem` are NOT hardcoded here: axis-pair collapse is
+   * writing-mode sensitive and value normalization changes the px/rem anchor, so
+   * both are policy resolved per scope upstream. Absent policy = conservative.
+   */
+  const canonicalGroupOptions = {
+    collapse: true,
+    logicalToPhysical: source.logicalToPhysical === true,
+    ...(typeof source.rem === "number" ? { rem: source.rem } : {}),
+  };
+  const compilerCanonicalGroupCandidates = normalizer.compilerCanonicalGroup(
+    rawTokens,
+    canonicalGroupOptions,
+  );
   const fingerprints = fingerprintsForCandidates({
     rawClassName,
     rawTokens,
@@ -194,6 +212,7 @@ for (const occurrence of classOccurrences) {
     context: occurrence.context,
     runtimeMergedClassName,
     compiledRecipeProjection: normalizer.compilerProjection(evidence),
+    compilerCanonicalGroupCandidates,
     provenance: normalizer.provenance,
   });
   const normalizedOccurrence = {
@@ -218,6 +237,23 @@ for (const occurrence of classOccurrences) {
     rawClassName,
     rawTokens,
     candidates: evidence.map(({ candidate }) => schemaCandidate(candidate)),
+    /**
+     * PROPOSAL, not a decision. `null` when the compiler is unavailable or the
+     * group is unchanged — an absent proposal is never "nothing to collapse".
+     * The risk class of each proposal, and whether it may be applied, is decided
+     * downstream against the scope policy; this field only records what the
+     * official canonicalizer would produce under the options actually used.
+     */
+    canonicalGroupProposal:
+      compilerCanonicalGroupCandidates === null ||
+      JSON.stringify(compilerCanonicalGroupCandidates) ===
+        JSON.stringify(rawTokens)
+        ? null
+        : {
+            candidates: compilerCanonicalGroupCandidates,
+            options: canonicalGroupOptions,
+            engine: normalizer.provenance,
+          },
     fingerprints,
     normalizerProvenance: normalizer.provenance,
     reconciliationStatus,
