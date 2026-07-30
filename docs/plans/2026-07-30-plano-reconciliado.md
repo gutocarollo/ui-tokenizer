@@ -214,8 +214,29 @@ app e reportou sucesso**. Requisitos da fase:
 | corte de 30% escolhido por sensação | já mordeu (outlier absoluto engolia 1-contra-1); revalidar com o mesmo conjunto |
 | `--ext` e defaults silenciosos | guard de cobertura em toda fase que varre |
 | `className` dinâmico invisível ao regex | cruzamento com computed style |
-| duas convenções vivas (`container`) | 32 dos 63 tokens usam `container`; decidir **antes** de escrever contrato novo |
+| duas convenções vivas (`container`) | **decidido, ver §6.1** — critério medido, não contagem de `container` |
 | classe desconhecida emite zero CSS sem erro | `APPLY` prova no artefato buildado, nunca na definição |
+
+### 6.1 D2-B decidida — a anatomia sai por número de partes, não por nome
+
+O critério não é *"quantos tokens usam `container`"* (22 de 52) — é **quantas
+partes distintas o owner tem**. Medido no tier `component`, 23 owners:
+
+| | owners |
+|---|---|
+| **11 multi-parte** — anatomia distingue, **mantém** | `button`(container·icon) · `card`(border·container·surface) · `checkbox`(6 partes) · `chat` · `code` · `list` · `menu` · `popover` · `progress` · `prompt` · `sidebar` |
+| **12 parte única** — anatomia não distingue nada, **cai** | `app` · `avatar` · `badge` · `banner` · `chatarea` · `field` · `nav` · `pill` · `search` · `thread` · `toggle` · `toolbar` |
+
+Regra: **anatomia só existe quando há mais de uma parte endereçável.** Assim
+`field-container-background-color` vira `field-background-color`, mas
+`button-container-*` e `button-icon-*` permanecem distintos porque o botão de
+fato tem duas partes.
+
+> **Retratação.** Eu havia afirmado *"5 owners multi-parte: button, code-block,
+> menu, progress, list-row"* e listado `card` e `chat` como parte única. Ambos são
+> multi-parte — `card` tem `border`·`container`·`surface`, `chat` tem
+> `border`·`message-container`. E o número "32 dos 63" era 22 de 52. Os três
+> vieram de contar `container` no nome em vez de contar partes.
 
 ---
 
