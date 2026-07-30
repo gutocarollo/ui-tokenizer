@@ -159,11 +159,11 @@ node <alvo>/.claude/skills/tokenize-design-system/scripts/score-naming.mjs --roo
 
 # 3. os gates e o motor visual precisam de fiação no alvo
 cp tools/gates/*   <alvo>/…      # ratchets; baseline só encolhe
-cp tools/visual/*  <alvo>/…      # precisa de @playwright/test e app no ar
+cp -r scripts tests <alvo>/…      # precisa de @playwright/test e app no ar
 cp tools/hooks/ui-evidence-gate.sh <alvo>/…   # registrar como Stop hook
 ```
 
-`tools/playwright/routes.json.example` mostra o formato esperado de rotas.
+`tests/visual/routes.json.example` mostra o formato esperado de rotas.
 
 ---
 
@@ -174,8 +174,8 @@ cp tools/hooks/ui-evidence-gate.sh <alvo>/…   # registrar como Stop hook
 | `.claude/skills/tokenize-design-system/` | a skill auto-contida: `SKILL.md`, 10 arquivos de `reference/`, 11 oráculos + `lib/` + 8 arquivos de teste |
 | `.claude/skills/refactor-ui-with-evidence/` | `SKILL.md` + `reference/engine.md` (manifesto das 13 dependências) |
 | `tools/gates/` | ratchets: lei de naming (3 camadas), coesão (5 eixos), anti-hardcode, variedade, classes mortas, avaliador de contraste ΔE, lint de wiki |
-| `tools/visual/` | impacto de rota por import reverso, manifest de evidência, comparação de pixel, relatório antes/depois, contrato visual v2 + teste |
-| `tools/playwright/` | motor de captura, config de projetos, mapa de temas |
+| `scripts/` e `scripts/lib/` | impacto de rota por import reverso, manifest de evidência, comparação de pixel, relatório antes/depois, contrato visual v2 + teste |
+| `tests/visual/` | motor de captura, config de projetos, mapa de temas |
 | `tools/mining/` | miner AST de `className` (n-grams por economia, com contexto estrutural) |
 | `tools/hooks/` | Stop hook que bloqueia fim de turno com UI alterada sem evidência |
 | `docs/law/` | a gramática de naming |

@@ -20,13 +20,28 @@ px-2  compila para  padding-inline   ← LÓGICA
 **Todo colapso de par-de-eixo é físico→lógico no Tailwind 4.** Logo o ganho se
 parte em dois níveis de risco, e não em um:
 
-| nível | opção | o que colapsa | riskClass |
-|---|---|---|---|
-| **A** | `l2p: false` | 4 lados (`mt mr mb ml`→`m-1`, `border-t/r/b/l`→`border`), `gap-x+gap-y`→`gap`, `w+h`→`size`, `rounded-tl+tr`→`rounded-t`, **dedupe**, normalização de valor arbitrário | `none` |
-| **B** | `l2p: true` | **todo par de eixo**: `my`, `mx`, `px`, `py`, `inset-x`, `inset-y`, `border-y` | `physical-to-logical` |
+**Regra que define o nível, e não a lista:** o colapso é seguro
+incondicionalmente **se o resultado atribui o MESMO valor aos quatro lados** —
+aí nenhum mapeamento de eixo pode alterar o render. É gateado se o resultado
+difere **por eixo**.
 
-As 16 edições feitas à mão no v1 e as ~13 de `inset-x-0` estão **inteiras no
-nível B**. Elas não fluem por `safe-auto-apply` — fluem pelo caminho de política.
+| nível | opção | o que colapsa (medido na toolchain pinada da cobaia) | riskClass |
+|---|---|---|---|
+| **A** | `l2p: false` | `mt mr mb ml`→`m-1` · `border-t/r/b/l`→`border` · `top right bottom left`→`inset-0` · `gap-x+gap-y`→`gap` · `w+h`→`size` · `rounded-tl+tr`→`rounded-t` · `overflow-x+overflow-y`→`overflow` · `overscroll-x+y`→`overscroll` · `scroll-mt/mr/mb/ml`→`scroll-m` · **dedupe** | `none` |
+| **B0** | `l2p: true` | `mx-N my-N`→`m-N` · `px-N py-N`→`p-N` — resultado cobre os 4 lados com o mesmo valor, logo **invariante a qualquer writing-mode e dir** | `none` |
+| **B** | `l2p: true` | par de eixo com resultado **por eixo**: `my` · `mx` · `px` · `py` · `inset-x` · `inset-y` · `border-y` · `border-x` · `scroll-py` · e o misto `mt-1 mr-2 mb-1 ml-2`→`my-1 mx-2` | `axis-mapping-sensitive` |
+| **V** | `rem: N` | normalização de valor arbitrário: `mt-[16px]`→`mt-4` | `value-anchor-change` |
+
+**B0 é ganho que a rodada 1 desperdiçava:** ela punha `mx+my→m` atrás do gate de
+política sob o rótulo `physical-to-logical`, que está errado na direção **e** no
+risco.
+
+**`physical-to-logical` foi renomeado para `axis-mapping-sensitive`.** O nome
+antigo descrevia a direção da reescrita; o que importa é a **condição de
+segurança**, e ela é o mapeamento de eixo.
+
+**A normalização de valor saiu do nível A** — ver §0.2. As 16 edições feitas à
+mão no v1 e as ~13 de `inset-x-0` estão **inteiras no nível B**.
 
 **Origem do erro, declarada:** herdei o exemplo `mt-2 mb-2 → my-2` com
 `l2p:false` do documento de referência (`gpt-ui-tokenizer.md` §Artefato) sem
@@ -34,32 +49,86 @@ verificar. A rev 1 declarava 7 divergências contra aquele doc e não pegou esta
 É o mesmo modo de falha que o plano combate — evidência adjacente aceita como
 prova.
 
-### 0.1 E a política não pode ser global
+### 0.2 Normalização de valor não pode ser `riskClass: none`
 
-`margin-block` responde a **`writing-mode`**, não a `dir`/RTL. A rev 1 derivou
-`l2p: true` medindo só `dir` — fato incompleto. Medido agora na cobaia:
-
-```
-app/(pages)/opportunities-hub/_components/OpportunitiesKanban.tsx:2039
-app/(pages)/hiring-pipeline/_components/CandidatesKanban.tsx:195
-    writingMode: 'vertical-rl',
-```
-
-**A cobaia usa `vertical-rl` em 2 arquivos.** Em `vertical-rl`, `margin-block`
-mapeia para esquerda/direita, não topo/base. Então `mt+mb → my` é **incorreto**
-nesses subárvores e correto no resto.
-
-**Consequência de design:** `logicalToPhysical` deixa de ser booleano do repo e
-vira **política por subárvore**, derivada de dois fatos medidos por escopo:
+Medido na cobaia:
 
 ```
-inlineAxisSafe = nenhum dir=/RTL no escopo        → habilita mx, px, inset-x
-blockAxisSafe  = nenhum writing-mode no escopo    → habilita my, py, inset-y
+mt-[16px]  =>  .mt-\[16px\] { margin-top: 16px; }                  ← âncora px
+mt-4       =>  .mt-4        { margin-top: calc(var(--spacing) * 4); } ← âncora rem
 ```
 
-Um arquivo com `vertical-rl` tem `blockAxisSafe: false` e recusa colapso de eixo
-bloco, mantendo o de eixo inline. A rev 1 teria aplicado colapso errado em 2
-componentes de Kanban.
+`--spacing: 0.25rem`. A reescrita **troca a âncora**: só é equivalente se o
+font-size raiz for exatamente 16px. A cobaia não sobrescreve `html{font-size}`
+(grep vazio), mas **ajuste de fonte do usuário/browser muda o rem e não muda o
+px** — a equivalência depende de uma condição de runtime que não está no CSS.
+
+E há inconsistência interna: pelo critério 11 desta própria rev ("toda proposta
+passa pela prova de fingerprint compilado"), o CSS antes/depois é
+**textualmente diferente** — a prova **reprovaria** toda normalização de valor.
+A rodada 1 afirmava as duas coisas ao mesmo tempo.
+
+**Resolução:** normalização de valor vira classe própria `V` /
+`value-anchor-change`, fora do nível A, com dois requisitos: (a) fato medido de
+que `html{font-size}` não é sobrescrito no alvo; (b) **política declarada** de que
+troca de âncora px→rem é aceita — porque ela muda o comportamento sob zoom de
+fonte, e isso é decisão do dono, não equivalência. E o fingerprint ganha um modo
+**semântico** para esta classe (resolver `var(--spacing)` e rem→px com o
+font-size raiz medido), declarado no artefato — em vez de comparar texto de CSS.
+
+### 0.1 A política é gateada por `writing-mode`, não por `dir` — predicado ÚNICO
+
+A rev 2 (rodada 1) propôs dois flags: `inlineAxisSafe` ← `dir`/RTL e
+`blockAxisSafe` ← `writing-mode`. **Errado nas duas metades**, e a review provou:
+
+**Fato 1, medido:** o canonicalizador só colapsa pares de **valor igual**.
+`mt-1 mb-2` e `p-4 px-2` ficam inalterados em todos os modos; `ms-2 me-2` e
+`ps-2 pe-2` **não colapsam** (não existe reescrita de lado único no oráculo).
+
+**Fato 2, definição CSS:** valor simétrico no eixo inline é **invariante a
+`dir`** — `padding-inline: 2` dá 2 nos dois lados inline, em LTR ou RTL. O que
+troca o **mapeamento** do eixo é `writing-mode`, e ele troca **os dois eixos ao
+mesmo tempo**.
+
+**Consequência:** `dir`/RTL é **irrelevante** para todo colapso que o oráculo
+produz, e o eixo inline **também** quebra sob `writing-mode` — dentro de um span
+`vertical-rl`, `pl+pr → px` vira padding vertical. O modelo de dois flags
+autorizaria isso porque a cobaia não tem RTL.
+
+**Predicado único:**
+
+```
+axisMappingSafe(escopo) = nenhum writing-mode ≠ horizontal-tb no escopo
+```
+
+Ele gateia **os dois eixos**. A medição de `dir`/RTL fica reservada a reescritas
+de lado único, que hoje o oráculo não faz.
+
+**Escopo, definido deterministicamente:** subárvore do **elemento JSX** onde o
+`writing-mode` é aplicado, no AST. Regra fail-closed: se a subárvore rotacionada
+contém só elementos intrínsecos e texto (checável estaticamente), o resto do
+arquivo permanece safe; se contém componente capitalizado, propagar
+`axisMappingSafe: false` transitivamente pelo grafo de imports, ou degradar para
+global-false. **Arquivo inteiro é proxy conservador aceitável** — perde ganho em
+1-2 arquivos, nunca aplica errado.
+
+Verificado no call site real da cobaia
+(`OpportunitiesKanban.tsx` Linhas 2028-2050): o
+`<span style={{writingMode:'vertical-rl'}}>` envolve **apenas** `{stageLabel}` —
+texto puro, zero classe Tailwind, zero componente filho. O risco composicional
+nesta cobaia é **vazio**.
+
+**Correção factual:** a rodada 1 desta rev disse "a cobaia usa `vertical-rl` em 2
+arquivos". Medido: **`makershub-main` tem 1** (`OpportunitiesKanban.tsx:2039`);
+`CandidatesKanban.tsx` **não existe na main** — só no `pr193`. A cobaia que o v2
+reescreve é a **main**.
+
+**E o que isso implica para o v1 já aplicado:** as 7 edições físico→lógico feitas
+à mão no `makers-ai-hub` foram justificadas por "app é LTR-only" — **fato
+errado**. Re-medido: `makers-ai-hub` tem **zero** `writing-mode` em `src/`. A
+conclusão sobrevive, a justificativa não. Registrado porque justificativa errada
+que dá resultado certo é a mais perigosa: ela reaparece num repo onde o resultado
+seria errado.
 
 ## 1. Ambiente (corrigido)
 
@@ -116,11 +185,93 @@ punha um modelo decidindo isso e depois **auto-aplicava** a edição de risco.
 Corrigido: nó `D` de lookup, com escalada a `HUMANO` quando a política não cobre
 o caso. Mudar política é decisão do dono, não julgamento de modelo.
 
-### 2.3 Contagem honesta
+### 2.3 O grafo corrigido
+
+A rodada 1 desta rev descreveu as correções em prosa e **não trouxe diagrama** —
+o único mermaid vivo estava no doc supersedido, com a fiação **antiga**. Quem
+implementasse não tinha grafo-fonte. Corrigido:
+
+```mermaid
+flowchart TD
+    START([repo alvo]) --> P0["<b>D</b> preflight: npm ci, DS do ALVO,<br/>medir axisMappingSafe por escopo"]
+    P0 --> MX["<b>D</b> capability matrix na versao PINADA do alvo<br/>21 familias + important-legado + variant-rewrite<br/>+ rem standalone + composicao twMerge"]
+    MX --> MG{"familia deterministica<br/>e reproduzivel?"}
+    MG -->|nao| MOP["<b>D</b> familia = opaque<br/>nunca 'provavelmente equivalente'"]
+    MOP --> MG
+    MG -->|sim| FP0
+
+    FP0["<b>D</b> censo + fingerprint de multiset<br/>ANTES do oraculo, que dedupa e reordena"] --> C["<b>D</b> canonicalizeCandidates por grupo<br/>collapse + rem + l2p por escopo"]
+    C --> CF["<b>D</b> conflito e precedencia<br/>twMerge"]
+    CF --> R{"<b>D</b> classificar"}
+
+    R -->|"A: 4 lados iguais"| PROP["<b>D</b> proposta"]
+    R -->|"B0: cobre 4 lados, mesmo valor"| PROP
+    R -->|"B: resultado por eixo"| GATE{"<b>D</b> axisMappingSafe<br/>no escopo?"}
+    R -->|"V: troca de ancora"| VGATE{"<b>D</b> html font-size intacto<br/>E politica declarada?"}
+    R -->|"relacional space/divide"| NOSH["<b>D</b> sem shorthand — nao tocar"]
+    R -->|"subset p-4 px-2"| OURS["<b>NOSSO</b> cascade-projection"]
+    R -->|dinamico| OPQ["<b>D</b> opaque"]
+
+    GATE -->|sim| PROP
+    GATE -->|nao| HUM1["<b>HUMANO</b> mudar politica do escopo?"]
+    HUM1 --> PROP
+    VGATE -->|sim| PROP
+    VGATE -->|nao| HUM1
+    OURS --> IAL["<b>IA</b> qual forma canonica e mais legivel<br/>entre as ja equivalentes"]
+    IAL --> PROP
+
+    PROP --> PROVA{"<b>D</b> GATE UNICO: fingerprint compilado<br/>antes == depois"}
+    PROVA -->|falha| REJ["<b>D</b> rejeitar proposta<br/>registrar como opaque"]
+    PROVA -->|passa| NAME{"<b>D</b> toca NOME de token?"}
+
+    NAME -->|sim| SC["<b>D</b> nota NOME e APLICACAO, corte 70"]
+    SC --> SC2{"nota >= 70?"}
+    SC2 -->|nao| IAN["<b>IA</b> propor nome pela lei"]
+    IAN --> HUM2["<b>HUMANO</b> aprovar owner novo"]
+    HUM2 --> CM
+    SC2 -->|sim| CM
+    NAME -->|nao| CM
+
+    CM["<b>D</b> codemod ts-morph, nunca regex"] --> CMG{"<b>D</b> dry-run: diff so nos alvos<br/>tolerando reordenacao?"}
+    CMG -->|nao| CMA["<b>D</b> abortar lote"]
+    CMA --> CM
+    CMG -->|sim| B["<b>D</b> build + ordem via sorter<br/>preserveDuplicates true"]
+    B --> BG{"<b>D</b> classe existe no CSS BUILDADO?"}
+    BG -->|nao| BZ["<b>D</b> classe desconhecida emite ZERO CSS"]
+    BZ --> CM
+    BG -->|sim| V["<b>D</b> evidencia: rota x tema x viewport x writing-mode"]
+
+    V --> VG{"<b>D</b> pixel, console, axe, overflow"}
+    VG -->|regressao| CM
+    VG -->|ok| IAP["<b>IA</b> os PNGs mostram o ESTADO certo?<br/>fallback vazio pode ser pixel-identico<br/>a um baseline tambem errado"]
+    IAP -->|nao| CM
+    IAP -->|sim| ADV["<b>IA adversarial</b> subagent isolado"]
+    ADV -->|CORRIGIR| CM
+    ADV -->|SATISFEITO| DONE([prova de conclusao])
+
+    style OURS fill:#b05108,color:#fff
+    style BZ fill:#c22929,color:#fff
+    style CMA fill:#c22929,color:#fff
+    style REJ fill:#c22929,color:#fff
+    style HUM1 fill:#7c3aed,color:#fff
+    style HUM2 fill:#7c3aed,color:#fff
+    style ADV fill:#fee2e2,stroke:#b91c1c,color:#111827
+    style DONE fill:#dcfce7,stroke:#15803d,color:#111827
+```
+
+⚠ **A captura do BASELINE precisa do mesmo julgamento de `IA-pixel`.** Se o
+"antes" for um fallback vazio, o baseline errado entra limpo no contrato e o
+"depois" idêntico passa. O nó `IA-pixel` roda nas **duas** capturas.
+
+### 2.4 Contagem honesta
 
 A rev 1 dizia "17 D, 4 IA, 1 humano". Recontado no diagrama: **24 nós `D`** e
 **5 de IA** (IA1–IA4 + o adversarial, que também é modelo). Com as correções
-acima: **26 `D`, 3 IA, 2 HUMANO**. Os 3 pontos de IA que sobrevivem:
+acima e **contado no diagrama do §2.3** (não estimado): **24 `D`, 4 IA, 2
+HUMANO**. São 4 de IA, não 3: removendo `IA1` dos 5 sobram
+legibilidade, naming, pixel **e o adversarial**, que também é modelo. A rodada 1
+escreveu "3" sob o título "contagem honesta", o que é irônico e fica registrado.
+Os 4 pontos de IA, e o critério de cada um:
 
 | nó | por que só IA resolve |
 |---|---|
@@ -158,6 +309,21 @@ também enviesa: se o denominador for "o que o v2 acha", o benchmark se autovali
    `recall(fonte)` = fração da união **validada** que a fonte acha.
    `precisão(fonte)` = fração das propostas da fonte que passa a prova.
 
+   **Regra que faltava, provada:** `gap-related` é definido **só no CSS do
+   pr193** (`app/styles/generated/system-tokens.css`) e **ausente na main**.
+   Validar o "depois" da fonte 3 exige o DS do **pr193**; e se o token for
+   fingerprint-igual ao valor cru (`gap-related ≡ gap-2`), o **rename** entraria
+   no pool de **colapso** e contaminaria o denominador. Portanto: classificar cada
+   entrada da fonte 3 por tipo (**colapso** × **rename-para-token** × **mudança de
+   valor**) ANTES do pool; rename vai só para a métrica de concordância humana; e
+   **declarar o DS de validação por fonte**.
+
+   **Teto do pool, declarado:** a união não vê o que nenhuma fonte propõe — o
+   recall é **relativo**. Mitigação determinística: para N grupos sorteados,
+   enumerar exaustivamente todos os subconjuntos colapsáveis via o próprio oráculo
+   + prova, e publicar a **taxa de escape do pool** com intervalo. É métrica
+   declarada, não muda o desenho.
+
 2. **PR-193 vira métrica própria de concordância humana**, estratificada por tipo
    (token semântico × colapso × valor) — nunca gabarito de recall.
 
@@ -177,7 +343,7 @@ censo contar pares não-adjacentes e `top-0 bottom-0` separadamente.
 
 ## 4. Fases (corrigidas)
 
-### F0 — Spike de runabilidade (NOVO, bloqueia F8)
+### F0 — Spike de runabilidade (NOVO, bloqueia F9)
 
 A prova visual pressupõe o makershub **rodando**. A cobaia tem `backend/` Python
 e `docker-compose`. Se ela não renderiza sem backend semeado, o contrato visual
@@ -191,6 +357,11 @@ sobre esta cobaia é declarado bloqueado **antes** de qualquer outra fase.
 - **`npm ci`**, não `yarn install`. As cobaias são npm-locked; yarn ignoraria o
   lock, criaria `yarn.lock` e resolveria `^4.3.1`→`4.3.3` — mutação de fixture
   congelada **e** drift de versão. `npm ci` é determinístico e não toca o lock.
+- **Qual design system é canônico em runtime:** o do **ALVO**. O v1 resolve o DS
+  do alvo (`tailwind-normalizer.mjs` Linhas 733-744) e está certo — `@utility` e
+  tema vivem no CSS do app. O pin no repo v2 serve **só** à suíte de capability e
+  a fallback; se o adapter usar o tailwind do próprio v2 em runtime, dois DS
+  divergem silenciosamente.
 - **Pinar no repo v2, não nas cobaias.** O `ui-tokenizer-v2` **não tem
   `package.json`** — criar um é pré-requisito, e é lá que `tailwindcss` e
   `@tailwindcss/node` são declarados como deps diretas e pinadas.
@@ -268,8 +439,9 @@ Os 10 da rev 1, mais:
 
 11. Toda proposta passa pela prova de fingerprint compilado — **inclusive** a do
     nosso cascade-projection.
-12. `logicalToPhysical` é resolvido por escopo, com `inlineAxisSafe` e
-    `blockAxisSafe` medidos separadamente.
+12. `logicalToPhysical` é resolvido por escopo pelo predicado ÚNICO
+    `axisMappingSafe` (writing-mode), que gateia os dois eixos. `dir`/RTL não
+    entra — colapso simétrico é invariante a direção.
 13. Nenhum fixture congelado é mutado; `npm ci` apenas.
 14. O benchmark publica recall e precisão contra a **união validada**, e
     concordância humana com o PR-193 como métrica separada.
