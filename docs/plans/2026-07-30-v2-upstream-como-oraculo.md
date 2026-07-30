@@ -82,10 +82,10 @@ com a evidência do script na mão.
 flowchart TD
     START([repo alvo]) --> P0["<b>D</b> preflight: fixar tailwindcss e @tailwindcss/node<br/>medir se o app aplica dir/RTL"]
     P0 --> POL{"<b>D</b> app tem RTL?"}
-    POL -->|não| POLF["logicalToPhysical = TRUE<br/>política derivada de FATO medido"]
-    POL -->|sim| POLT["logicalToPhysical = FALSE<br/>colapso físico→lógico vira review"]
-    POLF --> M
-    POLT --> M
+    POL -->|não| POL_AGGR["logicalToPhysical = TRUE<br/>política derivada de FATO medido"]
+    POL -->|sim| POL_CONS["logicalToPhysical = FALSE<br/>colapso físico→lógico vira review"]
+    POL_AGGR --> M
+    POL_CONS --> M
 
     M["<b>D</b> capability matrix do upstream<br/>21 famílias × opções × variants × important"] --> M2{"matriz completa<br/>e estável?"}
     M2 -->|não| M3["<b>D</b> registrar família como <i>opaque</i><br/>nunca 'provavelmente equivalente'"]
@@ -164,7 +164,7 @@ Contrato de saída, um registro por grupo canonicalizado:
     "engine": "tailwindcss",
     "version": "4.3.3",
     "nodeApi": "@tailwindcss/node@4.3.3",
-    "options": { "collapse": true, "logicalToPhysical": false, "rem": 16 },
+    "options": { "collapse": true, "logicalToPhysical": true, "rem": 16 },
     "policySource": "measured:no-rtl-mechanism"
   },
   "branchId": "ast:...",
@@ -178,6 +178,12 @@ Contrato de saída, um registro por grupo canonicalizado:
   "decision": "safe-auto-apply"
 }
 ```
+
+`riskClass` classifica o **fato**; `decision` aplica a **política**. Separar as
+duas colunas é o que permite reavaliar todo o histórico se a política mudar, sem
+re-extrair nada: `left-0 right-0 → inset-x-0` sai sempre como
+`riskClass: physical-to-logical`, e é a `decision` que vira `safe-auto-apply` num
+repo LTR-only e `review-or-policy-required` num repo com RTL medido.
 
 `riskClass` fechado: `none` · `physical-to-logical` ·
 `relational-child-selector` · `subset-overlap` · `unresolved-dynamic-fragment` ·
