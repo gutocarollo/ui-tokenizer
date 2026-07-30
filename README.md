@@ -86,7 +86,7 @@ flowchart TD
         A8 --> A9
         A6 -->|sim| A9["derivar o token específico<br/>HERDANDO o valor atual"]
         A3 -->|sim| A9
-        A9 --> A10["escrever no JSON, tier component"]
+        A9 --> A10["escrever no JSON, tier component<br/><b>NAO IMPLEMENTADO</b>"]
         A10 --> A11["rodar TODOS os emissores"]
         A11 --> A12{"classe existe no<br/>CSS BUILDADO?"}
         A12 -->|não| A13["classe desconhecida emite<br/>ZERO CSS sem erro"]
@@ -99,7 +99,7 @@ flowchart TD
     Q -->|sim| H
     A15 -->|não| H([HANDOFF: token pronto,<br/>agora aplicar no código])
 
-    subgraph B["ETAPA B — provar o pixel (reference/visual-evidence.md)"]
+    subgraph B["ETAPA B — provar o pixel · PROTOCOLO ESCRITO, NAO EXECUTADO"]
         H --> B1["que TELAS o diff afeta<br/>BFS de import reverso"]
         B1 --> B2{"sobrou rota :param<br/>sem fixture?"}
         B2 -->|sim| B3["materializar com dado REAL"]
@@ -123,12 +123,25 @@ flowchart TD
     REP --> GATE["prova de conclusão<br/>evidência bruta por item"]
     GATE --> DONE([pronto])
 
+    style A10 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
+    style A11 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
+    style A12 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
+    style A14 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
+    style B fill:#fafafa,stroke:#9ca3af,stroke-dasharray:6 4
     style A13 fill:#c22929,color:#fff
     style A8 fill:#b05108,color:#fff
     style ADV fill:#fee2e2,stroke:#b91c1c,color:#111827
     style DONE fill:#dcfce7,stroke:#15803d,color:#111827
     style BLOCK fill:#fee2e2,stroke:#b91c1c,color:#111827
 ```
+
+> **Tracejado cinza = não implementado.** O que `tokenize.mjs` roda hoje vai do
+> censo até *derivar o token herdando o valor*. Tudo a partir de **escrever no
+> JSON** — emissores, prova de que a classe existe no CSS buildado, prova das
+> vars nos 2 temas — é a fase `APPLY`, **declarada e não construída**. A ETAPA B
+> inteira é protocolo escrito (`reference/visual-evidence.md`), não código que
+> este comando execute. O diagrama é o processo pretendido; a metade sólida é o
+> que existe.
 
 **Os 5 loops de volta são o produto.** Eles são o que impede um report falso:
 classe sem CSS, valor que mudou sem intenção, regressão detectada por máquina,
