@@ -138,13 +138,48 @@ function deltaE(a, b) {
 
 /* ------------------------------------------------------------- heuristica -- */
 
-/** Similaridade de string por bigramas — 0..1. Sem dependencia nova. */
+/**
+ * Sorensen-Dice sobre bigramas — 0..1. Sem dependencia nova, e a decisao de nao
+ * adicionar uma esta MEDIDA, nao suposta.
+ *
+ * Comparado contra as candidatas maduras nos nomes PascalCase reais deste app,
+ * o poder discriminativo — min(parecidos) menos max(diferentes) — foi:
+ *
+ *     esta funcao        +0,783
+ *     dice-coefficient   +0,750   (wooorm)
+ *     string-similarity  +0,750   DEPRECATED no npm, repo arquivado
+ *     fastest-levenshtein +0,292   separa 2,7x pior
+ *
+ * `fastest-levenshtein` cai por CORRECAO, nao por velocidade: da 0,333 para
+ * ("Directory","FileRow"), dois componentes sem relacao — distancia de edicao
+ * mede typo, nao parentesco de nome. E `dice-coefficient` retorna NaN para
+ * ("",""), que e exatamente o caminho `?? ""` do chamador abaixo; o NaN entraria
+ * no reduce da nota e zerava a confianca do par em silencio.
+ *
+ * MULTISET, nao Set. A versao anterior usava Set e colapsava bigrama repetido,
+ * inflando nomes com repeticao: ("TabTabTab","Tab") dava 0,800 em vez de 0,400,
+ * e ("Modal","ModalModal") dava 0,889 em vez de 0,615. Em nomes reais o desvio
+ * medio era 0,012 ponto de 100 (496 pares medidos), mas era erro de correcao, e
+ * o conserto sao 3 linhas — nao uma dependencia.
+ */
 function diceSimilarity(a, b) {
-  const bigrams = (s) => { const g = new Set(); const t = s.toLowerCase(); for (let i = 0; i < t.length - 1; i++) g.add(t.slice(i, i + 2)); return g; };
+  const bigrams = (s) => {
+    const m = new Map();
+    const t = String(s).toLowerCase();
+    for (let i = 0; i < t.length - 1; i++) {
+      const g = t.slice(i, i + 2);
+      m.set(g, (m.get(g) ?? 0) + 1);
+    }
+    return m;
+  };
   const A = bigrams(a), B = bigrams(b);
-  if (!A.size || !B.size) return a === b ? 1 : 0;
-  let inter = 0; for (const g of A) if (B.has(g)) inter++;
-  return (2 * inter) / (A.size + B.size);
+  const sizeA = [...A.values()].reduce((s, n) => s + n, 0);
+  const sizeB = [...B.values()].reduce((s, n) => s + n, 0);
+  // guard que a lib nao tem: string vazia nao pode virar NaN.
+  if (!sizeA || !sizeB) return a === b ? 1 : 0;
+  let inter = 0;
+  for (const [g, n] of A) inter += Math.min(n, B.get(g) ?? 0);
+  return (2 * inter) / (sizeA + sizeB);
 }
 
 const STRENGTH = { high: 1, medium: 0.6, low: 0.3 };

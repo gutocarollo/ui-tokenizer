@@ -193,7 +193,7 @@ app e reportou sucesso**. Requisitos da fase:
 
 | # | fase | entrega | prova |
 |---|---|---|---|
-| **F-A** | validar libs (LEI ZERO) | veredito REUSA/PARCIAL/NÃO por candidata | path+linha do código clonado |
+| **F-A** | validar libs (LEI ZERO) | **✔ concluída — ver §5.1** | 3 subagents, código clonado e executado |
 | **F-B** | `NORMALIZE` | 158 `style={{}}` + 28 cores + 172 px normalizados | contagem antes/depois + cruzamento DOM |
 | **F-C** | `MINE` no loop | miner com `--ext` derivado + guard | o bug de 2% vira erro num teste |
 | **F-D** | entidade canônica | bundles ≥2× viram contrato de componente | cobertura medida ≥ 68,9% |
@@ -203,6 +203,82 @@ app e reportou sucesso**. Requisitos da fase:
 | **F-H** | `EVIDENCE` | pixel antes/depois por estado | PNG + manifest + review adversarial |
 
 **Sequencial, uma por vez, verificada antes de seguir** (LEI ZERO §6).
+
+### 5.1 F-A concluída — as três candidatas caíram, e uma delas por sorte
+
+Protocolo LEI ZERO rodado: três subagents clonaram, **leram o código** e
+**executaram** contra o alvo real.
+
+#### `SCSS-To-Tailwind-Codemod` — **NÃO-SERVE**
+
+O fork da Swisscom é **byte-idêntico** a `shiyangzhaoa/css-modules-to-tailwind`
+(`ahead_by 0, behind_by 0`).
+
+| defeito | evidência |
+|---|---|
+| entrada é **JSX com import de CSS module**, não CSS | `src/get-tailwind-map.ts` L25-30 + `src/utils/validate.ts` L13 |
+| nosso alvo tem **zero** `.module.css` | `find src -name "*.module.*css"` → vazio |
+| tabela é snapshot fixo de **Tailwind v3.4** raspado por Puppeteer | `scripts/update.ts` L37-42; alvo é **v4.3.3** |
+| em v4 `shadow-sm`·`rounded-sm`·`blur-sm` **foram renomeadas e a escala deslocou** | emitiria sombra diferente da original, **em silêncio** |
+| `background: var(--card)` → `bg-[left_var_top_--card]` | CSS **corrompido** |
+| `color: var(--brand, #ff0000)` → `text-[rgb(255,0,0)]` | **token descartado**, sobra o fallback |
+| **apaga `--custom-prop` declaradas** | `lodash.kebabCase` remove os `--` em `cjs/index.cjs` L24, o filtro em `tailwind-class.ts` L184-185 não casa, e a decl é removida em L246-248 |
+
+O último item sozinho decide: o alvo tem **187 `--custom-prop` declaradas** — seria
+destruição de dados garantida. E o objetivo sairia invertido: nossas 28 cores
+cravadas virariam `bg-[#cdcdcd40]` (arbitrary value), não token. Hardcode
+continua hardcode, agora dentro do JSX onde é mais difícil auditar.
+
+#### `extract-design-system` — **NÃO-SERVE**
+
+| defeito | evidência |
+|---|---|
+| extração é **URL-only** (headless via `dembrandt`) | `src/cli.ts` L18, `src/commands/extract.ts` L45 |
+| o `audit` lê disco mas é **regex linha-a-linha, sem AST** | `src/scanners/pattern-scanner.ts` L62 |
+| **zero conhecimento de `className`/Tailwind** | 0 utilities entre **6.408** `className` em 433 arquivos |
+| **86,9% dos findings** são os arquivos que **definem** os tokens | 1.263 de 1.454 |
+| cor casada por **euclidiana em RGB**, não perceptual | `src/matchers/color-matcher.ts` L42-46 |
+| falso positivo real capturado | `#ffeef0` (rosa, sat 100%) → `#f7f7f7` (cinza, sat 0%), distância 13,9 < 15 |
+| **token usado nunca é contado** | `pattern-scanner.ts` L27 descarta a linha inteira se contiver `var(--` |
+
+Saída não é DTCG. Não faz atribuição de owner.
+
+#### Similaridade de string — **MANTER a nossa**, e eu estava errado
+
+Eu havia me acusado de reinventar roda com os bigramas de Dice. **A medição
+refuta.** Poder discriminativo, `min(parecidos) − max(diferentes)`:
+
+| impl | gap |
+|---|---:|
+| **esta função** | **+0,783** |
+| `dice-coefficient` | +0,750 |
+| `string-similarity` | +0,750 — **DEPRECATED no npm, repo arquivado** |
+| `fastest-levenshtein` | +0,292 — separa **2,7× pior** |
+
+`fastest-levenshtein` cai por **correção**, não velocidade: dá **0,333** para
+`("Directory","FileRow")`, dois componentes sem relação — distância de edição mede
+*typo*, não parentesco de nome. E `dice-coefficient` retorna **`NaN`** para
+`("","")`, que é exatamente o caminho `?? ""` do chamador; o `NaN` entraria no
+`reduce` da nota e zerava a confiança do par em silêncio.
+
+**Mas o subagent achou um bug meu que eu não conhecia:** a implementação usava
+`Set`, colapsando bigrama repetido e inflando nomes com repetição —
+`("TabTabTab","Tab")` dava **0,800** em vez de 0,400. Corrigido para multiset
+(`Map` de contagem, 3 linhas, zero dependência), com o guard de string vazia que
+a lib não tem. Regressão **8/8**; no loop completo os 41 contratos e as 211 fusões
+se mantêm, com 2 pares migrando de "confiança" para "outlier".
+
+#### Conclusão da F-A
+
+**Nenhuma das três entra.** As duas primeiras não fazem o que o README sugere, e
+descobrir isso exigiu clonar, ler e executar — o README de ambas passaria numa
+leitura superficial. O caminho para o CSS é um **script postcss próprio (~150
+linhas)** que lê `src/styles/generated/*-tokens.css`, monta o mapa valor→token e
+**reporta antes de aplicar**, com a tabela sob nosso controle.
+
+> Isso **não** invalida a LEI ZERO — a valida. O protocolo não é "adotar a
+> primeira lib que aparece", é **provar** que não há nada reaproveitável antes de
+> escrever. Aqui a prova foi feita com path+linha e execução, não com opinião.
 
 ---
 
