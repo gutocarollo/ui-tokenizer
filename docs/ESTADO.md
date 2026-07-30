@@ -63,6 +63,12 @@ Três repositórios, com papéis distintos:
 **Fase: plano fechado, execução iniciada na F0.** O control plane existe; o design
 **não** está tokenizado.
 
+**O v2 já é superior ao v1?** Num eixo, sim e medido (§4.4): recall de reescrita de
+utility, 3,3×, superconjunto estrito. Em todos os outros eixos, **não sabemos** — o
+benchmark F3 não rodou, e o repo v2 hoje é o v1 mais um plano e 2 correções de bug,
+sem motor novo. E o ganho medido vem de **como o oráculo é chamado**, o que sugere
+testar primeiro a correção da chamada no v1.
+
 | artefato | estado |
 |---|---|
 `ui-tokenizer-v2` | branch `v2`, **6 commits**, 172 arquivos, árvore limpa, **não pushado** |
@@ -140,7 +146,42 @@ segura.
 deprecado (325) e reordenação-somente (228). A segunda reprovaria o gate de
 dry-run "diff só nos alvos" se ele não tolerar reordenação.
 
-### 4.4 Correções aplicadas e verificadas
+### 4.4 Primeiro dado real de v1 × v2 — um eixo só
+
+✅ Mesma cobaia, 11.075 grupos estáticos, mesmo design system, medido em
+2026-07-30:
+
+| | grupos que mudam | % |
+|---|---:|---:|
+**v1** — `canonicalizeCandidates([raw])`, 1 candidato, sem opções | **519** | 4,7% |
+**v2** — `canonicalizeCandidates(grupo, {collapse, logicalToPhysical, rem})` | **1.694** | 15,3% |
+
+Interseção: ambos **519** · só v2 **1.175** · **só v1 = 0**.
+
+✅ O conjunto do v2 é **superconjunto estrito**. Recall **3,3×**, zero regressão.
+O que o v1 acha sozinho é alias-deprecado (`flex-shrink-0`→`shrink-0`), que
+funciona por candidato; ele perde **todos** os colapsos, porque colapso exige ≥2
+candidatos na mesma chamada (`lib/tailwind-normalizer.mjs` linhas 884 e 921 —
+`canonicalizeCandidates([raw])`, sem argumento de opções).
+
+⚠ **O que este número NÃO estabelece**, e é a parte que importa:
+
+1. **Recall ≠ correção.** 122 dos 1.175 extras são `axis-mapping-sensitive`, e a
+   cobaia **tem** um escopo `vertical-rl`. Parte precisa de gate, e o gate não
+   está implementado.
+2. **Mede a CHAMADA, não o processo.** Os dois números saem da mesma função
+   oficial. A hipótese mais barata para capturar o ganho é **corrigir a chamada no
+   v1** — uma mudança pequena — e medir de novo. Isso ainda não foi testado, e
+   deveria vir antes de justificar motor novo.
+3. **Não toca o objetivo.** Nenhum dos dois números move uma cor.
+4. **Propriedades do v1 não verificadas no v2:** degradação fail-closed para
+   `compiler-unavailable`, proveniência, fingerprint de multiset, opaque handling.
+
+Nota de método: a diferença entre 1.694 aqui e 1.649 na §4.3 é o `rem: 16`, ausente
+na medição anterior — 45 grupos de normalização de valor (classe `V`,
+`value-anchor-change`, que a §0.2 do plano tira do nível seguro).
+
+### 4.5 Correções aplicadas e verificadas
 
 ✅ **16 edições de espaçamento** no app de referência (7 pares simétricos + 9
 formas divergentes), cada uma com contagem de ocorrência assertada. Divergência de
@@ -160,7 +201,7 @@ determinísticas, 2 model, 3 human, **0 problemas** na auditoria contra o contra
 ✅ **45/45 testes fail-closed** dos módulos de extração, normalização, eixos e
 contrato visual, com `TOKENIZE_TEST_ROOT` no app de referência.
 
-### 4.5 O que a pesquisa de biblioteca provou
+### 4.6 O que a pesquisa de biblioteca provou
 
 ✅ Inventário no monorepo: de ~60 candidatas, **6 já existem** —
 `@playwright/test`, `pixelmatch`, `pngjs`, `sharp`, `ajv`, `typescript`. O lado
