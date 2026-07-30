@@ -75,15 +75,53 @@ function contextOf(text, offset, file) {
   return { tag, role, type, component, area, disabled, selected };
 }
 
-/** Estado de interacao vem do prefixo de variante, nao de adivinhacao. */
-function stateOf(variantPrefix, ctx) {
+/**
+ * Estado de interacao. TRES fontes, nesta precedencia:
+ *   1. prefixo de variante Tailwind (`hover:`) — o mais forte, e do consumo
+ *   2. atributo no elemento (`disabled`, `aria-selected`)
+ *   3. a palavra de estado dentro do NOME DO TOKEN ANTIGO
+ *
+ * A fonte 3 existe porque medido: 5 ocorrencias de `surface-selected` caiam num
+ * nome derivado com estado `hover`, e 4 de `surface-hover` caiam em nome SEM
+ * estado. O nome antigo carrega estado e ignora-lo perde o contrato.
+ */
+const KNOWN_STATES = ["hover", "focus", "active", "disabled", "visited", "checked", "open", "selected"];
+
+function stateOf(variantPrefix, ctx, oldToken) {
   const vs = (variantPrefix || "").split(":").filter(Boolean);
-  const known = ["hover", "focus", "active", "disabled", "visited", "checked", "open"];
-  const fromVariant = vs.filter((v) => known.includes(v));
+  const fromVariant = vs.filter((v) => KNOWN_STATES.includes(v));
   if (fromVariant.length) return fromVariant.join("-");
   if (ctx.disabled) return "disabled";
   if (ctx.selected) return "selected";
-  return null;
+  const fromOld = (oldToken || "").split("-").find((w) => KNOWN_STATES.includes(w));
+  return fromOld ?? null;
+}
+
+/**
+ * Variante, extraida do nome do token antigo.
+ *
+ * Medido: `button-background-color-hover` puxava de CINCO primitivos diferentes
+ * porque `destructive-tint`, `warning-tint` e `success-tint` colapsavam no mesmo
+ * nome. Sao variantes, e a lei §4.4 tem slot para elas — o derivador so nao o
+ * preenchia. Sem isso o token novo teria que aliasar 5 valores, que e impossivel.
+ */
+function variantOf(oldToken, vocabulary) {
+  const words = (oldToken || "").split("-");
+  return words.find((w) => vocabulary.variants.includes(w)) ?? null;
+}
+
+/**
+ * DIVERGENCIA CONTEXTUAL, no sentido do §9: expor, nunca apagar.
+ *
+ * Token cujo nome declara um estado, consumido SEM o prefixo daquele estado, e
+ * um fundo estatico usando um token de interacao. Renomear em silencio apagaria
+ * a evidencia; o processo tem que reportar.
+ */
+function divergenceOf(variantPrefix, oldToken) {
+  const declared = (oldToken || "").split("-").find((w) => KNOWN_STATES.includes(w));
+  if (!declared) return null;
+  const applied = (variantPrefix || "").split(":").includes(declared);
+  return applied ? null : `token declara estado \`${declared}\` e e consumido sem o prefixo \`${declared}:\``;
 }
 
 /**
@@ -91,11 +129,12 @@ function stateOf(variantPrefix, ctx) {
  * Retorna null quando falta o eixo obrigatorio (owner), porque nome sem owner e
  * pote de tinta — a lei §7.4 tira 30 pontos disso.
  */
-function deriveName({ owner, property, state, anatomy }) {
+function deriveName({ owner, property, variant, state, anatomy }) {
   if (!owner) return null;
   const parts = [owner];
   if (anatomy) parts.push(anatomy);
   parts.push(property);
+  if (variant) parts.push(variant);
   if (state) parts.push(state);
   return parts.join("-");
 }
@@ -121,17 +160,19 @@ for (const f of files(SRC)) {
     const ctx = contextOf(text, m.index, f);
     const { owner, signal } = findUseOwner({ file: f, tag: ctx.tag, role: ctx.role, type: ctx.type }, voc.owners);
     const property = PREFIX_PROPERTY[prefix] ?? null;
-    const state = stateOf(variantPrefix, ctx);
+    const state = stateOf(variantPrefix, ctx, token);
+    const variant = variantOf(token, voc);
+    const divergence = divergenceOf(variantPrefix, token);
     ocorrencias.push({
       file: path.relative(ROOT, f), line, token, prefix, variantPrefix: variantPrefix || null,
-      owner: owner ?? null, ownerSignal: signal ?? null, property, state,
+      owner: owner ?? null, ownerSignal: signal ?? null, property, state, variant, divergence,
       tag: ctx.tag, role: ctx.role, component: ctx.component, area: ctx.area,
     });
   }
 }
 
 /** Chave de cluster = os eixos do §9 que temos estaticamente. */
-const chave = (o) => [o.owner ?? "?", o.tag ?? "?", o.role ?? "-", o.component, o.property ?? "?", o.state ?? "-", o.area].join(" | ");
+const chave = (o) => [o.owner ?? "?", o.tag ?? "?", o.role ?? "-", o.component, o.property ?? "?", o.variant ?? "-", o.state ?? "-", o.area].join(" | ");
 
 const clusters = new Map();
 for (const o of ocorrencias) {
@@ -142,15 +183,51 @@ for (const o of ocorrencias) {
   c.tokens.add(o.token);
 }
 
+/**
+ * Valor fisico do token antigo, para detectar divergencia DENTRO do cluster.
+ *
+ * Sem isso o mapa proporia um nome que teria de aliasar dois primitivos — o que e
+ * impossivel. Medido: 10 dos 29 primeiros nomes eram multi-valor.
+ */
+const tokensJson = path.join(ROOT, "tokens/color.tokens.json");
+const VALUES = new Map();
+if (existsSync(tokensJson)) {
+  const J = JSON.parse(readFileSync(tokensJson, "utf8"));
+  const walk = (node, p = []) => {
+    for (const [k, v] of Object.entries(node)) {
+      if (k === "$type" || k === "$description") continue;
+      if (k === "$root") VALUES.set(p.join("."), v?.$value);
+      else if (v && typeof v === "object" && "$value" in v) VALUES.set([...p, k].join("."), v.$value);
+      else if (v && typeof v === "object") walk(v, [...p, k]);
+    }
+  };
+  walk(J);
+}
+const primitiveOf = (token) => VALUES.get(`semantic.light.surface.${token.replace(/^surface-/, "")}`) ?? null;
+
 const lista = [...clusters.values()]
   .map((c) => {
     const s = c.sample;
-    const proposed = deriveName({ owner: s.owner, property: s.property, state: s.state, anatomy: null });
+    const proposed = deriveName({ owner: s.owner, property: s.property, variant: s.variant, state: s.state, anatomy: null });
+    // valor dominante do cluster; o resto e DIVERGENCIA a expor, nao a apagar (§9)
+    const byValue = new Map();
+    for (const o of c.occurrences) {
+      const v = primitiveOf(o.token) ?? `(sem valor: ${o.token})`;
+      byValue.set(v, (byValue.get(v) ?? 0) + 1);
+    }
+    const ordered = [...byValue.entries()].sort((a, b) => b[1] - a[1]);
+    const dominant = ordered[0]?.[0] ?? null;
+    const divergent = c.occurrences.filter((o) => (primitiveOf(o.token) ?? `(sem valor: ${o.token})`) !== dominant);
     return {
       ...c,
       tokens: [...c.tokens],
       count: c.occurrences.length,
       proposedName: proposed,
+      dominantPrimitive: dominant,
+      valueSpread: ordered.length,
+      divergentCount: divergent.length,
+      divergentOccurrences: divergent.slice(0, 8),
+      stateDivergences: c.occurrences.filter((o) => o.divergence).length,
       needsDecision: !proposed,
       reason: proposed ? null : "owner nao determinado pelo contexto renderizado",
     };
