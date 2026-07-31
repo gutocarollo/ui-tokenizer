@@ -9,6 +9,16 @@
 > H-019, H-021, and H-023. Direct instruction: **`semantic` and `surface` are
 > token CONTEXT, not NAME. Centralize contexts.**
 
+> **De onde vem esta ordem — e de onde NÃO vem.** O DTCG é agnóstico quanto a
+> naming: *"Groups are arbitrary and tools SHOULD NOT use them to infer the type
+> or purpose of design tokens."* Citá-lo para justificar ordem de segmentos é
+> citação indevida. A ordem `owner → anatomy → property` vem de três sistemas
+> que a declaram e a praticam — Material Design 3
+> (`--md-filled-button-label-text-color`), GitHub Primer
+> (`--button-primary-fgColor-rest`) e shadcn/ui (`--primary-foreground`).
+> Evidência com citação literal e link em
+> [`2026-07-31-ordem-do-nome-evidencias.md`](2026-07-31-ordem-do-nome-evidencias.md).
+
 ## 1. The law in one sentence
 
 The identifier consumed by code is
