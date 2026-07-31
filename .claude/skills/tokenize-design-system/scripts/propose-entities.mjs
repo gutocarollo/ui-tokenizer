@@ -75,7 +75,7 @@ import {
   EXTS, SKIP, TOKENIZAVEL, bundleKey, census, isEntity, splitClasses, walk,
 } from "./lib/bundle-census.mjs";
 import { contratosNaExpressao } from "./lib/bundle-census.mjs";
-import { classNameAttributes } from "./lib/classname-extract.mjs";
+import { classNameAttributes, literaisNaExpressao } from "./lib/classname-extract.mjs";
 import { detectarComposicoes, entidadesDoCenso } from "./lib/composition.mjs";
 import { PREFIX_PROPERTY, familyPrefixOf, stripVariants } from "./lib/utility-families.mjs";
 
@@ -527,6 +527,60 @@ function coletarOcorrencias(ts, root, arquivos, contratos) {
     visit(sf);
   }
   return { ocorrencias, atributosAst };
+}
+
+/**
+ * ── LOCALIZADOR DE CENSO — o call site que o AST não vê ────────────────────────
+ *
+ * `coletarOcorrencias` só reporta atributo cujo valor é literal ESTÁTICO puro. O
+ * bundle que vive dentro de `` className={`… ${cond ? "a" : "b"} …`} `` entra no
+ * censo (o extrator lê os literais) mas sai do AST sem ocorrência — e o relatório
+ * imprimia "sem AST" no lugar de `arquivo:linha`.
+ *
+ * Isso importava pouco para a entidade (ela repete ≥2× e quase sempre tem algum
+ * call site estático) e importa MUITO para a composição: dos 146 bundles
+ * compostos, 11 não têm ocorrência no AST — e os DOIS de conflito A, os únicos
+ * que exigem pixel, estão entre eles. Dizer "sem AST" para o único item perigoso
+ * é entregar o achado sem o endereço.
+ *
+ * Este localizador roda sobre o MESMO `classNameAttributes` do censo, então a
+ * chave de bundle é idêntica por construção — não é um terceiro extrator. Ele não
+ * substitui o AST (não dá tag, role nem componente envolvente): é fallback de
+ * ENDEREÇO, e o relatório marca de onde veio cada um.
+ */
+function localizarPorCenso(root, arquivos, contratos) {
+  const porChave = new Map();
+  for (const f of arquivos) {
+    const rel = path.relative(root, f).replace(/\\/g, "/");
+    let texto;
+    try { texto = readFileSync(f, "utf8"); } catch { continue; }
+    /** offset -> linha, sem recontar o arquivo inteiro por atributo. */
+    const quebras = [];
+    for (let i = 0; i < texto.length; i++) if (texto[i] === "\n") quebras.push(i);
+    const linhaDe = (off) => {
+      let lo = 0, hi = quebras.length;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (quebras[m] < off) lo = m + 1; else hi = m; }
+      return lo + 1;
+    };
+    for (const at of classNameAttributes(texto)) {
+      const nomes = at.kind === "expr" ? contratosNaExpressao(at.expr, contratos) : [];
+      const cs = [...at.classes, ...nomes.flatMap((n) => contratos.get(n).classes)];
+      if (!cs.length) continue;
+      const k = bundleKey(cs);
+      if (!porChave.has(k)) porChave.set(k, []);
+      /**
+       * `literais` é o número de literais de string DENTRO da expressão. ≥2 num
+       * `kind:"expr"` significa que este "bundle" é a UNIÃO de pedaços que podem
+       * ser MUTUAMENTE EXCLUSIVOS — as duas pontas de um ternário. Ver o bloco
+       * BUNDLE SINTÉTICO na §6.3.
+       */
+      porChave.get(k).push({
+        arquivo: rel, linha: linhaDe(at.index), kind: at.kind, bruto: at.raw,
+        literais: at.kind === "expr" ? literaisNaExpressao(at.expr).length : 1,
+      });
+    }
+  }
+  return porChave;
 }
 
 // ─── a lei de derivação de nome ────────────────────────────────────────────────
@@ -1068,6 +1122,7 @@ const entsCenso = entidadesDoCenso(bundles, MIN_REPEAT, MIN_CLASSES);
 const composicoesRaw = detectarComposicoes(bundles, entsCenso);
 
 const porChaveEntidade = new Map(entidades.map((e) => [e.chave, e]));
+const porChaveCenso = localizarPorCenso(ROOT, arquivos, contratos);
 const composicoes = [];
 for (const [chave, c] of composicoesRaw) {
   const ent = porChaveEntidade.get(c.nucleo);
@@ -1087,6 +1142,12 @@ for (const [chave, c] of composicoesRaw) {
     nucleoCallSites: bundles.get(c.nucleo).n,
     extras: c.extras,
     extrasDuplicados: c.extrasDuplicados,
+    /**
+     * Quanto do bundle o contrato cobre. É o ATAQUE a este instrumento: um
+     * núcleo de 4 classes dentro de um bundle de 21 "compõe" no papel, mas o
+     * call site continua com 17 classes cruas na mão e o ganho é marginal.
+     */
+    coberturaDoNucleo: c.classesNucleo.length / c.classes.length,
     candidatos: c.candidatos.length,
     maximais: c.maximais.length,
     ambiguo: c.ambiguo,
@@ -1103,9 +1164,14 @@ for (const [chave, c] of composicoesRaw) {
      */
     callSites: ocs.map((o) => ({
       arquivo: o.arquivo, linha: o.linha, tag: o.tag,
-      componente: o.componente, bruto: o.bruto,
+      componente: o.componente, bruto: o.bruto, fonte: "ast",
     })),
     callSitesSemAst: Math.max(0, c.n - ocs.length),
+    /**
+     * Endereço vindo do CENSO (mesmo extrator, sem contexto sintático). Existe
+     * para o bundle que vive em template com `${}` — inclusive os de conflito A.
+     */
+    callSitesCenso: (porChaveCenso.get(chave) ?? []).map((s) => ({ ...s, fonte: "censo" })),
   });
 }
 composicoes.sort((a, b) => b.usos - a.usos || b.n - a.n || a.chave.localeCompare(b.chave));
@@ -1136,6 +1202,56 @@ const compEquivalentes = composicoes.filter((c) => c.conflito.equivalente);
 const compSemNome = composicoes.filter((c) => c.nucleoSemNome);
 const compComDuplicata = composicoes.filter((c) => c.extrasDuplicados.length);
 const compSemCallSite = composicoes.filter((c) => c.callSites.length === 0);
+/**
+ * ── BUNDLE SINTÉTICO — o achado que muda a leitura do conflito A ───────────────
+ *
+ * `classNameAttributes` devolve, para `kind:"expr"`, a UNIÃO de todos os literais
+ * da expressão. Isso foi uma correção deliberada do extrator (o regex antigo
+ * jogava fora as duas pontas do ternário, perdendo 609 usos de classe legítima) e
+ * está certo para o DENOMINADOR: as duas pontas são decisão de design escrita no
+ * código.
+ *
+ * Está ERRADO para o BUNDLE. Medido, com o arquivo aberto:
+ *
+ *   src/…/HistoricalMessage/Actions/index.jsx:33
+ *   className={`flex w-full flex-wrap items-center gap-y-1
+ *               ${role === "user" ? "justify-end" : "justify-between"}`}
+ *
+ * O censo forma UM bundle com `justify-end` E `justify-between`. Nenhum elemento
+ * renderiza assim: as duas pontas são MUTUAMENTE EXCLUSIVAS. Propor
+ * `cn(COMMON_ROW_W_FULL, "flex-wrap gap-y-1 justify-end")` aí não é composição —
+ * é apagar o condicional.
+ *
+ * E é exatamente por isso que os DOIS bundles de conflito A são bundles
+ * sintéticos: `twMerge` derrubando classe do núcleo é o sintoma de duas pontas do
+ * mesmo ternário no mesmo conjunto. O sinal que eu ia reportar como "risco de
+ * pixel" é, nestes casos, um sinal de que o bundle não existe.
+ *
+ * O critério é conservador: `literais ≥ 2` num `kind:"expr"` marca SUSPEITA, não
+ * culpa — `cn(BASE, "extra")` tem 1 literal e passa; `` `${A} b` `` tem 1 e passa.
+ */
+const sitesReaisDe = (c) => c.callSitesCenso.filter((s) => s.literais < 2);
+const sitesUniaoDe = (c) => c.callSitesCenso.filter((s) => s.literais >= 2);
+
+/** Endereço final: AST quando existe (traz tag/componente), censo como fallback. */
+const enderecos = (c) => (c.callSites.length ? c.callSites : c.callSitesCenso);
+const endereco1 = (c) => {
+  const e = enderecos(c)[0];
+  return e ? `\`${e.arquivo}\` Linha ${e.linha}${e.fonte === "censo" ? " (censo)" : ""}` : "**sem endereço**";
+};
+/** Sem endereço NENHUM — nem AST nem censo. Se houver, o censo regrediu. */
+const compSemEndereco = composicoes.filter((c) => !c.callSites.length && !c.callSitesCenso.length);
+/** Faixas de cobertura do núcleo — o ataque ao valor real do instrumento. */
+const FAIXAS_COBERTURA = [
+  { rot: "≥75% — o contrato cobre quase tudo", tst: (f) => f >= 0.75 },
+  { rot: "50–74%", tst: (f) => f >= 0.5 && f < 0.75 },
+  { rot: "25–49%", tst: (f) => f >= 0.25 && f < 0.5 },
+  { rot: "<25% — núcleo minoritário, ganho marginal", tst: (f) => f < 0.25 },
+];
+/** Todo call site é união de literais → o bundle NÃO existe em runtime. */
+const compSintetico = composicoes.filter((c) => !sitesReaisDe(c).length && sitesUniaoDe(c).length);
+/** Mistos: existe pelo menos um call site real E pelo menos um sintético. */
+const compParcialSintetico = composicoes.filter((c) => sitesReaisDe(c).length && sitesUniaoDe(c).length);
 /** Não é conflito de composição: é a ENTIDADE derrubando classe dela mesma. */
 const compAutoConflito = composicoes.filter((c) => c.conflito.nucleoAutoConflito.length);
 const entidadesAutoConflito = [...new Map(
@@ -1459,8 +1575,53 @@ md.push(`| ↳ **equivalente** — \`cn()\` emite exatamente o bundle original |
 md.push(`| ↳ ⚠ **conflito A** — \`twMerge\` derruba classe do NÚCLEO (muda o que renderiza) | ${compConflitoA.length} | ${soma(compConflitoA, (c) => c.usos)} | ${pctComp(soma(compConflitoA, (c) => c.usos))} |`);
 md.push(`| ↳ ⚠ **conflito B** — mesma propriedade, \`twMerge\` mantém os DOIS (blind spot) | ${compConflitoB.length} | ${soma(compConflitoB, (c) => c.usos)} | ${pctComp(soma(compConflitoB, (c) => c.usos))} |`);
 md.push(`| ↳ 🔴 núcleo **sem nome derivado** — não dá para escrever \`cn(NOME, …)\` | ${compSemNome.length} | ${soma(compSemNome, (c) => c.usos)} | ${pctComp(soma(compSemNome, (c) => c.usos))} |`);
-md.push(`| ↳ sem call site no AST (literal dentro de template com \`\${}\`) | ${compSemCallSite.length} | ${soma(compSemCallSite, (c) => c.usos)} | ${pctComp(soma(compSemCallSite, (c) => c.usos))} |`);
+md.push(`| ↳ sem call site no AST (literal em template \`\${}\`) — endereço vem do censo | ${compSemCallSite.length} | ${soma(compSemCallSite, (c) => c.usos)} | ${pctComp(soma(compSemCallSite, (c) => c.usos))} |`);
+md.push(`| ↳ 🔴 **sem endereço nenhum** (nem AST nem censo) | ${compSemEndereco.length} | ${soma(compSemEndereco, (c) => c.usos)} | ${pctComp(soma(compSemEndereco, (c) => c.usos))} |`);
+md.push(`| ↳ ⛔ **BUNDLE SINTÉTICO** — união de pontas de ternário, não existe em runtime | ${compSintetico.length} | ${soma(compSintetico, (c) => c.usos)} | ${pctComp(soma(compSintetico, (c) => c.usos))} |`);
 md.push(`| ↳ extra que é classe **duplicada** do núcleo (defeito do call site) | ${compComDuplicata.length} | ${soma(compComDuplicata, (c) => c.usos)} | ${pctComp(soma(compComDuplicata, (c) => c.usos))} |`);
+md.push(`| **= componíveis de fato** | ${composicoes.length - compSintetico.length} | ${soma(composicoes.filter((c) => !compSintetico.includes(c)), (c) => c.usos)} | ${pctComp(soma(composicoes.filter((c) => !compSintetico.includes(c)), (c) => c.usos))} |`);
+md.push("");
+md.push("### 6.3.0 ⛔ Bundle sintético — o bundle que NÃO existe em runtime");
+md.push("");
+md.push("Achado desta fase, contra o próprio censo, com o arquivo aberto na linha:");
+md.push("");
+md.push("```jsx");
+md.push("// src/…/HistoricalMessage/Actions/index.jsx Linha 33");
+md.push("className={`flex w-full flex-wrap items-center gap-y-1");
+md.push('            ${role === "user" ? "justify-end" : "justify-between"}`}');
+md.push("```");
+md.push("");
+md.push("`classNameAttributes` devolve, para `kind:\"expr\"`, a **união de todos os literais**");
+md.push("da expressão. Para o DENOMINADOR isso está certo e foi conquistado — o extrator antigo");
+md.push("jogava fora as duas pontas do ternário e perdia 609 usos de classe legítima. Para o");
+md.push("**bundle**, está errado: o censo forma um conjunto com `justify-end` **e**");
+md.push("`justify-between`, e nenhum elemento renderiza assim. As pontas são mutuamente");
+md.push("exclusivas. Propor `cn(COMMON_ROW_W_FULL, \"flex-wrap gap-y-1 justify-end\")` aí não é");
+md.push("compor: é **apagar o condicional**.");
+md.push("");
+md.push(`**Medido: ${compSintetico.length} dos ${composicoes.length} bundles compostos (${soma(compSintetico, (c) => c.usos)} usos) são sintéticos** — todos os`);
+md.push(`call sites deles são expressão com ≥2 literais. Mistos (algum call site real E algum sintético): ${compParcialSintetico.length}.`);
+md.push("");
+md.push("**E é isso que muda a leitura do conflito A.** `twMerge` derrubar classe do núcleo é o");
+md.push("sintoma de duas pontas do mesmo ternário caindo no mesmo conjunto:");
+md.push("");
+md.push("| | bundles | usos |");
+md.push("|---|---:|---:|");
+md.push(`| conflito A total | ${compConflitoA.length} | ${soma(compConflitoA, (c) => c.usos)} |`);
+md.push(`| ↳ dos quais **sintéticos** (o bundle não existe) | ${compConflitoA.filter((c) => compSintetico.includes(c)).length} | ${soma(compConflitoA.filter((c) => compSintetico.includes(c)), (c) => c.usos)} |`);
+md.push(`| ↳ **conflito A entre bundles componíveis de fato** | ${compConflitoA.filter((c) => !compSintetico.includes(c)).length} | ${soma(compConflitoA.filter((c) => !compSintetico.includes(c)), (c) => c.usos)} |`);
+md.push("");
+md.push("O sinal que eu ia entregar como \"risco de pixel\" é, nestes casos, sinal de que o");
+md.push("bundle não é um bundle. O critério é conservador de propósito: `≥2 literais` marca");
+md.push("**suspeita**, não culpa — `cn(BASE, \"extra\")` tem 1 literal e passa, `` `${A} b` `` tem 1 e passa.");
+md.push("");
+md.push("Os sintéticos, um a um — **não migrar**:");
+md.push("");
+md.push("| núcleo | extras (união das pontas) | usos | call site |");
+md.push("|---|---|---:|---|");
+for (const c of compSintetico) {
+  md.push(`| \`${c.nucleoNome ?? "🔴 não-derivado"}\` | \`${c.extras.join(" ")}\` | ${c.usos} | ${endereco1(c)} |`);
+}
 md.push("");
 md.push("### 6.3.1 A ambiguidade: um bundle pode conter MAIS DE UMA entidade");
 md.push("");
@@ -1517,6 +1678,29 @@ if (!compAmbiguos.length) {
   }
   md.push("");
 }
+md.push("### 6.3.1b Ataque a este instrumento — quanto do bundle o núcleo cobre?");
+md.push("");
+md.push("A pergunta que reprova a composição se a resposta for ruim: **um núcleo de 4 classes");
+md.push("dentro de um bundle de 21 \"compõe\" no papel**, mas o call site continua com 17");
+md.push("classes cruas na mão e o ganho é marginal. Medido, sobre os componíveis de fato:");
+md.push("");
+md.push("| cobertura do núcleo (|núcleo| / |bundle|) | bundles | usos |");
+md.push("|---|---:|---:|");
+{
+  const base = composicoes.filter((c) => !compSintetico.includes(c));
+  for (const f of FAIXAS_COBERTURA) {
+    const es = base.filter((c) => f.tst(c.coberturaDoNucleo));
+    md.push(`| ${f.rot} | ${es.length} | ${soma(es, (c) => c.usos)} |`);
+  }
+  const mediana = [...base].map((c) => c.coberturaDoNucleo).sort((a, b) => a - b)[Math.floor(base.length / 2)] ?? 0;
+  md.push("");
+  md.push(`Mediana da cobertura: **${(100 * mediana).toFixed(0)}%**. A leitura honesta é que a`);
+  md.push("composição **não** é uniforme: onde o núcleo cobre ≥75% ela é troca quase pura, e onde");
+  md.push("cobre <25% ela é um começo — tira parte do drift, deixa o resto para o eixo B");
+  md.push("(tokenização por família). Os dois casos contam igual no instrumento 2 do oráculo, e");
+  md.push("essa é uma limitação DELE, declarada aqui em vez de escondida na média.");
+}
+md.push("");
 md.push("### 6.3.2 O risco: `tailwind-merge` entre núcleo e extras");
 md.push("");
 md.push(`Medido com \`tailwind-merge@${tm.versao}\` (${tm.origem}), prova de vida`);
@@ -1578,7 +1762,7 @@ if (compConflitoA.length) {
     const venceu = c.extras.filter((e) => propriedadeDe(e) && c.conflito.nucleoPerdidas.some((p) => propriedadeDe(p) === propriedadeDe(e) && varianteDe(p) === varianteDe(e)));
     md.push(
       `| \`${c.nucleoNome ?? c.nucleoChave.slice(0, 30)}\` | \`${c.conflito.nucleoPerdidas.join(" ")}\` | ` +
-      `\`${venceu.join(" ") || "—"}\` | ${c.usos} | ${cs ? `\`${cs.arquivo}\` Linha ${cs.linha}` : "só template `${}`"} |`
+      `\`${venceu.join(" ") || "—"}\` | ${c.usos} | ${endereco1(c)} |`
     );
   }
   md.push("");
@@ -1604,7 +1788,7 @@ if (compConflitoB.length) {
     const cs = c.callSites[0];
     for (const p of c.conflito.paresNaoResolvidos.slice(0, 3)) {
       md.push(
-        `| \`${c.nucleoNome ?? c.nucleoChave.slice(0, 30)}\` | \`${p.nucleo}\` × \`${p.extra}\` | ${p.propriedade} | \`${p.variante}\` | ${c.usos} | ${cs ? `\`${cs.arquivo}\` Linha ${cs.linha}` : "só template `${}`"} |`
+        `| \`${c.nucleoNome ?? c.nucleoChave.slice(0, 30)}\` | \`${p.nucleo}\` × \`${p.extra}\` | ${p.propriedade} | \`${p.variante}\` | ${c.usos} | ${endereco1(c)} |`
       );
     }
   }
@@ -1617,34 +1801,41 @@ md.push("o núcleo **por multiconjunto** — se o call site escreveu a mesma cla
 md.push("segunda sobrevive aqui e está marcada ⧉, porque descontar por conjunto apagaria o");
 md.push("defeito em silêncio.");
 md.push("");
-md.push("| # | núcleo | extras | n× | usos | conflito | call sites |");
-md.push("|---:|---|---|---:|---:|---|---|");
+md.push("| # | núcleo | extras | cob. | n× | usos | conflito | call sites |");
+md.push("|---:|---|---|---:|---:|---:|---|---|");
 composicoes.forEach((c, i) => {
-  const conf = c.conflito.conflitoResolvido ? "⚠ A" : c.conflito.conflitoNaoResolvido ? "⚠ B" : "—";
-  const sites = c.callSites.length
-    ? c.callSites.slice(0, 2).map((s) => `\`${s.arquivo}\`:${s.linha}`).join(" · ") +
-      (c.callSites.length > 2 ? ` +${c.callSites.length - 2}` : "")
-    : `**sem AST** (${c.callSitesSemAst} em template)`;
+  const conf = compSintetico.includes(c)
+    ? "⛔ sintético"
+    : c.conflito.conflitoResolvido ? "⚠ A" : c.conflito.conflitoNaoResolvido ? "⚠ B" : "—";
+  const es = enderecos(c);
+  const sites = es.length
+    ? es.slice(0, 2).map((s) => `\`${s.arquivo}\`:${s.linha}${s.fonte === "censo" ? "†" : ""}`).join(" · ") +
+      (es.length > 2 ? ` +${es.length - 2}` : "")
+    : "**sem endereço**";
   md.push(
     `| ${i + 1} | \`${c.nucleoNome ?? "🔴 " + c.nucleoChave.slice(0, 40)}\` | ` +
-    `\`${c.extras.join(" ")}\`${c.extrasDuplicados.length ? " ⧉" : ""} | ${c.n} | ${c.usos} | ${conf} | ${sites} |`
+    `\`${c.extras.join(" ")}\`${c.extrasDuplicados.length ? " ⧉" : ""} | ${(100 * c.coberturaDoNucleo).toFixed(0)}% | ${c.n} | ${c.usos} | ${conf} | ${sites} |`
   );
 });
 md.push("");
 md.push("O que o codemod escreveria nos 5 maiores:");
 md.push("");
-for (const c of composicoes.slice(0, 5)) {
-  const cs = c.callSites[0];
-  md.push(`- **\`${c.nucleoNome ?? c.nucleoChave}\`** + \`${c.extras.join(" ")}\``);
-  if (cs) {
-    md.push(`  - \`${cs.arquivo}\` Linha ${cs.linha} — \`<${cs.tag}>\` em \`${cs.componente}\``);
-    md.push("  - ```jsx");
-    md.push(`    // antes: className="${cs.bruto}"`);
-    md.push(`    className={cn(${c.nucleoNome ?? "/* núcleo SEM NOME DERIVADO */"}, "${c.extras.join(" ")}")}`);
-    md.push("    ```");
-  } else {
-    md.push(`  - sem ocorrência no AST — os ${c.n} call sites estão em template com \`\${}\`.`);
+for (const c of [...composicoes.slice(0, 5), ...compConflitoA]) {
+  const cs = enderecos(c)[0];
+  md.push(`- **\`${c.nucleoNome ?? "🔴 núcleo NÃO-DERIVADO: " + c.nucleoChave}\`** + \`${c.extras.join(" ")}\`${c.conflito.conflitoResolvido ? "  ⚠ **conflito A**" : ""}`);
+  if (!cs) { md.push("  - **sem endereço** — nem AST nem censo localizaram. Investigar antes de propor."); continue; }
+  md.push(
+    `  - \`${cs.arquivo}\` Linha ${cs.linha}` +
+    (cs.fonte === "ast" ? ` — \`<${cs.tag}>\` em \`${cs.componente}\`` : " — endereço do CENSO (o literal vive em template com `${}`; sem tag/componente)")
+  );
+  md.push("  - ```jsx");
+  md.push(`    // antes: ${cs.fonte === "ast" ? `className="${cs.bruto}"` : `className={${String(cs.bruto).replace(/\s+/g, " ").slice(0, 120)}}`}`);
+  md.push(`    className={cn(${c.nucleoNome ?? "/* núcleo SEM NOME DERIVADO */"}, "${c.extras.join(" ")}")}`);
+  if (c.conflito.conflitoResolvido) {
+    md.push(`    // ⚠ twMerge derruba do núcleo: ${c.conflito.nucleoPerdidas.join(" ")}`);
+    md.push(`    // emite: ${c.conflito.saida}`);
   }
+  md.push("    ```");
 }
 md.push("");
 md.push("### 6.3.4 O que a composição NÃO resolve");
@@ -1658,10 +1849,21 @@ if (compSemNome.length) {
   md.push("  ser escrito enquanto a entidade-núcleo não tiver nome — a fila dela é a §7.");
 }
 if (compSemCallSite.length) {
-  md.push(`- **${compSemCallSite.length} bundles não têm ocorrência no AST**: o literal vive dentro de template`);
-  md.push("  com `${}`, então não há `arquivo:linha` de atributo estático para citar. Contados, nunca omitidos.");
+  md.push(`- **${compSemCallSite.length} bundles não têm ocorrência no AST** — o literal vive dentro de template`);
+  md.push("  com `${}`. O endereço deles vem do LOCALIZADOR DE CENSO (marcado `†` na tabela e");
+  md.push("  `(censo)` nas fichas): mesmo extrator, mesma chave de bundle, mas sem tag, sem `role` e");
+  md.push("  sem componente envolvente. Isso importa porque **os 2 bundles de conflito A estão");
+  md.push("  entre eles** — dizer \"sem AST\" no único item que exige pixel seria entregar o achado");
+  md.push("  sem o endereço.");
 }
-md.push("- **não prova pixel.** Mesmo com conflito A zerado, equivalência visual é F-H.");
+if (compSemEndereco.length) {
+  md.push(`- 🔴 **${compSemEndereco.length} bundles sem endereço nenhum.** Nem AST nem censo localizaram — o`);
+  md.push("  censo conta o uso mas não sabe dizer onde. Investigar antes de propor qualquer troca.");
+}
+md.push(`- **⛔ ${compSintetico.length} bundles são SINTÉTICOS** e ficam FORA do lote: o censo os formou unindo`);
+md.push("  pontas mutuamente exclusivas de ternário (§6.3.0). Compor ali apagaria o condicional.");
+md.push("- **não prova pixel.** Conflito A entre os componíveis de fato é");
+md.push(`  ${compConflitoA.filter((c) => !compSintetico.includes(c)).length}, e mesmo zero não é prova visual — equivalência é F-H.`);
 md.push("");
 
 md.push("## 7. Derivação de nome — o que não deu");
@@ -1838,6 +2040,18 @@ writeFileSync(outJson, JSON.stringify({
       nucleoAutoConflitoBundles: compAutoConflito.length,
       nucleoAutoConflitoEntidades: entidadesAutoConflito,
     },
+    sintetico: {
+      bundles: compSintetico.length,
+      usos: soma(compSintetico, (c) => c.usos),
+      parcial: compParcialSintetico.length,
+      conflitoAQueEhSintetico: compConflitoA.filter((c) => !sitesReaisDe(c).length && sitesUniaoDe(c).length).length,
+      componiveisDeFato: composicoes.length - compSintetico.length,
+      usosComponiveisDeFato: soma(composicoes.filter((c) => !compSintetico.includes(c)), (c) => c.usos),
+    },
+    coberturaDoNucleo: FAIXAS_COBERTURA.map((f) => {
+      const es = composicoes.filter((c) => !compSintetico.includes(c) && f.tst(c.coberturaDoNucleo));
+      return { faixa: f.rot, bundles: es.length, usos: soma(es, (c) => c.usos) };
+    }),
     nucleoSemNome: compSemNome.length,
     semCallSiteAst: compSemCallSite.length,
     extrasDuplicados: compComDuplicata.length,
@@ -1883,6 +2097,9 @@ console.log(`    conflito A  ${compConflitoA.length} bundles (${soma(compConflit
 console.log(`    conflito B  ${compConflitoB.length} bundles (${soma(compConflitoB, (c) => c.usos)} usos)  mesma propriedade e twMerge mantem os DOIS (blind spot)`);
 console.log(`    equivalentes ${compEquivalentes.length}  ·  nucleo SEM nome ${compSemNome.length}  ·  sem call site no AST ${compSemCallSite.length}  ·  extra duplicado ${compComDuplicata.length}`);
 console.log(`    NAO e conflito de composicao: ${entidadesAutoConflito.length} entidades-nucleo derrubam classe DELAS MESMAS (${compAutoConflito.length} bundles) -> achado sobre a entidade`);
+console.log(`    BUNDLE SINTETICO   ${compSintetico.length} bundles (${soma(compSintetico, (c) => c.usos)} usos) sao UNIAO de pontas de ternario -> NAO existem em runtime, NAO compor`);
+console.log(`      dos ${compConflitoA.length} de conflito A, ${compConflitoA.filter((c) => !sitesReaisDe(c).length && sitesUniaoDe(c).length).length} sao sinteticos  ·  mistos (real + sintetico) ${compParcialSintetico.length}`);
+console.log(`    COMPONIVEIS DE FATO ${composicoes.length - compSintetico.length} bundles (${soma(composicoes.filter((c) => !compSintetico.includes(c)), (c) => c.usos)} usos)`);
 console.log(`\n  relatorio: ${path.relative(ROOT, outMd)}`);
 console.log(`  dados:     ${path.relative(ROOT, outJson)}`);
 console.log(`\n  NADA FOI APLICADO. src/ intocado.`);
