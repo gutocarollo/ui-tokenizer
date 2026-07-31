@@ -313,3 +313,35 @@ Aviso de honestidade: as duas últimas medições de espaçamento saíram de um
 detector regex com falsos positivos conhecidos (valores de ramos diferentes de
 ternário, e `border-t-<cor>` confundido com largura). O número é direcional; a
 medição correta é com `extract-design-occurrences.mjs`.
+
+---
+
+## Referências
+
+### Padrões de Design Tokens
+
+- **[W3C Design Tokens Community Group (DTCG)](https://designtokens.org/)** — especificação oficial de formato e semântica de tokens vendor-neutral. Este projeto adota o DTCG como autoridade de estrutura de 3 tiers (primitivo → semântico → componente).
+- **[Design Tokens Format Module](https://tr.designtokens.org/format/)** — W3C spec de formato (`designtokens.org`); integrado em `docs/law/GRAMMAR.md`.
+
+### Implementação de Nomes e Semântica
+
+- **Descriptive compound identifier names improve code comprehension** — ICPC 2018. Palavras completas (como `foreground` vs `fg`) aumentam velocidade de compreensão por ~19% e reduzem tempo de detecção de defeito em ~14%.
+- **When Names Disappear: What LLMs Actually Understand About Code** — Pesquisa sobre compreensão de LLMs em código. Remover o canal de nomes semânticos degrada severamente tarefas de intenção; modelos são dominados por atribuição via identificador.
+- **Variable Naming Impact on AI Code Completion** — Nomeação afeta medivelmente qualidade de sugestões de IA e completude.
+
+### Referência de Stack (shadcn/ui)
+
+- **[shadcn/ui](https://ui.shadcn.com/)** — componentes Radix + Tailwind. Padrão de nomes semânticos canônico para este projeto: `--foreground`, `--muted-foreground`, `--primary-foreground` etc. Utility `text-foreground` para aplicação.
+- **[shadcn/ui Theming](https://ui.shadcn.com/docs/theming)** — convenção de theming com `@theme` inline, split por modo claro/escuro, integrada a `apps/web/styles/globals.css`.
+
+### Auditorias e Evidência Visual
+
+Este projeto exige evidência visual (PNG renderizado) para validar mudanças de token. Referências para captura e comparação:
+
+- **[Playwright Test](https://playwright.dev/)** — motor de captura de screenshots usado em `tools/visual/` e `tools/playwright/`.
+- **[ui-evidence skill](https://github.com/gutocarollo/learnhouse/tree/main/.claude/skills/ui-evidence)** — implementação produção de captura antes/depois com temas múltiplos (light, dark, dracula, alucard) e análise de erros de console.
+
+### Governança de Repositório
+
+- **[docs/law/GRAMMAR.md](docs/law/GRAMMAR.md)** — a lei de naming: `owner . anatomia . propriedade [ . variante ] [ . estado ]`. Teste mecânico de semântica por remoção de palavra (colisão, dedutibilidade, pergunta do slot).
+- **[docs/SCHEMA.md](docs/SCHEMA.md)** — constituição da wiki: padrão de naming de doc (kebab-case + classe temporal: living/event/sequenced), status, indexação, política "git é o arquivo".
