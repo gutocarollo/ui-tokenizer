@@ -265,9 +265,28 @@ function particionar(usarBuildado) {
   /* 6. vocabulario: allowlist ate 95% do residuo; 7. o resto e excecao */
   const ordenado = [...residuo.entries()].sort((a, b) => b[1] - a[1]);
   const resUsos = ordenado.reduce((s, [, n]) => s + n, 0);
-  let cum = 0; const allow = [];
-  for (const [c, n] of ordenado) { if (cum >= resUsos * 0.95) break; allow.push([c, n]); cum += n; }
+  /**
+   * `resto` NAO existia: o laco dava `break` e o estrato 7 saia daqui como um
+   * NUMERO sem lista. "Excecao item-a-item" que nao pode ser listada item a item
+   * e um rotulo, nao uma disposicao — e o ratchet do vocabulario precisa do
+   * conjunto INTEIRO do residuo (6 U 7), nao so do lado de dentro do corte de
+   * 95%: o corte e cumulativo, entao uma classe da cauda ATRAVESSA a fronteira
+   * sozinha quando outra encolhe, e um guard ancorado so no estrato 6 acusaria
+   * "classe nova" por deslizamento estatistico. `continue` no lugar de `break`
+   * preserva `allow`/`cum` byte a byte (uma vez que `cum >= 95%`, nada mais e
+   * somado) — travado por test/vocabulario-ratchet.test.mjs.
+   */
+  let cum = 0; const allow = []; const resto = [];
+  for (const [c, n] of ordenado) {
+    if (cum >= resUsos * 0.95) { resto.push([c, n]); continue; }
+    allow.push([c, n]); cum += n;
+  }
   const excecao = resUsos - cum;
+  const somaResto = resto.reduce((s, [, n]) => s + n, 0);
+  if (somaResto !== excecao) {
+    console.error(`PAROU: estrato 7 recontado da lista (${somaResto}) != o numero publicado (${excecao}).`);
+    process.exit(1);
+  }
 
   const soma = usoEnt + usoComp + cont.tok + cont.custom + cont.customBuildado + cont.arb + cum + excecao;
   if (soma !== total) {
@@ -275,7 +294,7 @@ function particionar(usarBuildado) {
     console.error(`Particao que nao fecha 100% e oraculo mentindo. Investigue antes de usar.`);
     process.exit(1);
   }
-  return { cont, allow, vocab: cum, excecao, buildadas, soma };
+  return { cont, allow, resto, vocab: cum, excecao, buildadas, soma };
 }
 
 /**
@@ -286,7 +305,7 @@ function particionar(usarBuildado) {
  */
 const antes = particionar(false);
 const P = built.disponivel ? particionar(true) : antes;
-const { cont, allow, vocab: cum, excecao, buildadas } = P;
+const { cont, allow, resto, vocab: cum, excecao, buildadas } = P;
 
 /** De onde vieram os usos que o detector novo creditou ao estrato 4. */
 const migrouDe = { arbitrary: 0, vocabulario: 0, excecao: 0 };
@@ -372,6 +391,15 @@ const R = {
     .sort((a, b) => b[1].usos - a[1].usos)
     .map(([classe, r]) => ({ classe, usos: r.usos, tokensDoApp: r.tokensDoApp })),
   topVocabulario: allow.slice(0, 15).map(([c, n]) => ({ classe: c, usos: n })),
+  /**
+   * O VOCABULARIO INTEIRO, nao o top 15. Sem esta lista o contrato do estrato 6
+   * (docs/design-system/VOCABULARIO-LAYOUT.md no alvo) e o lint do ratchet teriam
+   * de reimplementar a particao — a terceira copia da mesma regra, o defeito que
+   * o cabecalho deste arquivo documenta. Aqui a lista SAI do oraculo.
+   */
+  vocabulario: allow.map(([c, n]) => ({ classe: c, usos: n })),
+  /** O estrato 7 ITEM A ITEM. Era so um numero; "listavel um a um" nao listava. */
+  excecaoClasses: resto.map(([c, n]) => ({ classe: c, usos: n })),
   /** Literais que os guardas do extrator recusaram — auditavel, nao silencioso. */
   literaisDescartados: Object.entries(
     descartados.reduce((a, d) => { a[d.motivo] = (a[d.motivo] ?? 0) + 1; return a; }, {}),
