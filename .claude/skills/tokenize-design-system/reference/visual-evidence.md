@@ -130,6 +130,43 @@ Default route load is insufficient for components visible only under:
 If the witness cannot be reproduced, the scenario is `NOT_PROVED`; do not
 capture an unrelated page under the requested ID.
 
+### 3.5 Authenticating without mutating the target
+
+Protected routes cannot be captured without a session, and the runner is right to
+**refuse** rather than follow the redirect — a runner that captures the login page
+under the requested route ID produces evidence that is worse than none. Measured
+on a real target: the first run failed **16 of 24** for exactly this reason.
+
+Three ways to supply the session, in order of preference:
+
+| | cost |
+|---|---|
+| **pre-issued session** — mint a JWT from the target's own dev secret | **no mutation, no password** |
+| `UI_EVIDENCE_USER` / `PASS` | needs a real password in the environment |
+| create/reset a user | **mutates the database to take a screenshot** |
+
+The first is the one to use. Read the signing shape from the target's own
+endpoint — do not guess the payload — then sign with the local dev secret and
+write `{token, user}` to a file outside the repo:
+
+```js
+// payload shape must match what the target's login endpoint issues
+const token = JWT.sign({ id: user.id, username: user.username }, SECRET, { expiresIn });
+writeFileSync(sessionFile, JSON.stringify({ token, user }));
+```
+
+```bash
+export UI_EVIDENCE_SESSION="$(cat <sessionFile>)"
+```
+
+Never print the secret or the token. Strip `password` and `recoveryCodes` from the
+user record before writing it.
+
+**Then verify with your eyes, not the exit code.** A green run proves the
+scenario completed, not that it rendered the right screen. Open one PNG and
+confirm the authenticated chrome is present — sidebar, user identity, the content
+that only exists behind login.
+
 ### 4. Capture `before`
 
 Use a new immutable label. The runner must stage output and promote it only
