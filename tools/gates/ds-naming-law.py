@@ -101,8 +101,11 @@ def _achar_baseline():
 
 BASELINE = _achar_baseline()
 
-# As palavras proibidas NO NOME PUBLICO. Continuam validas como metadado e como
-# nome de conceito na documentacao — o que a lei proibe e DIGITA-LAS no consumo.
+# As palavras proibidas NO NOME PUBLICO — e, desde a extensao 2026-07-31 (2)
+# da lei (GRAMMAR.md, "the ban covers FRAMING"), tambem como NOME de familia,
+# artefato, secao ou conceito: aparecem SOMENTE como nome antigo a eliminar.
+# Como metadado tecnico interno (ex.: caminho DTCG legado sendo lido) seguem
+# legiveis — ler a fonte nao e batiza-la.
 #
 # `content` entrou por decisao expressa do dono (2026-07-31): "ela nao expressa
 # nada". A medicao concorda. `content-primary` mistura DOIS eixos no mesmo
