@@ -1,36 +1,46 @@
 #!/usr/bin/env python3
-"""Stop hook: pergunta de escolha ao dono exige bloco D[n], nao pergunta seca.
+"""Stop hook: decisao entregue ao dono exige bloco D[n] completo, nunca forma seca.
 
-Por que existe: a regra ja estava em prosa (CLAUDE.md §6, e a skill
-`clarification-plan` que foi deletada) e mesmo assim o agente terminou turno atras
-de turno com "Sigo por qual?", "Quer que eu...?", "Prefere A ou B?". Regra em prosa
-que ninguem verifica nao e regra — e sugestao.
+Irmao de `clarification-plan-gate.py` (PreToolUse/AskUserQuestion): aquele cobre o caminho de
+FERRAMENTA (o contrato carregado antes de perguntar); este cobre o caminho de PROSA — o "known
+limit" declarado la ("decisions asked as PROSE never call a tool, so this gate never sees them").
+Juntos fecham os dois caminhos. Roda em Claude E Codex (evento Stop existe nos dois).
 
-O gate e deterministico e mede DUAS coisas no texto final do turno:
+Portado de ui-tokenizer-v2/tools/hooks/clarification-gate.py (LEI ZERO) com as
+3 correcoes da falha de 2026-07-31, quando o agente terminou o turno com
+"Decisoes que continuam suas: [4 bullets de 1 linha]... Aguardando sua
+avaliacao" e nenhum gate disparou:
 
-  1. o turno faz uma PERGUNTA DE ESCOLHA ao dono?
-  2. se faz, ele traz o bloco `### D[n]` com o formato obrigatorio?
+  1. O original so existia/registrava no OUTRO repo — esta copia registra no
+     settings.json DESTE projeto (hook dispara pelo project dir da sessao).
+  2. O original so detectava PERGUNTA de escolha (pattern + "?"). Handoff de
+     decisao sem pergunta ("aguardando sua decisao" + lista de pendencias)
+     passava. Agora ha uma segunda classe: HANDOFF + sinal de decisoes abertas,
+     sem exigir interrogacao.
+  3. Os patterns ASCII nao casavam texto acentuado ("avanço", "opção",
+     "você") — falso-negativo conhecido. Agora o corpo e NFD-normalizado
+     (acentos removidos) antes do match.
 
-Se (1) e nao (2), bloqueia e devolve o formato. Se nao ha pergunta de escolha,
-sai do caminho.
+O gate mede no texto final do turno:
+  (a) pergunta de ESCOLHA ao dono?  OU  (b) handoff de decisoes abertas?
+  Se sim a qualquer um: exige bloco `### D[n]` com os elementos obrigatorios
+  (labels em portugues — mesmo contrato da skill grill-me).
 
-O que NAO conta como pergunta de escolha, para o gate nao virar ruido:
-  - pergunta retorica dentro de explicacao ("por que isso importa?")
-  - pergunta em bloco de codigo ou citacao
-  - pedido de credencial/acesso que o dono precisa prover (nao ha opcao a comparar)
+Nao conta: pergunta retorica em explicacao, pergunta em bloco de codigo ou
+citacao, pedido de credencial/acesso (nao ha opcao a comparar), parada
+"aguardando avaliacao do plano" SEM decisoes abertas enumeradas.
 
 Contrato: exit 0 = libera; exit 2 = bloqueia (stderr vai para o modelo).
-`stop_hook_active` true = ja bloqueou uma vez neste turno -> libera, evita loop.
+`stop_hook_active` true = ja bloqueou neste turno -> libera, evita loop.
 """
 import json
 import re
 import sys
+import unicodedata
 
-# Perguntas que pedem ESCOLHA do dono. Sao os padroes que o agente de fato usou.
+# Perguntas que pedem ESCOLHA do dono (exigem tambem "?" no corpo).
 CHOICE_PATTERNS = [
     # verbo de 1a pessoa do presente + interrogacao = pedido de permissao.
-    # Generalizado depois que `"Sigo criando os 32 tokens?"` escapou de um padrao
-    # que exigia `sigo por/com/para` — o objeto direto varia, o verbo nao.
     r"\b(?:sigo|crio|implemento|executo|rodo|aplico|migro|comeco|avanco|prossigo|"
     r"gero|escrevo|renomeio|removo|adiciono|instalo|commito|pusho)\b",
     r"\bquer\s+que\s+eu\b",
@@ -40,22 +50,80 @@ CHOICE_PATTERNS = [
     r"\bautoriza\b",
     r"\bconfirma\b",
     r"\bA\s+ou\s+B\b",
+    # ingles (installs do orions-belt com harness_language=en)
+    r"\bshould\s+i\b",
+    r"\b(?:do\s+you\s+)?want\s+me\s+to\b",
+    r"\bwhich\s+(?:do\s+you\s+prefer|one|option|approach)\b",
+    r"\bA\s+or\s+B\b",
 ]
 
-# O bloco obrigatorio e seus elementos.
-D_BLOCK = re.compile(r"^#{2,4}\s*D\d+\s*[—\-:]", re.MULTILINE)
+# Handoff: o turno termina devolvendo a bola ao dono (NAO exige "?").
+HANDOFF_PATTERNS = [
+    r"\baguardando\s+(?:sua\s+|a\s+|o\s+)?(?:decisao|decisoes|avaliacao|escolha|resposta|aprovacao|ordem)",
+    r"\bdecis(?:ao|oes)\s+(?:que\s+)?(?:continuam?\s+su|ficam?\s+su|sao\s+su|do\s+dono|pendente|em\s+aberto)",
+    r"\bcabe\s+a\s+voce\b",
+    r"\bo\s+dono\s+decide\b",
+    r"\bso\s+(?:voce|o\s+dono)\s+(?:pode\s+)?(?:decide|destrava|resolve)",
+]
+
+# Sinal de que ha DECISOES/OPCOES enumeradas em jogo (handoff so bloqueia com isso).
+DECISION_SIGNALS = [
+    r"\bD-?\d+\b",
+    r"\bD-[a-z]\b",
+    r"\bopc(?:ao|oes)\s+[A-C]\b",
+    r"\bdecis(?:ao|oes)\b",
+    r"\bescolh(?:a|as|er)\b",
+]
+
+# O bloco obrigatorio e seus elementos (contrato da skill grill-me).
+# Labels aceitos em pt E en — a skill canonica do orions-belt e en, os
+# harness pt usam os labels traduzidos; o gate nao pode punir nenhum dos dois.
+D_BLOCK = re.compile(r"^#{2,4}\s*D[-\d]", re.MULTILINE)
 REQUIRED_ELEMENTS = {
-    "Comportamento": r"\*\*Comportamento",
-    "Exemplo aplicado bom": r"\*\*Exemplo aplicado bom",
-    "Exemplo aplicado ruim": r"\*\*Exemplo aplicado ruim",
-    "Quando escolher": r"\*\*Quando escolher",
-    "Minha recomendacao": r"\*\*(?:Minha recomenda|Recomenda[cç][aã]o)",
+    "Canon": r"\*\*C[a]?non",
+    "Comportamento/Behavior": r"\*\*(?:Comportamento|Behavior)",
+    "Exemplo aplicado bom/Applied good example": r"\*\*(?:Exemplo aplicado bom|Applied good example)",
+    "Exemplo aplicado ruim/Applied bad example": r"\*\*(?:Exemplo aplicado ruim|Applied bad example)",
+    "Quando escolher/When to choose": r"\*\*(?:Quando escolher|When to choose)",
+    "Minha recomendacao/Recommended answer": r"\*\*(?:Minha recomenda|Recomend[oa]|Recommended answer|My recommendation)",
 }
+
+FORMATO = (
+    "### D1 — [pergunta concreta da decisao]\n\n"
+    "**Canon:** [docs canonicos grepados + veredito: DECIDE (retirar) / SILENTE / CONFLITA]\n"
+    "**Evidencia:** [path + Linha N / query / ferramenta+consulta]\n"
+    "**Destrava:** [o que fica bloqueado sem esta decisao]\n\n"
+    "**Opcao A — [nome]**\n"
+    "- **Comportamento:** o que o sistema/processo passa a fazer.\n"
+    "- **Exemplo aplicado bom:** no caso REAL [arquivo/token/rota/comando], acontece X.\n"
+    "- **Exemplo aplicado ruim:** no caso REAL [...], acontece Y.\n"
+    "- **Quando escolher:** se a prioridade for Z.\n\n"
+    "**Opcao B — [nome]** (os mesmos itens)\n"
+    "**Opcao C** quando A e B isoladas forem insuficientes.\n\n"
+    "**Minha recomendacao:** [qual, e por que, com o dado que sustenta].\n\n"
+    "Exemplo aplicado = entidade, arquivo, token, rota, comando ou tela REAL do "
+    "contexto. Analogia generica nao vale.\n"
+    "Se a decisao NAO precisa do dono — decida com evidencia, execute e relate "
+    "a escolha em vez de perguntar.\n"
+)
+
+
+def fold(text: str) -> str:
+    """NFD-normaliza e remove combining marks: 'opção' -> 'opcao'."""
+    return "".join(
+        c for c in unicodedata.normalize("NFD", text)
+        if unicodedata.category(c) != "Mn"
+    )
 
 
 def strip_code_and_quotes(text: str) -> str:
-    """Remove fenced code and blockquotes: pergunta ali nao e pergunta ao dono."""
+    """Remove fenced code, INLINE code e blockquotes: pergunta ali nao e pergunta ao dono.
+
+    Inline code entrou depois do 1o disparo real (2026-07-31): um `?` dentro de
+    crase num relatorio satisfez a condicao de interrogacao e virou falso motivo.
+    """
     text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
+    text = re.sub(r"`[^`\n]*`", " ", text)
     text = re.sub(r"^\s*>.*$", " ", text, flags=re.MULTILINE)
     return text
 
@@ -108,22 +176,28 @@ def main():
             return 0
 
     raw = texts[-1]
-    body = strip_code_and_quotes(raw)
+    body = fold(strip_code_and_quotes(raw))
 
-    # (1) ha pergunta de ESCOLHA?
-    hits = [p for p in CHOICE_PATTERNS if re.search(p, body, re.IGNORECASE)]
-    if not hits:
-        return 0
-    # exige tambem um ponto de interrogacao fora de codigo — pattern sozinho
-    # pode aparecer em prosa afirmativa ("posso seguir porque X ja passou").
-    if "?" not in body:
+    # Verbo e "?" precisam estar na MESMA frase ("Sigo criando os 32 tokens?").
+    # Verbo em narracao de relatorio + "?" incidental noutro paragrafo nao e
+    # pedido de permissao — falso positivo do 1o disparo real (2026-07-31).
+    choice_hits = [
+        p for p in CHOICE_PATTERNS
+        if re.search(p + r"[^.!?\n]{0,160}\?", body, re.IGNORECASE)
+    ]
+    is_choice = bool(choice_hits)
+
+    handoff_hits = [p for p in HANDOFF_PATTERNS if re.search(p, body, re.IGNORECASE)]
+    has_decisions = any(re.search(p, body, re.IGNORECASE) for p in DECISION_SIGNALS)
+    is_handoff = bool(handoff_hits) and has_decisions
+
+    if not is_choice and not is_handoff:
         return 0
 
-    # (2) o bloco obrigatorio esta presente e completo?
     if D_BLOCK.search(raw):
         faltando = [
             nome for nome, rx in REQUIRED_ELEMENTS.items()
-            if not re.search(rx, raw, re.IGNORECASE)
+            if not re.search(rx, fold(raw), re.IGNORECASE)
         ]
         if not faltando:
             return 0
@@ -136,24 +210,15 @@ def main():
         )
         return 2
 
+    motivo = (
+        f"pergunta de escolha (padrao: {choice_hits[0]})" if is_choice
+        else f"handoff de decisoes abertas (padrao: {handoff_hits[0]})"
+    )
     sys.stderr.write(
-        "CLARIFICATION-GATE: voce esta pedindo uma escolha ao dono sem o bloco D[n].\n"
-        f"Padrao detectado: {hits[0]}\n\n"
-        "Pergunta seca e proibida. Reescreva o final do turno assim:\n\n"
-        "### D1 — [pergunta concreta da decisao]\n\n"
-        "**Opcao A — [nome]**\n"
-        "- **Comportamento:** o que o sistema/processo passa a fazer.\n"
-        "- **Exemplo aplicado bom:** no caso REAL [arquivo/token/rota/comando], acontece X.\n"
-        "- **Exemplo aplicado ruim:** no caso REAL [...], acontece Y.\n"
-        "- **Quando escolher:** se a prioridade for Z.\n\n"
-        "**Opcao B — [nome]**\n"
-        "- (os mesmos quatro itens)\n\n"
-        "**Opcao C** quando A e B isoladas forem insuficientes (hibrido, spike, fallback).\n\n"
-        "**Minha recomendacao:** [qual, e por que, com o dado que sustenta].\n\n"
-        "Exemplo aplicado = entidade, arquivo, token, rota, comando ou tela REAL do "
-        "contexto analisado. Analogia generica nao vale.\n"
-        "Se a decisao NAO precisa do dono — e voce consegue decidir com evidencia — "
-        "entao decida, execute, e relate a escolha em vez de perguntar.\n"
+        "CLARIFICATION-GATE: voce esta entregando uma decisao ao dono sem o "
+        f"bloco D[n].\nDetectado: {motivo}\n\n"
+        "Pergunta seca E handoff seco sao proibidos (skill grill-me). "
+        "Reescreva o final do turno assim:\n\n" + FORMATO
     )
     return 2
 

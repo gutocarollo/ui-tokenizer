@@ -6,6 +6,7 @@ repetir uma decisão já derrubada.
 
 | plano | assunto | status |
 |---|---|---|
+| [`2026-07-31-plano-fechar-lacunas-implementacao.md`](2026-07-31-plano-fechar-lacunas-implementacao.md) | fechar a fiação que os planos de 07-30 assumem construída (APPLY, runner, fixture, gates) | **aguardando avaliação do dono** (1/1 rodada adversarial: REPLANEJAR incorporado) |
 | [`2026-07-30-plano-reconciliado.md`](2026-07-30-plano-reconciliado.md) | o projeto real: dois eixos, NORMALIZE+MINE, tetos medidos | **vigente (mestre)** |
 | [`2026-07-30-v2-upstream-como-oraculo-rev2.md`](2026-07-30-v2-upstream-como-oraculo-rev2.md) | compilador do Tailwind como oráculo de equivalência | vigente como **spec do eixo B** |
 | [`2026-07-30-v2-upstream-como-oraculo.md`](2026-07-30-v2-upstream-como-oraculo.md) | a primeira versão do mesmo plano | superado pela rev2 |

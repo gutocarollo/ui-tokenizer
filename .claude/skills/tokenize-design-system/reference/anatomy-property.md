@@ -65,14 +65,15 @@ single part, leave the slot empty. See `examples.md` §2.
 This list is exactly the oracle’s `IMPLIED_PROPERTY`. **The matrix is its
 source** — if you add an anatomy here with only one ✓, add it to the map.
 
-> ⚠ **KNOWN DRIFT as of 2026-07-31 — the map has not been updated.** §4.3 of the
-> law renamed the text property to `foreground-color`, but
-> `scripts/score-naming.mjs` Linhas 93-100 still maps
-> `label`/`placeholder`/`helper`/`caret` to the old bare spelling. Measured
-> consequence: `button-label-foreground-color` scores **75/100** and fails the
-> `coherent-pair` criterion with *"`label` cannot carry `foreground-color` — only
-> `color`"* — a false failure produced by the map, not by the name. The law is
-> correct; the map is the bug. Fixing it is a code change outside this document.
+> ✔ **DRIFT FIXED in `b7a0405` (2026-07-31).** §4.3 renamed the text property to
+> `foreground-color` and `scripts/score-naming.mjs` (`IMPLIED_PROPERTY`,
+> Linhas 105-112) was realigned in the same commit — `label`/`placeholder`/
+> `helper`/`caret` now map to `foreground-color`, `backdrop` to
+> `background-color`, `divider` to `border-color`. The false failure this note
+> used to describe (`button-label-foreground-color` rejected by `coherent-pair`)
+> no longer reproduces. The matrix above remains the SOURCE of the map: adding a
+> single-✓ anatomy here requires adding it to `IMPLIED_PROPERTY` in the same
+> change.
 
 ### 2.2 Multi-property anatomy → property REQUIRED
 

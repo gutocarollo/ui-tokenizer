@@ -7,6 +7,15 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-07-31] plano · processo
+
+- [`plans/2026-07-31-plano-fechar-lacunas-implementacao.md`](plans/2026-07-31-plano-fechar-lacunas-implementacao.md)
+  — auditoria da lista de 8 lacunas do dono (6 confirmadas, 1 já corrigida em
+  `b7a0405`, 1 refinada) + plano A0–C2 para fechar o control plane. Rodada
+  adversarial única devolveu REPLANEJAR (3 críticos, incorporados); baseline
+  real da suíte: `npm test` = 132 pass / **31 fail** — o "277/0" anterior era
+  artefato de cwd/env.
+
 ## [2026-07-31] medição · processo
 
 **Os números do alvo derivam, e derivaram hoje.** As entradas anteriores deste
