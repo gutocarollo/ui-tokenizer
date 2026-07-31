@@ -107,8 +107,22 @@ owner with no parts writes `owner.property` — the empty slot already means
 
 ### 4.3 Properties
 
-`background-color` · `color` · `border-color` · `outline-color` · `box-shadow` ·
-`fill` · `stroke`
+`background-color` · `foreground-color` · `border-color` · `outline-color` ·
+`box-shadow` · `fill` · `stroke`
+
+> **CHANGED 2026-07-31: `color` → `foreground-color`.** The CSS property is
+> `color`, but as a *token* name it is ambiguous: `card.color` does not say
+> whether it is the card's text or its fill. Every reference system disambiguates
+> this, each in its own way — Material Design 3 uses the anatomy
+> (`--md-filled-button-label-text-color`), GitHub Primer coins a property
+> (`--button-primary-fgColor-rest`), shadcn/ui appends a role
+> (`--card-foreground`). We take the same decision they took, spelled out:
+> `foreground-color`.
+>
+> Abbreviating it to `fg` was measured and rejected — see
+> [`2026-07-31-ordem-do-nome-evidencias.md`](2026-07-31-ordem-do-nome-evidencias.md)
+> §8. Primer is the one reference that abbreviates; it is a declared exception,
+> not an ignored counter-example.
 
 ### 4.4 Variants (only where the owner genuinely has them)
 

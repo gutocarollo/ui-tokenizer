@@ -63,12 +63,35 @@ Decomposto:
 
 | segmento | papel |
 |---|---|
-| `md` | sistema |
+| `md` | **namespace do sistema** — Material Design |
 | `filled-button` | **DONO** |
 | `label-text` | **ANATOMIA** (a parte) |
 | `color` | **PROPRIEDADE** |
 
 Dono primeiro. Propriedade por último. É literalmente `button.label-text.color`.
+
+### O que `md` significa — e o que ele NÃO significa
+
+`md` **não é tamanho** (não é "medium" entre small e big). É o namespace do
+sistema:
+
+> "All token names in a design system start with the system name (such as **`md`
+> for Material Design**)."
+>
+> — [material-foundation/material-tokens · tokens.md](https://github.com/material-foundation/material-tokens/blob/main/tokens.md)
+
+Os outros três segmentos que aparecem no M3 são os **tiers**, e mapeiam
+exatamente na estrutura de 3 níveis:
+
+| segmento | tier | o que guarda | citação |
+|---|---|---|---|
+| `md.ref.*` | primitivo | "Reference tokens hold concrete values, such as a hex color, pixel size, or font family name." | mesma fonte |
+| `md.sys.*` | semântico | "System tokens define decisions and roles that give the design system its character" | mesma fonte |
+| `md.comp.*` | componente | "the elements required to compose a component, such as containers, label text, icons, states" | mesma fonte |
+
+Ou seja, o nome completo `md.comp.filled-button.label-text.color` se lê:
+Material Design · camada de componente · botão preenchido · texto do rótulo ·
+cor.
 
 ---
 
@@ -122,6 +145,34 @@ precedente em nenhuma das três referências.
 
 ---
 
+## 5.1 Traduzindo as referências para a NOSSA convenção
+
+Os nomes acima são **evidência da ordem**, não o alvo literal. Duas coisas mudam
+ao trazer para cá, e as duas já estão decididas:
+
+1. **Palavra por extenso.** Primer abrevia (`fgColor`, `bgColor`); nós não.
+2. **Sem namespace de sistema.** `md` existe porque o Material publica tokens
+   para consumo externo e precisa evitar colisão. Um design system de produto
+   único não tem esse problema — o prefixo seria ruído em 100% dos nomes.
+
+| referência (como ELES escrevem) | nossa convenção (por extenso) |
+|---|---|
+| `--md-filled-button-label-text-color` | `button.label.foreground-color` |
+| `--md-filled-button-container-color` | `button.container.background-color` |
+| `--md-filled-button-hover-label-text-color` | `button.label.foreground-color.hover` |
+| `--button-primary-bgColor-rest` (Primer) | `button.container.background-color.primary` |
+| `--button-danger-fgColor-active` (Primer) | `button.label.foreground-color.danger.active` |
+| `--primary-foreground` (shadcn) | `button.label.foreground-color.primary` |
+| `--card-foreground` (shadcn) | `card.foreground-color` |
+| `--sidebar-foreground` (shadcn) | `sidebar.foreground-color` |
+
+Note o que **não** muda: a ordem. Dono, parte, propriedade, variante, estado —
+nessa sequência, nas três referências e na nossa.
+
+E note o ganho de `foreground-color` sobre `color`: `card.color` não diz se é a
+cor do texto ou do fundo do card; `card.foreground-color` diz. É a mesma razão
+que fez o Primer inventar `fgColor` — nós só escrevemos por extenso.
+
 ## 6. O que isso revela sobre o estado real do alvo
 
 Medido em `makers-ai-hub/frontend`:
@@ -168,17 +219,22 @@ O alvo de `text-content-primary` não é `text-foreground-primary`. É o par
 dono+anatomia que as três referências usam:
 
 ```
-✗  content.primary                    posto como cabeça do nome, sem dono
-✗  foreground.primary                 mesmo defeito, palavra melhor
-✓  button.label.color                 M3: md-filled-button-label-text-color
-✓  page.color                         shadcn: --foreground (texto do corpo)
-✓  data-table.header.color            M3: dono → anatomia → propriedade
-✓  field.placeholder.color            anatomia `placeholder` já existe em §4.2
+✗  content.primary                     posto como cabeça do nome, sem dono
+✗  foreground.primary                  mesmo defeito, palavra melhor
+✓  button.label.foreground-color       M3: --md-filled-button-label-text-color
+✓  page.foreground-color               shadcn: --foreground (texto do corpo)
+✓  data-table.header.foreground-color  M3: dono → anatomia → propriedade
+✓  field.placeholder.foreground-color  anatomia `placeholder` já existe em §4.2
 ```
 
-E a classe Tailwind que sai daí lê na ordem certa: `text-button-label-color` —
-"cor (`text-`) do label do botão". Não `text-button-color`, que não diz que parte
-do botão, nem `text-content-primary`, que não diz de quem.
+E a classe Tailwind que sai daí lê na ordem certa:
+`text-button-label-foreground-color` — "o primeiro plano do label do botão". Não
+`text-button-color`, que não diz que parte do botão, nem `text-content-primary`,
+que não diz de quem.
+
+Sim, é longo. A decisão de verbosidade foi tomada com dado (+19% de velocidade
+de compreensão, ICPC 2018) e o critério declarado pelo dono é o que a IA entende
+melhor, não o que é curto de digitar.
 
 ---
 

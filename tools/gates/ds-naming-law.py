@@ -27,15 +27,69 @@ violando a lei falha; o legado passa ate ser migrado.
 """
 import json
 import pathlib
+import os
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+# ROOT e a raiz do APP medido, nao a do repositorio do processo.
+#
+# Este guard vive no repo canonico (onde nao ha `src/`) e roda contra um app
+# alvo. Cravar `parent.parent` fazia com que ele so funcionasse na copia
+# vendorizada dentro do alvo — o repo canonico nao conseguia rodar o proprio
+# guard nem para testa-lo. Mesma classe de defeito que ja apareceu nos testes
+# desta esteira (resolvida la com TOKENIZE_TEST_ROOT).
+ROOT = pathlib.Path(
+    os.environ.get("TOKENIZE_APP_ROOT", pathlib.Path(__file__).resolve().parent.parent)
+).resolve()
+
+
+def _achar_gramatica():
+    """
+    A lei pode estar em `docs/law/GRAMMAR.md` (repo canonico) ou em
+    `tokens/GRAMMAR.md` (vendorizada no alvo). Procura nas duas, e no repo do
+    processo quando o alvo nao a carrega.
+    """
+    relativos = (
+        pathlib.Path("docs") / "law" / "GRAMMAR.md",
+        pathlib.Path("tokens") / "GRAMMAR.md",
+    )
+    # sobe a partir do ALVO e a partir do proprio script: os dois layouts
+    # (frontend/scripts/... e tools/gates/...) nao compartilham profundidade,
+    # entao contar `parent` e errado por construcao — procura-se subindo.
+    bases = [ROOT, *ROOT.parents, *pathlib.Path(__file__).resolve().parents]
+    vistos = []
+    for base in bases:
+        for rel in relativos:
+            c = base / rel
+            vistos.append(c)
+            if c.exists():
+                return c
+    raise FileNotFoundError(
+        "GRAMMAR.md nao encontrado; procurado em "
+        + str(len(vistos))
+        + " caminhos, a partir de "
+        + str(ROOT)
+    )
 BASELINE = ROOT / "scripts" / "ds-naming-law-baseline.json"
 
 # As palavras proibidas NO NOME PUBLICO. Continuam validas como metadado e como
 # nome de conceito na documentacao — o que a lei proibe e DIGITA-LAS no consumo.
-FORBIDDEN = ("surface", "semantic")
+#
+# `content` entrou por decisao expressa do dono (2026-07-31): "ela nao expressa
+# nada". A medicao concorda. `content-primary` mistura DOIS eixos no mesmo
+# vocabulario sem dizer qual esta em uso:
+#
+#   primary / secondary / tertiary          eixo de POSTO   (quao importante)
+#   danger / success / info / placeholder   eixo de PAPEL   (para que serve)
+#
+# `content-secondary` e `content-danger` parecem irmaos e nao sao: um responde
+# "quao importante", o outro "que tipo de mensagem". E `content` em si nao diz
+# nem que e cor, nem que e texto — poderia ser container, slot ou payload.
+#
+# Divida no momento do banimento, medida: 3.086 classes consumidas, 90 custom
+# properties e 2 caminhos na fonte DTCG. O baseline registra esse numero para o
+# catraca impedir uso NOVO enquanto a migracao acontece.
+FORBIDDEN = ("surface", "semantic", "content")
 
 
 def violations_in_source():
@@ -113,8 +167,179 @@ def violations_in_token_source():
     return found
 
 
+def sem_comentarios(texto):
+    """
+    Remove comentario de linha e de bloco antes de procurar nome de classe.
+
+    POR QUE: a primeira versao de `violations_prefix_property` acusou DOIS casos
+    que eram prosa — "// `border-color` cai junto..." e
+    "* ...emite SO `outline-color`...". Um guard que reprova comentario
+    ensina a ignorar guard. O grep manual dava zero e estava certo; a checagem e
+    que casava documentacao.
+
+    Substitui por espaco em vez de apagar, para o numero da linha nao andar.
+    """
+    texto = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), texto, flags=re.S)
+    texto = re.sub(r"(^|[^:])//[^\n]*", lambda m: m.group(1) + " " * (len(m.group(0)) - len(m.group(1))), texto)
+    return texto
+
+
+def vocabulario_do_doc():
+    """
+    Le o vocabulario FECHADO direto do GRAMMAR.md.
+
+    Por que ler o doc em vez de repetir a lista aqui: doc e guard que guardam a
+    mesma lista em dois lugares divergem — e quando divergem, o guard vence em
+    silencio e o doc vira mentira. A fonte e uma so.
+    """
+    doc = _achar_gramatica().read_text(encoding="utf8")
+
+    def secao(inicio, fim):
+        i = doc.index(inicio)
+        j = doc.index(fim, i)
+        return doc[i:j]
+
+    owners = set(re.findall(r"`([a-z][a-z0-9-]*)`", secao("### 4.1 Owners", "### 4.2")))
+    return owners
+
+
+def violations_grammar():
+    """
+    Nome consumido cujo PRIMEIRO segmento nao e um owner do vocabulario fechado.
+
+    POR QUE ISTO EXISTE — e o achado que o criou. Ate 2026-07-31 este guard era
+    apenas uma DENYLIST de tres palavras. Medido: `text-blergh-quux` passava com
+    exit 0, e `text-ink-primary` e `text-copy-strong` tambem. Ou seja, o guard
+    imprimia "o identificador consumido e owner.anatomia.propriedade" na mensagem
+    de erro e NAO verificava nada disso.
+
+    Foi por isso que `content-*` sobreviveu tanto tempo e que eu consolidei 812
+    usos para dentro dele: o guard passava, e os unicos exemplos ruins do
+    GRAMMAR.md eram justamente as duas palavras ja banidas. Uma denylist so pega
+    o que alguem ja pensou em proibir; a proxima palavra que comete o mesmo
+    pecado entra limpa.
+
+    Esta checagem inverte a logica: em vez de listar o proibido, exige o
+    permitido. `page`, `button`, `data-table` passam por estarem no vocabulario;
+    `ink`, `copy`, `content`, `blergh` reprovam por nao estarem — sem precisar
+    que ninguem os preveja.
+    """
+    owners = vocabulario_do_doc()
+    prefixos = ("bg", "text", "border", "ring", "fill", "stroke", "shadow",
+                "placeholder", "divide", "outline")
+    rx = re.compile(
+        r"\b(?:[a-z-]+:)*(?:" + "|".join(prefixos) + r")-([a-z][a-z0-9-]*)"
+    )
+    found = []
+    for path in sorted((ROOT / "src").rglob("*")):
+        if path.suffix not in {".js", ".jsx", ".ts", ".tsx"}:
+            continue
+        try:
+            texto = path.read_text(encoding="utf8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for n, linha in enumerate(sem_comentarios(texto).splitlines(), 1):
+            for nome in rx.findall(linha):
+                # o primeiro segmento e o owner candidato; escalas do Tailwind
+                # (numericas) e cores cruas nao sao alvo desta checagem
+                dono = nome.split("-")[0]
+                if dono in owners:
+                    continue
+                if re.fullmatch(r"[a-z]+", dono) and dono in _IGNORAR_DONO:
+                    continue
+                found.append({
+                    "kind": "grammar-owner",
+                    "path": str(path.relative_to(ROOT)),
+                    "line": n,
+                    "name": nome,
+                })
+    return found
+
+
+# Palavras que ocupam a posicao de owner mas sao vocabulario do proprio Tailwind
+# ou primitivo de cor, nao nome de token do design system. Reprova-las seria
+# ruido, nao sinal.
+_IGNORAR_DONO = {
+    "transparent", "current", "inherit", "white", "black", "auto", "none",
+    "red", "green", "blue", "gray", "grey", "slate", "zinc", "neutral", "stone",
+    "amber", "yellow", "orange", "lime", "emerald", "teal", "cyan", "sky",
+    "indigo", "violet", "purple", "fuchsia", "pink", "rose",
+}
+
+
+# O prefixo do Tailwind DECLARA a propriedade CSS. `text-` e `color`, `bg-` e
+# `background-color`, `border-` e `border-color`. Quando o nome do token tambem
+# carrega a propriedade, os dois tem que concordar.
+_PREFIXO_PROPRIEDADE = {
+    "text": "color",
+    "bg": "background-color",
+    "border": "border-color",
+    "outline": "outline-color",
+    "fill": "fill",
+    "stroke": "stroke",
+}
+
+
+def violations_prefix_property():
+    """
+    Prefixo do utility que CONTRADIZ a propriedade escrita no nome do token.
+
+    O QUE ISTO PEGA, com o exemplo que o originou: `text-page-background-color`
+    define `color` (cor do TEXTO) a partir de um token cujo nome diz
+    `background-color`. Emite CSS valido, o navegador nao reclama, e o resultado
+    e o texto pintado com a cor de fundo da pagina. Foi um exemplo que EU escrevi
+    num teste do guard, e o dono perguntou o obvio: texto tem cor, nao tem cor de
+    fundo.
+
+    Medido no momento em que a checagem entrou: ZERO ocorrencias no codigo real,
+    nos quatro sentidos (text x background, bg x border, border x background,
+    text x border). A disciplina ja existia na pratica — o que faltava era ela
+    ser executavel.
+
+    Baseline ZERO e o que torna esta catraca forte: nao ha divida para tolerar,
+    entao a primeira contradicao que alguem escrever reprova na hora.
+    """
+    rx = re.compile(
+        r"\b(?:[a-z-]+:)*(text|bg|border|outline|fill|stroke)-([a-z][a-z0-9-]*)"
+    )
+    propriedades = ("background-color", "border-color", "outline-color", "color")
+    found = []
+    for path in sorted((ROOT / "src").rglob("*")):
+        if path.suffix not in {".js", ".jsx", ".ts", ".tsx"}:
+            continue
+        try:
+            texto = path.read_text(encoding="utf8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for n, linha in enumerate(sem_comentarios(texto).splitlines(), 1):
+            for prefixo, nome in rx.findall(linha):
+                esperada = _PREFIXO_PROPRIEDADE.get(prefixo)
+                if not esperada:
+                    continue
+                # qual propriedade o NOME declara, se declarar alguma
+                declarada = next(
+                    (p for p in propriedades if nome.endswith(p) or f"-{p}-" in nome),
+                    None,
+                )
+                if declarada is None or declarada == esperada:
+                    continue
+                # `color` e sufixo de `background-color`; so acusa se for o nome inteiro
+                if esperada == "color" and declarada == "color":
+                    continue
+                found.append({
+                    "kind": "prefix-property",
+                    "path": str(path.relative_to(ROOT)),
+                    "line": n,
+                    "name": f"{prefixo}-{nome}",
+                    "detail": f"prefixo pede {esperada}, nome diz {declarada}",
+                })
+    return found
+
+
 def measure():
-    all_found = violations_in_source() + violations_in_css() + violations_in_token_source()
+    all_found = (violations_in_source() + violations_in_css()
+                 + violations_in_token_source() + violations_grammar()
+                 + violations_prefix_property())
     by_kind = {}
     for a in all_found:
         by_kind[a["kind"]] = by_kind.get(a["kind"], 0) + 1
@@ -160,9 +385,9 @@ def main():
     print("-" * 60)
     if regressed:
         print(f"LEI DE NAMING VIOLADA em: {', '.join(regressed)}")
-        print("`surface` e `semantic` sao contexto, nao nome. O identificador")
+        print("`surface`, `semantic` e `content` sao contexto, nao nome. O identificador")
         print("consumido e owner.anatomia.propriedade[.variante][.estado].")
-        print("Veja tokens/GRAMMAR.md; liste com --listar.")
+        print(f"Veja {_achar_gramatica()}; liste com --listar.")
         return 1
     print("LEI DE NAMING OK — nenhuma violacao nova.")
     return 0
