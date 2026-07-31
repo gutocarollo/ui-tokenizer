@@ -36,6 +36,13 @@ import path from "node:path";
 
 import { resolveRoot, resolveLaw } from "./lib/paths.mjs";
 import { loadColourNames, resolveProjectLayout } from "./lib/project-layout.mjs";
+import {
+  PREFIX_PROPERTY,
+  PREFIX_FAMILY,
+  lawSlotFor,
+  unlawedPrefixes,
+  prefixAlternation,
+} from "./lib/utility-families.mjs";
 
 /* Portable copy: ROOT comes from --root / TOKENIZE_ROOT / cwd, never this file's location. */
 const ROOT = resolveRoot();
@@ -230,32 +237,33 @@ export function scoreName(name, vocabulary, universe) {
 /* ------------------------------------------------------ application score --- */
 
 /**
- * Tailwind utility prefix -> the §4.3 property the prefix PAINTS.
+ * Tailwind utility prefix -> the property the prefix SETS.
  *
- * This is a projection onto the closed vocabulary, NOT the literal CSS property
- * name. The compiler emits `caret-color` for `caret-`, `accent-color` for
- * `accent-`, `--tw-ring-color` for `ring-` and `--tw-shadow-color` for
- * `shadow-` — none of which exist in §4.3, and none of which may appear in a
- * token id.
+ * THE TABLE MOVED to `lib/utility-families.mjs` and is re-exported here so the
+ * five importers keep working. It moved because the same knowledge was also
+ * hand-written as a regex literal inside `measure-coverage.mjs`, the script that
+ * produces the plan's blocking coverage number — and the two copies disagreed.
  *
- * The projection is REQUIRED, not sloppy: `scoreApplication` compares this value
- * by strict equality against the property slot parsed out of the token NAME,
- * and that slot can only ever hold a §4.3 term. `derive-tokens.mjs` puts this
- * value straight into the generated DTCG id. Returning raw CSS here would make
- * the match impossible forever and would emit ids like
- * `button.--tw-ring-color`.
+ * For a PAINT prefix the value is a projection onto the §4.3 closed vocabulary,
+ * NOT the literal CSS: the compiler emits `--tw-ring-color` for `ring-` and
+ * `--tw-shadow-color` for `shadow-`, neither of which is a §4.3 term and neither
+ * of which may appear in a token id. The projection is REQUIRED, not sloppy:
+ * `scoreApplication` compares this value by strict equality against the property
+ * slot parsed out of the token NAME, and `derive-tokens.mjs` puts it straight
+ * into the generated DTCG id.
  *
- * The previous wording of this comment claimed literal CSS, which the code never
- * did and does not need to — and that claim caused a review to conclude the
- * table was broken and propose replacing it with compiler derivation. Keep the
- * wording honest.
+ * F-E WIDENED THE TABLE to radius, spacing and typography, and that exposed a
+ * hole the oracle had been hiding: **§4.3 holds seven properties and all seven
+ * are paint.** There is no slot for `border-radius`, `padding`, `margin`, `gap`,
+ * `line-height` or `letter-spacing`. So the widening cannot be a projection for
+ * those rows — there is nothing to project onto. They FAIL CLOSED at every
+ * boundary that requires a §4.3 term (`scoreApplication` here, `deriveProperty`
+ * in derive-tokens, `deriveName` in context-clusters), and they are reported as
+ * a declared LAW GAP instead of being scored against a slot that does not exist.
+ * Amending §4.3 is a decision about the law, not a script edit, and it is
+ * written up rather than taken here.
  */
-export const PREFIX_PROPERTY = {
-  bg: "background-color", text: "color", border: "border-color",
-  ring: "outline-color", divide: "border-color", outline: "outline-color",
-  shadow: "box-shadow", fill: "fill", stroke: "stroke", placeholder: "color",
-  accent: "color", caret: "color",
-};
+export { PREFIX_PROPERTY, PREFIX_FAMILY, prefixAlternation, lawSlotFor };
 
 function* files(dir) {
   for (const ownerEntry of readdirSync(dir)) {
@@ -286,8 +294,24 @@ export function scoreApplication({ token, prefix, statePrefix, file, line }, voc
       criteria: [], review: false };
   }
 
+  // NOT SCOREABLE — LAW GAP. The class belongs to a design family the oracle can
+  // now SEE (radius, spacing, typography) but the law cannot NAME: §4.3 is seven
+  // paint properties and nothing else. Scoring it anyway has only bad branches —
+  // award the 60 and every spacing use passes without a property check, or fail
+  // the 60 and every spacing use reports H-021 against a slot that was never
+  // available. Both are numbers that look like results. It fails closed instead,
+  // and the gap is counted where it can be read.
+  const lawProperty = lawSlotFor(prefix, vocabulary);
+  if (!lawProperty) {
+    return { token, prefix, file, line, score: null, evaluable: false, lawGap: true,
+      family: PREFIX_FAMILY[prefix] ?? null,
+      reason: `law §4.3 has no slot for \`${PREFIX_PROPERTY[prefix]}\` (\`${prefix}-\`, family ` +
+        `${PREFIX_FAMILY[prefix]}); the use cannot be scored until the property vocabulary is amended`,
+      criteria: [], review: false };
+  }
+
   // 1. Declared PROPERTY × actual prefix (60) — the mechanical H-021 test.
-  const real = PREFIX_PROPERTY[prefix];
+  const real = lawProperty;
   if (!declared) {
     criteria.push({ c: "property", points: 0, maxPoints: 0, ok: null,
       note: `name declares no property (NAME defect); consumed as \`${prefix}-\` (${real})` });
@@ -331,10 +355,16 @@ export function scoreApplication({ token, prefix, statePrefix, file, line }, voc
   return { token, prefix, state: est, file, line, score: score100, evaluable: true, criteria, review: score100 < CUTOFF };
 }
 
-/** Collects every color-token use in JSX. */
+/**
+ * Collects every token use in JSX, across all four families.
+ *
+ * The alternation is longest-first (`prefixAlternation`), which is load-bearing
+ * now that the table holds `rounded` next to `rounded-t` and `p` next to `px`:
+ * first-match-wins would hand `t-card` to the token capture out of
+ * `rounded-t-card`.
+ */
 export function collectUses(universe) {
-  const PRE = Object.keys(PREFIX_PROPERTY).join("|");
-  const rx = new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${PRE})-([a-z][a-z0-9-]*)(?![\\w-])`, "g");
+  const rx = new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${prefixAlternation()})-([a-z][a-z0-9-]*)(?![\\w-])`, "g");
   const uses = [];
   for (const sourceRoot of PROJECT.sourceRoots) {
     for (const f of files(sourceRoot)) {
@@ -364,12 +394,24 @@ if (isMain) {
   const names = consumed.map((n) => scoreName(n, vocabulary, universe)).sort((a, b) => a.score - b.score);
   const allApplications = uses.map((u) => scoreApplication(u, vocabulary, universe));
   const apps = allApplications.filter((a) => a.evaluable).sort((a, b) => a.score - b.score);
-  const nonEvaluable = allApplications.filter((a) => !a.evaluable);
+  const lawGaps = allApplications.filter((a) => a.lawGap);
+  const nonEvaluable = allApplications.filter((a) => !a.evaluable && !a.lawGap);
+  const gapByFamily = new Map();
+  for (const a of lawGaps) gapByFamily.set(a.family, (gapByFamily.get(a.family) ?? 0) + 1);
+  const unlawed = unlawedPrefixes(vocabulary);
   const average = (l) => (l.reduce((s, x) => s + x.score, 0) / (l.length || 1)).toFixed(1);
   const argv = process.argv.slice(2);
 
   if (argv.includes("--json")) {
-    console.log(JSON.stringify({ cutoff: CUTOFF, names, applications: apps }, null, 1));
+    console.log(JSON.stringify({
+      cutoff: CUTOFF, names, applications: apps,
+      lawGap: {
+        prefixes: unlawed,
+        properties: [...new Set(unlawed.map((p) => PREFIX_PROPERTY[p]))],
+        uses: lawGaps.length,
+        byFamily: Object.fromEntries(gapByFamily),
+      },
+    }, null, 1));
   } else if (argv.includes("--names") || argv.includes("--review")) {
     const list = argv.includes("--review") ? names.filter((n) => n.review) : names;
     for (const n of list) {
@@ -391,6 +433,18 @@ if (isMain) {
     console.log(`NAMES        ${String(names.length).padStart(5)} tokens    average ${average(names)}   ${fx(names)}`);
     console.log(`APPLICATIONS ${String(apps.length).padStart(5)} uses      average ${average(apps)}   ${fx(apps)}`);
     console.log(`NOT EVALUABLE ${String(nonEvaluable.length).padStart(4)} uses      the name declares neither owner nor property`);
+    console.log(`LAW GAP      ${String(lawGaps.length).padStart(5)} uses      the class family has no §4.3 property slot`);
+    console.log(`\nLAW GAP — the oracle now SEES these families and cannot SCORE them:`);
+    console.log(`  §4.3 properties: ${vocabulary.properties.join(" · ")}`);
+    console.log(`  ${unlawed.length} of ${Object.keys(PREFIX_PROPERTY).length} prefixes have no slot: ` +
+      `${[...new Set(unlawed.map((p) => PREFIX_PROPERTY[p]))].join(" · ")}`);
+    for (const [family, n] of [...gapByFamily].sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${String(n).padStart(5)} uses in family ${family}`);
+    }
+    if (!lawGaps.length) {
+      console.log(`      0 uses — no token of these families EXISTS in the target yet;`);
+      console.log(`      widening the prefix table cannot create one. See F-E findings.`);
+    }
     console.log(`\nNAME score distribution:`);
     for (const [lo, hi] of [[0, 39], [40, 59], [60, 69], [70, 84], [85, 100]]) {
       const n = names.filter((x) => x.score >= lo && x.score <= hi).length;

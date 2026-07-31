@@ -25,6 +25,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { readVocabulary, parseName, PREFIX_PROPERTY } from "./score-naming.mjs";
+import { prefixAlternation } from "./lib/utility-families.mjs";
 
 import { resolveRoot, resolveLaw } from "./lib/paths.mjs";
 import { loadColourNames, resolveProjectLayout } from "./lib/project-layout.mjs";
@@ -218,7 +219,8 @@ if (isMain) {
   const vocabulary = readVocabulary();
   const universe = await loadColourNames(PROJECT);
 
-  const PRE = Object.keys(PREFIX_PROPERTY).join("|");
+  // longest-first: unsorted, `rounded` consumes `rounded-t` and `p` consumes `px`.
+  const PRE = prefixAlternation();
   const rx = new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${PRE})-([a-z][a-z0-9-]*)(?![\\w-])`, "g");
   const byToken = new Map();
 

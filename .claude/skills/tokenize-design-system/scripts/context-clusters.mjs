@@ -31,6 +31,7 @@ import path from "node:path";
 import { resolveRoot } from "./lib/paths.mjs";
 import { findUseOwner } from "./find-owner.mjs";
 import { readVocabulary, PREFIX_PROPERTY } from "./score-naming.mjs";
+import { prefixAlternation, lawSlotFor } from "./lib/utility-families.mjs";
 
 const ROOT = resolveRoot();
 const SRC = path.join(ROOT, "src");
@@ -145,7 +146,8 @@ const argv = process.argv.slice(2);
 const arg = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const voc = readVocabulary();
 
-const PRE = Object.keys(PREFIX_PROPERTY).join("|");
+// longest-first: unsorted, `rounded` consumes `rounded-t` and `p` consumes `px`.
+const PRE = prefixAlternation();
 const alvo = arg("--token");
 const tokenRx = alvo
   ? new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${PRE})-(${alvo})(?![\\w-])`, "g")
@@ -159,20 +161,36 @@ for (const f of files(SRC)) {
     const line = text.slice(0, m.index).split("\n").length;
     const ctx = contextOf(text, m.index, f);
     const { owner, signal } = findUseOwner({ file: f, tag: ctx.tag, role: ctx.role, type: ctx.type }, voc.owners);
-    const property = PREFIX_PROPERTY[prefix] ?? null;
+    // FALHA FECHADA. `property` alimenta `deriveName`, e o nome derivado tem que
+    // ser parseavel de volta pela lei. Um prefixo de radius/spacing/tipografia
+    // produziria `card-border-radius`, cujo segmento `border-radius` nao esta em
+    // §4.3 — vira REMAINDER e a nota do proprio nome cai por um defeito que o
+    // derivador criou. Sem slot, o cluster vai para decisao com o motivo escrito.
+    const property = lawSlotFor(prefix, voc);
+    const cssProperty = PREFIX_PROPERTY[prefix] ?? null;
+    const lawGap = property ? null
+      : `familia \`${prefix}-\` (${cssProperty}) nao tem slot em §4.3 da lei`;
     const state = stateOf(variantPrefix, ctx, token);
     const variant = variantOf(token, voc);
     const divergence = divergenceOf(variantPrefix, token);
     ocorrencias.push({
       file: path.relative(ROOT, f), line, token, prefix, variantPrefix: variantPrefix || null,
-      owner: owner ?? null, ownerSignal: signal ?? null, property, state, variant, divergence,
+      owner: owner ?? null, ownerSignal: signal ?? null, property, cssProperty, lawGap, state, variant, divergence,
       tag: ctx.tag, role: ctx.role, component: ctx.component, area: ctx.area,
     });
   }
 }
 
-/** Chave de cluster = os eixos do §9 que temos estaticamente. */
-const chave = (o) => [o.owner ?? "?", o.tag ?? "?", o.role ?? "-", o.component, o.property ?? "?", o.variant ?? "-", o.state ?? "-", o.area].join(" | ");
+/**
+ * Chave de cluster = os eixos do §9 que temos estaticamente.
+ *
+ * O eixo de propriedade usa `property` (slot da lei) e cai para `cssProperty`
+ * quando a lei nao tem slot. Sem esse fallback, TODA familia sem slot vira
+ * `?` e `rounded-`, `p-` e `gap-` no mesmo elemento colapsam num unico cluster
+ * — a fila de decisao perderia justamente a informacao que a torna acionavel, e
+ * o motivo reportado seria o da primeira ocorrencia sorteada como amostra.
+ */
+const chave = (o) => [o.owner ?? "?", o.tag ?? "?", o.role ?? "-", o.component, o.property ?? o.cssProperty ?? "?", o.variant ?? "-", o.state ?? "-", o.area].join(" | ");
 
 const clusters = new Map();
 for (const o of ocorrencias) {
@@ -208,7 +226,10 @@ const primitiveOf = (token) => VALUES.get(`semantic.light.surface.${token.replac
 const lista = [...clusters.values()]
   .map((c) => {
     const s = c.sample;
-    const proposed = deriveName({ owner: s.owner, property: s.property, variant: s.variant, state: s.state, anatomy: null });
+    // sem slot na lei nao ha nome derivavel, por mais claro que o contexto seja
+    const proposed = s.lawGap
+      ? null
+      : deriveName({ owner: s.owner, property: s.property, variant: s.variant, state: s.state, anatomy: null });
     // valor dominante do cluster; o resto e DIVERGENCIA a expor, nao a apagar (§9)
     const byValue = new Map();
     for (const o of c.occurrences) {
@@ -229,7 +250,7 @@ const lista = [...clusters.values()]
       divergentOccurrences: divergent.slice(0, 8),
       stateDivergences: c.occurrences.filter((o) => o.divergence).length,
       needsDecision: !proposed,
-      reason: proposed ? null : "owner nao determinado pelo contexto renderizado",
+      reason: proposed ? null : (s.lawGap ?? "owner nao determinado pelo contexto renderizado"),
     };
   })
   .sort((a, b) => b.count - a.count);
