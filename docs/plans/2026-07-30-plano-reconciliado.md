@@ -262,7 +262,7 @@ app e reportou sucesso**. Requisitos da fase:
 | # | fase | entrega | prova |
 |---|---|---|---|
 | **F-A** | validar libs (LEI ZERO) | **✔ concluída — §5.1** | 3 subagents, código clonado e executado |
-| **F-A2** | LEI ZERO do **veículo de entidade** | `cva` · `tailwind-variants` · `@apply` v4 · componente puro | doc oficial + teste em `.jsx` sem TS |
+| **F-A2** | LEI ZERO do **veículo de entidade** | **✔ concluída — §5.3** | miner rodado contra 10 fixtures |
 | **F-B** | `NORMALIZE` | 158 `style={{}}` + 28 ocorrências de cor + 172 px | `measure-coverage.mjs`, antes/depois |
 | **F-B2** | HTML semântico (spec nº 3 do dono) | `<div onClick>` → `<button>`, landmarks | os 59 clusters sem owner recontados — §7.1 |
 | **F-C** | `MINE` no loop | **✔ concluída** — ext derivada + guard | regressão 3/3, 722/723 arquivos |
@@ -373,6 +373,70 @@ linhas)** que lê `src/styles/generated/*-tokens.css`, monta o mapa valor→toke
 > primeira lib que aparece", é **provar** que não há nada reaproveitável antes de
 > escrever. Aqui a prova foi feita com path+linha e execução, não com opinião.
 
+### 5.3 F-A2 — o veículo da entidade, decidido por experimento
+
+A pergunta era: qual o padrão maduro para *"contrato nomeado sobre um bundle de
+classes Tailwind"*? Em vez de opinar, o subagent rodou **o nosso próprio miner**
+contra 10 fixtures, uma por candidata.
+
+| fixture | o miner vê? |
+|---|---|
+| `className="..."` cru | ✅ 1 ocorrência |
+| **const exportado, importado cross-file** | ✅ **2** — `identifier:INPUT_BASE`, `tokens:11`, `surfaceRole:input` |
+| `cva` forma string (shadcn) | ❌ **invisível** |
+| `cva` forma array (a que a doc oficial promove) | ❌ **invisível** |
+| `tailwind-variants` | ❌ **invisível** |
+| `@apply` | ❌ **invisível** |
+| componente React | ⚠️ só a definição; **call sites perdidos** |
+
+Causa no nosso código: `classname-miner-v2.mjs` tem dois entry points (L1026 e
+L1035) e o segundo aceita só `StringLiteral`/`NoSubstitutionTemplateLiteral` via
+`literalValue()`. `cva(...)` é `CallExpression` → `undefined` → as classes somem
+do censo.
+
+**E consertar o scanner não resolve.** Com o patch aplicado, `tailwind-variants`
+passa a ser visto, mas `cva` na **forma array continua invisível** porque
+`isClassLike()` exige `tokens.length > 1` por string e `cva(["border-none",...])`
+são strings de 1 token. Mesmo patchado, o censo colapsa de **453 → 1** ocorrência
+e o `surfaceRole` degrada de `input` para `structural`.
+
+> Este era o risco que eu levantei — *"solução que esconde as classes num objeto
+> JS pode ser pior que o problema"* — e ele é **pior do que eu supus**: a
+> invisibilidade é silenciosa e **depende do estilo de escrita**.
+
+**Decisão: `const` exportado + `tailwind-merge`.** Descartadas:
+
+| | motivo |
+|---|---|
+| `cva` | invisível mesmo com patch, na forma que a própria doc promove; `latest` **0.7.1 de 2024-11-26** em modo manutenção, 1.0 preso em beta sob outro nome de pacote |
+| `tailwind-variants` | mais vivo (3.3.0) e declara TW v4, mas invisível sem patch, colapsa o censo 453→1, arrasta 1MB de peer |
+| `@apply` | **desrecomendado pelos mantenedores** e removido da seção "Managing duplication" da doc v4; tira as classes do JSX e zera a auditabilidade |
+| componente React | é o que a doc oficial recomenda e o único que **força** o contrato, mas são 5 elementos distintos (`input` 198, `select` 104, `div` 48, `button` 15, `textarea` 4) e o diff não é reversível. **Fica como camada 2**, consumindo o `const` |
+
+**LEI ZERO satisfeita sem invenção:** o padrão **já existe no repo** —
+`src/pages/Admin/AgentBuilder/VariableInput/index.jsx` Linha 33 tem
+`const FIELD_TEXT = "block w-full p-2.5 text-sm"`. Não estamos criando convenção,
+estamos promovendo uma local para módulo compartilhado. `clsx@1.2.1` já está
+instalado.
+
+#### Três premissas minhas que caíram
+
+1. **Não são 260 cópias idênticas.** O bundle exato aparece **8 vezes em 4
+   arquivos**. A *família* tem **453 call sites / 80 strings distintas / 135
+   arquivos**, e o membro dominante é outro (186 ocorrências). Concentração:
+   top1 41%, top3 67%, top10 79%, com cauda de 70 strings. **O contrato certo é
+   `base` + extras aditivos**, não uma string congelada — o que também derruba o
+   argumento de variantes da `cva`/`tv`, porque o drift é aditivo pontual
+   (`mt-2`, `pr-10`), não um eixo de variante limpo.
+2. **91 call sites não têm `focus:`/`active:outline`** — defeito de
+   acessibilidade real que a tokenização expõe e corrige de graça. E 33 têm
+   classe duplicada no mesmo bundle.
+3. **Landmine no `tailwind.config.js`:** `content.files` cobre
+   `src/{components,pages}/**/*.{js,jsx}`, `src/{hooks,models,utils}/**/*.js`,
+   `src/*.jsx` — **`src/styles/**` não é varrido**. Contrato posto ali tem as
+   classes **purgadas do CSS**, quebra visual silenciosa em produção. Destino
+   correto: `src/utils/` ou `src/components/`.
+
 ---
 
 ## 6. Riscos declarados
@@ -385,6 +449,8 @@ linhas)** que lê `src/styles/generated/*-tokens.css`, monta o mapa valor→toke
 | `className` dinâmico invisível ao regex | cruzamento com computed style |
 | duas convenções vivas (`container`) | **decidido, ver §6.1** — critério medido, não contagem de `container` |
 | classe desconhecida emite zero CSS sem erro | `APPLY` prova no artefato buildado, nunca na definição |
+| **módulo de contrato fora do `content.files`** | `src/styles/**` **não é varrido** — classes purgadas em silêncio. Destino é `src/utils/`; F-F valida com grep no CSS buildado |
+| veículo que esconde classes do scanner | medido: `cva`/`tv`/`@apply` colapsam o censo 453→1. Veículo é `const` exportado — §5.3 |
 
 ### 6.1 D2-B decidida — a anatomia sai por número de partes, não por nome
 
