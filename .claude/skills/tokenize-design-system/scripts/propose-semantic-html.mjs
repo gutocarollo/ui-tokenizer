@@ -907,6 +907,12 @@ L.push("|---|---|---|---|");
 L.push("| **nativo** | `<div>` → `<button type=\"button\">` | via `TAG_OWNER` | **ALTO** — estilo de user-agent |");
 L.push("| **atributos** | `<div role=\"button\" tabIndex={0} onKeyDown>` | via `ROLE_OWNER` (patch `G1`) | **nenhum** — `role`/`aria`/`tabIndex` nao entram em cascata |");
 L.push("");
+L.push("A coluna diz **risco visual**, e so isso. A via de atributos preserva o pixel por");
+L.push(`construcao, mas em **${nestedInteractiveSites.size} site${nestedInteractiveSites.size === 1 ? "" : "s"}** ela quebra COMPORTAMENTO: o elemento tem`);
+L.push("descendente interativo, e envolve-lo em `role=\"button\" tabIndex={0}` produz");
+L.push("`nested-interactive` (§5.4). Ler esta tabela como \"a via de atributos e sempre");
+L.push("segura\" e exatamente o erro que a §5.4 existe para impedir.");
+L.push("");
 L.push(`Escolhendo item a item a variante de MENOR risco visual, o ganho e ` +
        `**${resolvedLow.length}/${totalClusters} clusters e ${resolvedLowOcc}/${totalOcc} ocorrencias** — ` +
        (resolvedLow.length === resolved.length && resolvedLowOcc === resolvedOcc
