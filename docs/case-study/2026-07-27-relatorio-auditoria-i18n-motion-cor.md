@@ -1,5 +1,12 @@
 # Relatório antes/depois — execução da auditoria i18n · motion · cor
 
+> ⛔ **SUPERADO EM PARTE — 2026-07-31.** As colunas "Depois" que apontam
+> `duration-surface` e `text-content-on-selected` como ALVO violam a lei
+> (`surface`/`content` banidos): palavra banida é fonte, nunca destino. Esses
+> alvos precisam re-derivação pelo owner; nota adicional: tokens não-cor
+> (`duration-*`, `rounded-*`) estão hoje FORA do alcance dos guards — lacuna
+> registrada.
+
 > Base `b740e347` → `HEAD`. 268 arquivos, +17.238 / −2.426 linhas, 4 commits.
 
 > Gerado do `git diff`, não de memória.

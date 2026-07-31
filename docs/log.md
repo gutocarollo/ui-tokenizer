@@ -285,3 +285,15 @@ comparação por string não acusa equivalência.
 - `case-study/sources/` — coleção das fontes de mineração
 - [`case-study/2026-07-26-tokenization.md`](case-study/2026-07-26-tokenization.md)
 - [`case-study/2026-07-26-relatorio-antes-depois-tokenizacao.md`](case-study/2026-07-26-relatorio-antes-depois-tokenizacao.md)
+
+## [2026-07-31] correção · lei
+
+- Retratações pós-varredura: `case-study/2026-07-26-tokenization.md` (tier 2 sem
+  `--color-content-*`; "use text-content-primary" superado),
+  `case-study/2026-07-27-relatorio-auditoria-i18n-motion-cor.md` (alvos
+  `duration-surface`/`text-content-on-selected` superados; lacuna dos guards em
+  tokens não-cor registrada) e `plans/2026-07-30-plano-reconciliado.md` (⚠ na
+  linha que tratava `surface` como parte anatômica válida). A entrada deste log
+  em [2026-07-31] que citava "text-content-tertiary … já estão migrados" fica
+  RETIFICADA por esta: casar com contrato de nome banido não é estar migrado —
+  é dívida com owner por derivar.

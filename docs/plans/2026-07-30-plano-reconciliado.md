@@ -652,7 +652,7 @@ partes distintas o owner tem**. Medido no tier `component`, 23 owners:
 
 | | owners |
 |---|---|
-| **11 multi-parte** — anatomia distingue, **mantém** | `button`(container·icon) · `card`(border·container·surface) · `checkbox`(6 partes) · `chat` · `code` · `list` · `menu` · `popover` · `progress` · `prompt` · `sidebar` |
+| **11 multi-parte** — anatomia distingue, **mantém** | `button`(container·icon) · `card`(border·container·surface) ⚠[2026-07-31: `surface` NÃO é parte anatômica válida (§4.2 não a contém; palavra banida) — a coluna 'mantém' está superada neste item] · `checkbox`(6 partes) · `chat` · `code` · `list` · `menu` · `popover` · `progress` · `prompt` · `sidebar` |
 | **12 parte única** — anatomia não distingue nada, **cai** | `app` · `avatar` · `badge` · `banner` · `chatarea` · `field` · `nav` · `pill` · `search` · `thread` · `toggle` · `toolbar` |
 
 Regra: **anatomia só existe quando há mais de uma parte endereçável.** Assim

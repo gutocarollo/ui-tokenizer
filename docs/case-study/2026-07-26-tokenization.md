@@ -1,5 +1,10 @@
 # Design system tokenizado — arquitetura e contrato
 
+> ⚠ **CORRIGIDO em 2026-07-31:** `content` foi banido pela lei (3ª palavra de
+> `FORBIDDEN`, junto de `surface`/`semantic`) — `--color-content-*` saiu do tier 2
+> e qualquer instrução abaixo que o use como destino está superada; é dívida a
+> migrar (mapa: relatório da rodada 2026-07-31 §4, repo makers).
+
 > **A wiki vence o source.** Se um componente contradiz esta página, o componente está errado.
 
 ## Fonte de verdade
@@ -21,7 +26,7 @@ classes utilitárias         (bg-surface-panel, text-content-primary, p-content�
 ```
 
 - **tier 1 primitivo** — `--color-pink-medium`, rungs cruas.
-- **tier 2 papéis** — `--color-content-*`, `--color-border-*`, `--color-pair-*`. É a API pública.
+- **tier 2 papéis** — `--color-border-*`, `--color-pair-*`. É a API pública.
 - **tier 3 alias** — `--theme-*` (compatibilidade com os 2.4k call-sites) e os pares (`--primary`, `--primary-foreground`).
 
 > ⚠ **CORRIGIDO em 2026-07-29.** A versão anterior desta lista incluía
@@ -40,7 +45,7 @@ classes utilitárias         (bg-surface-panel, text-content-primary, p-content�
 
 1. **Toda cor com canal usa `rgb(var(--x-rgb) / <alpha-value>)`.** Medido no Tailwind 3.4.6: a forma `var(--x)` com `/N` emite **zero regra CSS** — o fundo some sem erro nem aviso.
 2. **Rótulo de container colorido é branco invariante** (exceção única: `warning`, rótulo escuro). O tema escolhe o *tom* do container; o container é obrigado a carregar branco (≥4,5:1).
-3. **`text-white` sobre superfície neutra é proibido** — passa no dark e reprova no light (medido: 1,0:1, branco sobre branco). Use `text-content-primary`, que inverte por tema.
+3. **`text-white` sobre superfície neutra é proibido** — passa no dark e reprova no light (medido: 1,0:1, branco sobre branco). Use o token de texto do owner da situação (lei: `<owner>.foreground-color`); o antigo `text-content-primary` inverte por tema mas é vocabulário banido — fonte de migração, nunca destino.
 4. **Artefato gerado não é dívida** — `--exclude-dir=generated` no ratchet. Mas também **não** entra na `.ds-allowlist`: allowlistar dívida transforma o ratchet em teatro.
 5. **Migração: 1 item = 1 arquivo/grupo = 1 commit.** Replace-all global é proibido — teria apagado o rótulo de 77 botões cujo `text-white` é legítimo.
 6. **Evidência renderizada, não diff.** Trabalho visual só fecha com PNG + manifest.
