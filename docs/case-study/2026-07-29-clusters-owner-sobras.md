@@ -1,5 +1,14 @@
 # Mapeamento dos usos sem owner — clusters, padrões de tom e o owner mais próximo
 
+> ⛔ **ORDEM SUPERADA EM 2026-08-01.** Os nomes deste documento foram derivados
+> com a gramática antiga (`entity.anatomy.property.variant`). A ordem canônica
+> passou a ser **`entity[.variant][.anatomy][.property][.state]`** — a variante
+> fica colada à entidade que ela qualifica (levantamento de 7 sistemas: nenhum
+> com dono E propriedade no nome escreve a variante na cauda; ver §6 de
+> `docs/law/GRAMMAR.md`). Leia os nomes daqui como MEDIÇÃO da época, nunca como
+> alvo: `button.container.background-color.secondary` de então é hoje
+> `button.secondary.container.background-color`.
+
 Responde ao mandato: *"mapear para o owner mais próximo… analise individualmente…
 vale a pena criar tokens para clusterizar… verifique se mesmo nesses genéricos, os
 genéricos entre si trazem semelhanças nos tokens ou na forma de existir e também

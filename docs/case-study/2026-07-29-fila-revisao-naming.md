@@ -1,5 +1,14 @@
 # Fila de revisão de naming — o que está abaixo do corte
 
+> ⛔ **ORDEM SUPERADA EM 2026-08-01.** Os nomes deste documento foram derivados
+> com a gramática antiga (`entity.anatomy.property.variant`). A ordem canônica
+> passou a ser **`entity[.variant][.anatomy][.property][.state]`** — a variante
+> fica colada à entidade que ela qualifica (levantamento de 7 sistemas: nenhum
+> com dono E propriedade no nome escreve a variante na cauda; ver §6 de
+> `docs/law/GRAMMAR.md`). Leia os nomes daqui como MEDIÇÃO da época, nunca como
+> alvo: `button.container.background-color.secondary` de então é hoje
+> `button.secondary.container.background-color`.
+
 > Classe `event` (`docs/SCHEMA.md` §2). Gerado por
 > `node tokens/score-naming.mjs`. A lei e o método de nota estão em
 > `frontend/tokens/GRAMMAR.md` §7. **Corte: 70/100.**

@@ -1,5 +1,14 @@
 # Veredito de naming — todos os 139 tokens de cor consumidos
 
+> ⛔ **ORDEM SUPERADA EM 2026-08-01.** Os nomes deste documento foram derivados
+> com a gramática antiga (`entity.anatomy.property.variant`). A ordem canônica
+> passou a ser **`entity[.variant][.anatomy][.property][.state]`** — a variante
+> fica colada à entidade que ela qualifica (levantamento de 7 sistemas: nenhum
+> com dono E propriedade no nome escreve a variante na cauda; ver §6 de
+> `docs/law/GRAMMAR.md`). Leia os nomes daqui como MEDIÇÃO da época, nunca como
+> alvo: `button.container.background-color.secondary` de então é hoje
+> `button.secondary.container.background-color`.
+
 > Classe `event` (`docs/SCHEMA.md` §2). Pedido do dono em 2026-07-29: *"utilize um
 > grafo de agents sonnet onde absolutamente todos os tokens em lista de items
 > numeradas e o contexto completo de onde estão aplicados. a partir disso, sugira

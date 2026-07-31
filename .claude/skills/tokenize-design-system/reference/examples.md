@@ -200,7 +200,7 @@ primitive.c-e91e63
 ```
 **In the identifier consumed by the component**, never:
 ```
-button.background-color.primary → points to primitive.c-e91e63
+button.primary.background-color → points to primitive.c-e91e63
 ```
 
 ---

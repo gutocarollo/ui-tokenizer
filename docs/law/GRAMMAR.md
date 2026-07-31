@@ -52,7 +52,7 @@ and no human types them.
 ✗  surface.deep                       ← "deep relative to what, exactly?"
 ✓  overlay.backdrop.background-color
 ✓  data-table.header.background-color
-✓  button.background-color.primary.hover
+✓  button.primary.background-color.hover
 ```
 
 ## 2. Why `surface` is prohibited as a name

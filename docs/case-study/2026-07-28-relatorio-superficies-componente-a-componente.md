@@ -1,5 +1,14 @@
 # Relatório — os 10 valores de superfície, componente a componente
 
+> ⛔ **ORDEM SUPERADA EM 2026-08-01.** Os nomes deste documento foram derivados
+> com a gramática antiga (`entity.anatomy.property.variant`). A ordem canônica
+> passou a ser **`entity[.variant][.anatomy][.property][.state]`** — a variante
+> fica colada à entidade que ela qualifica (levantamento de 7 sistemas: nenhum
+> com dono E propriedade no nome escreve a variante na cauda; ver §6 de
+> `docs/law/GRAMMAR.md`). Leia os nomes daqui como MEDIÇÃO da época, nunca como
+> alvo: `button.container.background-color.secondary` de então é hoje
+> `button.secondary.container.background-color`.
+
 > Classe `event` (`docs/SCHEMA.md` §2). Origem: pedido do dono em 2026-07-28 —
 > *"quais são os 10? faça um relatório completo com os prints de toda as
 > ocorrências de todos os componentes e páginas usando playwright. para cada
