@@ -6,7 +6,8 @@ Origem: a regra existia em prosa (`CLAUDE.md` §6, e uma skill `clarification-pl
 que foi deletada) e mesmo assim o agente terminou turno atrás de turno com
 *"Sigo por qual?"*, *"Quer que eu…?"*, *"Sigo criando os 32 tokens?"*. **Regra em
 prosa que ninguém verifica não é regra — é sugestão.** Por isso agora há um Stop
-hook determinístico: `.harness/hooks/clarification-gate.py`.
+hook determinístico: `tools/hooks/clarification-gate.py`, registrado em
+`.claude/settings.json` sob `hooks.Stop`.
 
 ---
 
@@ -27,8 +28,11 @@ você consegue decidir com evidência — então decida, execute, e relate a esc
 vez de perguntar."*
 
 E há um critério quantitativo quando a decisão é de fusão de contrato:
-**incerteza > 30%** (ver `converge-tokens.mjs`). Abaixo disso o processo decide
-sozinho; acima, sobe para o capítulo humano do relatório.
+**incerteza > 30%** — `scripts/converge-tokens.mjs`, Linha 48
+(`const MAX_UNCERTAINTY = Number(arg("--max-uncertainty", "30"))`), repassado por
+`scripts/tokenize.mjs`, Linha 218. Abaixo do corte o processo decide sozinho;
+acima, o par sobe para o capítulo 3 do relatório e para a fase `DECIDE`. O corte
+é movível pela linha de comando (`--max-uncertainty <n>`), não é constante da lei.
 
 ## 2. O formato obrigatório
 
@@ -58,7 +62,7 @@ são insuficientes. Exemplo real deste projeto:
 
 > **Opção C — patch pequeno + re-medição antes de decidir motor novo**
 > - **Comportamento:** implementa `compilerCanonicalGroup` como projeção paralela e mede de novo.
-> - **Exemplo aplicado bom:** se o v1 patchado alcançar os 1.821, não há caso para motor novo — e foi o que aconteceu.
+> - **Exemplo aplicado bom:** se o v1 patchado alcançar os 1.821, não há caso para motor novo — e foi o que aconteceu (medição registrada em `docs/ESTADO.md`, Linhas 163 e 177).
 > - **Exemplo aplicado ruim:** se o patch exigisse mudar o modelo 1:1, o custo apareceria antes de comprometer semanas.
 > - **Quando escolher:** quando a diferença medida pode vir da chamada, não da arquitetura.
 
@@ -69,30 +73,60 @@ cenário **real do contexto analisado**. Analogia genérica **não vale**.
 
 | ✅ vale | ❌ não vale |
 |---|---|
-| "em `Directory/index.jsx:288` vira `button-background-color-hover`" | "o token ficaria mais semântico" |
+| "em `src/components/Modals/ManageWorkspace/Documents/Directory/index.jsx:289`, o `hover:bg-surface-hover` vira `button-background-color-hover`" | "o token ficaria mais semântico" |
 | "`ΔE 0,79` entre `#FCFCFB` e `#F9F9F7` — imperceptível" | "as cores são parecidas" |
-| "os 601 usos de `outline-primary-button` recebem contexto errado" | "afeta vários lugares" |
+| "os N usos de `outline-primary-button` recebem contexto errado, com N vindo de `grep -rc`" | "afeta vários lugares" |
+
+⚠ **O exemplo precisa ser medido na hora, não copiado daqui.** Estas três linhas
+mostram o FORMATO. Path, linha e contagem envelhecem: o `Directory/index.jsx:288`
+da versão anterior deste documento já apontava para a linha errada, e a contagem
+de `outline-primary-button` que ele citava não é a de hoje. Rode o comando antes
+de escrever o número no bloco `D[n]`.
 
 ## 4. O gate, e como ele decide
 
-`.harness/hooks/clarification-gate.py`, registrado como **Stop hook**.
+`tools/hooks/clarification-gate.py`, registrado como **Stop hook** em
+`.claude/settings.json`.
 
 Mede duas coisas no texto final do turno:
 
-1. **há pergunta de escolha?** — verbo de 1ª pessoa (`sigo`, `crio`, `aplico`,
-   `instalo`, `migro`, …) ou `quer que eu` / `prefere` / `posso` / `devo` /
-   `autoriza`, **e** um `?` fora de bloco de código
-2. **se há, o bloco `### D[n]` está presente e completo?** — os quatro itens por
-   opção **mais** a `**Minha recomendação**`
+1. **há pergunta de escolha?** — um dos **oito** padrões de `CHOICE_PATTERNS`
+   (Linhas 30-43): verbo de 1ª pessoa do presente (`sigo`, `crio`, `implemento`,
+   `executo`, `rodo`, `aplico`, `migro`, `comeco`, `avanco`, `prossigo`, `gero`,
+   `escrevo`, `renomeio`, `removo`, `adiciono`, `instalo`, `commito`, `pusho`),
+   `quer que eu`, `prefere`, `qual (voce|vc|deles|delas|opcao|caminho|dos)`,
+   `(posso|devo|faco)`, `autoriza`, `confirma`, `A ou B` — **e** um `?` fora de
+   bloco de código
+2. **se há, o bloco `### D[n]` está presente e completo?** — `D_BLOCK`
+   (`^#{2,4}\s*D\d+\s*[—\-:]`) mais os cinco `REQUIRED_ELEMENTS`: os quatro itens
+   por opção **e** a `**Minha recomendação**` (o padrão aceita
+   `Recomendação`/`Recomendacao` como alternativa)
 
-Bloqueia com `exit 2` e devolve o formato. Não dispara em: pergunta retórica
-dentro de explicação, pergunta em bloco de código ou citação, e frase afirmativa
-com verbo de 1ª pessoa sem interrogação.
+⚠ **Os padrões são escritos sem acento e sem cedilha, e `re.IGNORECASE` não
+normaliza diacrítico.** `comeco`, `avanco`, `faco`, `voce`, `opcao` casam a forma
+ASCII. Medido contra os padrões reais: *"Começo pelo A?"* **passa** — nenhum dos
+oito casa. *"Qual opção você prefere?"* bloqueia, mas por `\bprefere\b`, não pelo
+ramo de `opcao`, que também não casa. A cobertura vem dos ramos sem diacrítico
+(`sigo`, `crio`, `posso`, `devo`, `prefere`, `autoriza`, `confirma`); os ramos
+com `c`-cedilha perdido não valem nada em texto acentuado. Isso é defeito do
+gate, não do documento; está declarado aqui para que ninguém conclua que "o gate
+não bloqueou, logo a pergunta era legítima".
 
-**Tabela de regressão: 11/11**, construída com as perguntas secas reais que o
-agente fez nesta sessão — inclusive `"Sigo criando os 32 tokens?"`, que escapou da
-primeira versão do padrão porque ela exigia `sigo por/com/para`. O objeto direto
-varia; o verbo não.
+Bloqueia com `exit 2` e devolve o formato; bloco incompleto tem mensagem própria,
+listando os elementos que faltam. Não dispara em: pergunta retórica dentro de
+explicação, pergunta em bloco de código ou citação (`strip_code_and_quotes`),
+frase afirmativa com verbo de 1ª pessoa sem interrogação, e turno em que
+`stop_hook_active` já é `true` (evita laço).
+
+O padrão do verbo é intencionalmente largo no objeto direto: a primeira versão
+exigia `sigo por/com/para` e deixou passar `"Sigo criando os 32 tokens?"`. O
+objeto direto varia; o verbo não.
+
+> **Lacuna de implementação declarada.** Este gate **não tem suíte de regressão**
+> no repositório — não existe teste que o exercite, nem em `tools/`, nem no
+> `scripts/test/` da skill. As afirmações acima foram verificadas lendo o código,
+> não rodando casos. Enquanto não houver teste, qualquer alteração em
+> `CHOICE_PATTERNS` ou em `REQUIRED_ELEMENTS` é uma mudança sem rede.
 
 ## 5. Onde isto se encaixa no grafo
 
@@ -102,11 +136,13 @@ O `end-to-end-workflow.md` §9 já fechava com a regra de quando o humano entra:
 > contracts remain materially defensible.*
 
 Este documento é o **como** dessa frase, e o hook é o **enforcement**. Os três
-pontos do grafo em que a pergunta é legítima:
+pontos do grafo em que a pergunta é legítima — com o estado real de cada um, que
+não é o mesmo:
 
-- nó `HUMANO` de política de escopo, quando `axisMappingSafe` não cobre o caso
-- nó `HUMANO` de owner novo, quando a nota fica abaixo do corte e nenhum owner do
-  vocabulário serve
-- fila de convergência, quando a incerteza de fusão passa de 30%
+| ponto | estado no código |
+|---|---|
+| fila de convergência, quando a incerteza de fusão passa de 30% | **implementado.** `converge-tokens.mjs` Linha 48 empurra o par para `humano[]`; `tokenize.mjs` Linhas 243-251 é a fase `DECIDE`, a única fase humana do loop |
+| nó `HUMANO` de owner novo, quando a nota fica abaixo do corte e nenhum owner do vocabulário serve | **parcial.** O corte existe e é executável (`score-naming.mjs`, `CUTOFF = 70`), e a fila de revisão sai em `--review`; o *nó* que leva essa fila ao dono não existe — nenhuma fase do `tokenize.mjs` a consome |
+| nó `HUMANO` de política de escopo, quando `axisMappingSafe` não cobre o caso | **não implementado.** `axisMappingSafe` só existe em `docs/plans/2026-07-30-v2-upstream-como-oraculo-rev2.md`; não há símbolo com esse nome em `scripts/` |
 
 Fora desses três, se você está perguntando, provavelmente devia estar medindo.

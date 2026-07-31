@@ -1,8 +1,14 @@
-# Estado da empreitada — 2026-07-30
+# Estado da empreitada — 2026-07-31
 
 Documento de situação. Separa **validado com evidência** de **assumido** e de
 **pendente**. Toda linha marcada ✅ tem comando que a produziu; o que não tem, está
 marcado como tal.
+
+> **Aviso de alvo móvel.** Quase todo número deste documento mede o
+> `makers-ai-hub`, que está **sendo migrado enquanto medimos** (18 arquivos
+> modificados na árvore de trabalho dele em 2026-07-31). Número de alvo só vale
+> com data e comando. A tabela de deriva está na entrada *medição · processo* de
+> [`log.md`](log.md).
 
 ---
 
@@ -12,7 +18,9 @@ marcado como tal.
 publicar biblioteca: fazer com que cada cor e cada espaçamento da interface tenha
 um contrato nomeado, e provar no pixel que a migração não regrediu.
 
-O pedido ancorado em `.harness/requests/CURRENT-TASK.md` do app de referência:
+O pedido ancorado em `.harness/requests/CURRENT-TASK.md` do app de referência
+(caminho absoluto hoje: `/home/augusto/code/makers-ai-hub/.harness/requests/CURRENT-TASK.md`
+— na raiz do repo alvo, não em `frontend/`):
 
 > EXECUTE TUDO QUE FALTA ATÉ TERMOS SUCESSO INTEGRALMENTE. RODE EM LOOP E CORRIJA
 > SEMPRE QUE O VERIFICADOR ADVERSARIAL DO LOOP ANCORAR EM DADOS REAIS.
@@ -46,13 +54,18 @@ Duas trilhas, com autoridades diferentes — a distinção mais importante do de
 **tokenização semântica** | de quem é esta cor, que parte pinta, em que estado? | evidência estrutural + contexto renderizado + IA tipada + validadores |
 
 A IA entra **só** onde nenhuma função prova, e sempre com a evidência do script na
-mão. O grafo atual: **24 nós determinísticos, 4 de IA, 2 humanos**.
+mão. O grafo atual: **24 nós determinísticos, 4 de IA, 2 humanos** — contagem do
+diagrama §2.3 do plano rev 2, registrada em
+[`plans/2026-07-30-v2-upstream-como-oraculo-rev2.md`](plans/2026-07-30-v2-upstream-como-oraculo-rev2.md)
+§2.4 ("contagem honesta", Linha 268). Não confundir com o grafo de execução da
+skill, em `reference/end-to-end-workflow.md`, que é outro diagrama: **49 nós**,
+30 marcados `[D]` e 3 `[H]`.
 
 Três repositórios, com papéis distintos:
 
 | repo | papel |
 |---|---|
-`ui-tokenizer` branch `v2` | onde o motor evolui. O `main` (`1dcaf16`) é o v1 congelado para comparação |
+`ui-tokenizer` branch `v2` | onde o motor evolui. `1dcaf16` é o v1 congelado para comparação; desde 2026-07-31 `origin/main` avançou por fast-forward até `cabf1df` e a tag `v2.0.0` aponta para o mesmo commit |
 `makers-ai-hub` | app de referência, **onde o v1 já rodou**. Não é tocado pelo v2 |
 `fixtures/makershub-{main,pr193}` | cobaias congeladas. `pr193` é a tentativa **humana** do mesmo trabalho, logo é gabarito |
 
@@ -60,14 +73,37 @@ Três repositórios, com papéis distintos:
 
 ## 3. Onde estamos
 
-**Fase: loop único rodando end-to-end, `APPLY` não implementado.** O app de
-referência **já está ~99% tokenizado** — a medição é 10.190 de 10.693 consumos
-(95,3%) conformes, 9 hex cravados, 0 valores arbitrários. O trabalho que resta
-não é tokenizar, é **renomear**: as 504 ocorrências que violam a lei de naming.
+**Fase: loop único rodando end-to-end, `APPLY` não implementado.** O trabalho que
+resta no app de referência não é só tokenizar, é **renomear**: as ocorrências que
+violam a lei de naming.
 
-Uma corrida completa hoje, medida: 504 ocorrências → 311 clusters de contexto →
-**41 contratos** em 4 iterações, 211 fusões automáticas, **9 ocorrências (2,2%)**
-para decisão humana. Nada aplicado no código.
+Uma corrida completa **medida em 2026-07-31** —
+`node .claude/skills/tokenize-design-system/scripts/tokenize.mjs --root /home/augusto/code/makers-ai-hub/frontend`:
+
+| grandeza | valor |
+|---|---:|
+| ocorrências que violam a lei | **480**, em 187 arquivos |
+| clusters de contexto | **293** |
+| com nome derivado | **232** (386 ocorrências, 80,4%) |
+| sem owner no contexto → fila de IA | 58 |
+| sem slot em §4.3 → LAW GAP | 3 clusters, 8 ocorrências |
+| iterações até convergir | **4** |
+| fusões | **192** — 179 por confiança, 13 por outlier |
+| contratos finais | **40** |
+| para decisão humana | **8 pares, 9 ocorrências** |
+
+Nada aplicado no código.
+
+⚠ **Retratação de contagem (2026-07-31).** Este bloco dizia *"504 → 311 → 41
+contratos, 211 fusões, 9 (2,2%)"* e *"~99% tokenizado, 10.190 de 10.693 consumos
+(95,3%)"*. Nenhum dos dois reproduz. O primeiro é deriva de alvo móvel — tabela
+comparativa na entrada *medição · processo* de [`log.md`](log.md); note que as
+**8 decisões humanas são bit a bit as mesmas**, o que é o sinal de que o motor
+não mudou, o alvo mudou. O segundo é erro meu de leitura: `measure-coverage.mjs
+--root .` mede hoje **29.253** usos de classe, dos quais **18,0% já em contrato
+nomeado** e migrável (`A + B2`) **19.437 = 66,4%**. "95,3% conforme" era
+conformidade de um ratchet, não cobertura de tokenização; tratar os dois como a
+mesma grandeza produziu o "~99%".
 
 **O v2 já é superior ao v1?** Num eixo, sim e medido (§4.4): recall de reescrita de
 utility, 3,3×, superconjunto estrito. Em todos os outros eixos, **não sabemos** — o
@@ -77,7 +113,7 @@ testar primeiro a correção da chamada no v1.
 
 | artefato | estado |
 |---|---|
-`ui-tokenizer-v2` | branch `v2`, **6 commits**, 172 arquivos, árvore limpa, **não pushado** |
+`ui-tokenizer-v2` | **`v2.0.0` publicada** em `cabf1df`. `origin/main` = `origin/v2` = tag = mesmo commit; **49 commits** desde o v1 `1dcaf16`, que é ancestral (fast-forward real, sem merge commit); **229 arquivos** versionados. Árvore de trabalho **não limpa**: 18 entradas em `git status --porcelain`, trabalho em curso |
 plano | rev 2, 467 linhas, 2 rodadas adversariais concluídas, status **PENDENTE** |
 cobaia `main` | `949ba9ae`, `node_modules` instalado (1,6G), **não mutada** |
 cobaia `pr193` | `4afa7899`, `node_modules` **ausente** |
@@ -213,8 +249,10 @@ discordâncias** entre os dois scripts, 12/12 valores dentro do vocabulário fec
 ✅ **10 imports pendurados** no repo publicado, corrigidos espelhando o layout do
 fonte — cópias seguem **byte-idênticas** (`cmp`), zero pendurado.
 
-⚠️ **Ponte fase→executor** (`lib/phase-executors.mjs`): 17 fases, 10
-determinísticas, 2 model, 3 human, **0 problemas** na auditoria contra o contrato
+⚠️ **Ponte fase→executor** (`lib/phase-executors.mjs`): **15 fases executáveis** —
+10 determinísticas, 2 model, 3 human — mais 2 estados **não** executáveis
+(`PENDING`, `BLOCKED`), o que fecha os 17 que este parágrafo dizia serem todos
+fases. **0 problemas** na auditoria contra o contrato
 — mas a auditoria mediu a coisa errada. O mapa estava íntegro e **ninguém o
 invocava**: `rg -l "phase-executors"` retornava só o próprio arquivo. O
 `tokenization-runner.mjs` tinha 5 comandos (`init`, `transition`, `validate`,
@@ -224,8 +262,17 @@ Resolvido em 2026-07-30 por `scripts/tokenize.mjs`, o entrypoint único. Auditar
 um registro contra seu contrato não prova que ele está ligado; a pergunta que
 faltava era **quem chama**.
 
-✅ **45/45 testes fail-closed** dos módulos de extração, normalização, eixos e
-contrato visual, com `TOKENIZE_TEST_ROOT` no app de referência.
+⚠️ **A suíte, medida em 2026-07-31.** `npm test` neste repo: **125 testes, 118
+pass, 4 fail, 3 skip**. Com `TOKENIZE_TEST_ROOT=/home/augusto/code/makers-ai-hub/frontend`:
+**125, 122 pass, 2 fail, 1 skip**. As 2 falhas remanescentes são de ambiente e
+falham **fechadas**, com a mensagem certa — `utility-families` e
+`visual-contract` exigem um alvo com `sourceRoots` e dizem *"No source root found
+under …"* em vez de aprovar em silêncio.
+
+⚠ **Retratação:** este item afirmava **45/45**. Esse número **não reproduz em
+nenhuma configuração** medida hoje, e o script `test` do `package.json` deixa
+2 arquivos de teste versionados fora de todo glob (detalhe em
+[`AUTOCONTENCAO.md`](AUTOCONTENCAO.md)).
 
 ### 4.6 O que a pesquisa de biblioteca provou
 
@@ -261,6 +308,7 @@ Registro porque erro escondido reaparece.
 "26 D, 3 IA" no grafo | **24 D, 4 IA, 2 H** | contei no próprio diagrama |
 "Lightning CSS exige Rust" | **falso**, npm distribui binário | review adversarial |
 "o design **não** está tokenizado" | está **~99%** — 10.190/10.693 conformes; o que falta é **renomear** | o dono insistiu; medi |
+"está ~99% tokenizado" (a linha acima) | **errado nos dois sentidos.** Aquele 95,3% era conformidade de um **ratchet**, não cobertura de tokenização. `measure-coverage.mjs` em 2026-07-31: **18,0%** já em contrato nomeado de **29.253** usos de classe, migrável **66,4%** | corrigi ao reproduzir o comando (§3) |
 "ponte fase→executor validada, 0 problemas" | íntegra e **invocada por ninguém**; o runner não executava nada | o dono perguntou por que eu misturava as bolas |
 
 Padrão dominante: **diagnosticar código lendo documentação**, e **aceitar exemplo
@@ -277,7 +325,7 @@ tratada como prova.
 |---|---|
 **F0 metade 2** — `next build` + render de 1 rota na cobaia | não testado. A cobaia tem `backend/` Python e `docker-compose`; é o maior risco de descobrir tarde |
 `node_modules` da cobaia `pr193` | ausente (necessário para validar o "depois" da fonte 3 do benchmark) |
-`frontend/package.json` no repo v2 | ausente — é por isso que a suíte de contrato falha lá (provado pré-existente com `git stash`) |
+`frontend/package.json` no repo v2 | continua ausente (`ls frontend/package.json` → *No such file*), mas **deixou de ser a causa**: desde 2026-07-31 há um `package.json` na **raiz** declarando os 7 pacotes. A suíte que ainda falha (`utility-families`, `visual-contract`) falha por não achar `sourceRoots`, não por dependência — ver §4.5 |
 credencial de evidência visual | `UI_EVIDENCE_SESSION` / `UI_EVIDENCE_USER`+`PASS` ausentes. O motor **falha fechado** e recusa capturar |
 
 ### 6.2 Trabalho de plano, não re-revisado
@@ -293,15 +341,28 @@ implementada**.
 **Cor como P0.** O rev 2 tem 9 fases e **nenhuma** é de cor — naming aparece como
 um nó no meio do pipeline de canonicalização. Mas tudo que está aberto é cor:
 
-| pendência de cor | tamanho |
-|---|---:|
-`consumed-class` no app de referência | **503** |
-tokens com veredito de naming | 139 (40 OK / 82 inadequado / 17 pendente) |
-nomes abaixo do corte 70 | **78** |
-usos sem owner | **1.431** |
-hex cravado (`ds-gate`, report-only) | 5 |
-tokens emitindo ZERO CSS (`/N` sem canal) | 5 |
-eixos de `ds-variety` **piorados** | 2 (`radius-scales` 19→20, `shared-coverage` 141→140) |
+Medido em 2026-07-31, com o comando ao lado:
+
+| pendência de cor | tamanho | comando |
+|---|---:|---|
+`consumed-class` no app de referência | **3.381** | `TOKENIZE_APP_ROOT=<alvo> python3 tools/gates/ds-naming-law.py` |
+`grammar-owner` (mesmo ratchet) | **7.884** (baseline 7.909, caiu 25) | idem |
+`custom-property` · `group-in-source` | 65 · 2 | idem |
+tokens avaliados pelo oráculo de naming | **97** (56 ok · 41 em revisão), média **68,9** | `score-naming.mjs --root .` |
+nomes abaixo do corte 70 | **41** | `score-naming.mjs --root . --json` |
+usos que o nome não deixa avaliar (`NOT EVALUABLE`) | **3.902** | `score-naming.mjs --root .` |
+usos em família sem slot em §4.3 (`LAW GAP`) | 6 (45 de 53 prefixos sem slot) | idem |
+eixos de `ds-variety` **piorados** | **2** (`radius-scales` 19→20, `shared-coverage` 141→140) | `ds-variety.py` no alvo |
+
+⚠ **Retratação de contagem.** Esta tabela dizia `consumed-class` **503**,
+*"139 tokens com veredito (40/82/17)"*, **78** nomes abaixo do corte e **1.431**
+usos sem owner. O salto de 503 → 3.381 **não é regressão**: é a lei que cresceu —
+`content` virou palavra banida em 2026-07-31 e o ratchet passou a enxergar
+`content-*`, que antes era invisível para ele. A baseline foi regravada nesse
+novo escopo e o guard está verde. Os outros três números não reproduzem e foram
+substituídos pelos medidos; as duas linhas de hex cravado e tokens emitindo zero
+CSS saíram por não haver comando que as reproduza hoje. `ds-variety` é o único
+item que reproduziu **idêntico**.
 
 Cinco incorporações decididas do segundo documento externo, **ainda não escritas no
 plano**:
@@ -341,7 +402,9 @@ manifest+hash+matriz+console no mesmo artefato.
 - **72 commits não pushados** no app de referência, e o `origin` dele aponta para um
   repo **público** de terceiro (upstream do fork). Um push errado publicaria o
   rebrand.
-- **v2 não pushado.** Os 6 commits só existem nesta máquina.
+- ~~**v2 não pushado.** Os 6 commits só existem nesta máquina.~~ **Encerrado em
+  2026-07-31:** `v2.0.0` publicada, `origin/main` = `origin/v2` = tag = `cabf1df`
+  (`git rev-parse v2.0.0 origin/main origin/v2`).
 - **Token GitHub vazado** em transcripts locais, pendente de revogação pelo dono.
 
 ---

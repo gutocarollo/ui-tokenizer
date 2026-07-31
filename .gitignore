@@ -14,3 +14,9 @@ node_modules/
 **/settings.json
 *.pem
 id_rsa*
+
+# Bytecode Python: artefato de execucao, nunca fonte. Dois .pyc estavam
+# RASTREADOS ate 2026-07-31 — cada rodada do guard sujava o diff.
+__pycache__/
+*.pyc
+design_system_template.json

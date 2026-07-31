@@ -20,7 +20,18 @@ const REPOSITORY_ROOT = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
   "../../../.."
 );
-const APPLICATION_ROOT = path.join(REPOSITORY_ROOT, "frontend");
+/*
+ * O alvo NAO fica sempre em `<repo>/frontend`. Cravar isso fazia 27 destes
+ * testes falharem no repo canonico com "Target package.json not found:
+ * <repo>/frontend/package.json" — o repo do processo nao tem `frontend/`.
+ *
+ * `TOKENIZE_TEST_ROOT` ja e a convencao local: `artifact-contract.test.mjs`
+ * Linha 42 e `tailwind-normalizer.test.mjs` Linha 133 ja a usavam. Este arquivo
+ * era o unico fora dela.
+ */
+const APPLICATION_ROOT = process.env.TOKENIZE_TEST_ROOT
+  ? path.resolve(process.env.TOKENIZE_TEST_ROOT)
+  : path.join(REPOSITORY_ROOT, "frontend");
 const SOURCE = "a".repeat(64);
 const CONFIGURATION = "b".repeat(64);
 const TOOLCHAIN = {

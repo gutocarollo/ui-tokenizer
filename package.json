@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Processo de tokenizacao de design system: censo, entidades, evidencia de pixel e guards.",
   "scripts": {
-    "test": "node --test scripts/lib/*.test.mjs tests/visual/*.test.mjs .claude/skills/tokenize-design-system/scripts/test/*.test.mjs",
-    "evidence": "bash scripts/ui-evidence.sh",
+    "test": "node --test scripts/lib/*.test.mjs .claude/skills/tokenize-design-system/scripts/test/*.test.mjs .claude/skills/tokenize-design-system/scripts/*.test.mjs .claude/skills/tokenize-design-system/scripts/lib/*.test.mjs",
+    "ui:evidence": "bash scripts/ui-evidence.sh",
     "guard:contrast": "python3 scripts/ds-contrast-pairs.py"
   },
   "devDependencies": {

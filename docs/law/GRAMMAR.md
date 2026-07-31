@@ -8,6 +8,12 @@
 > Source of the law: owner’s adversarial review in PR #193 / FBI-2708, findings
 > H-019, H-021, and H-023. Direct instruction: **`semantic` and `surface` are
 > token CONTEXT, not NAME. Centralize contexts.**
+>
+> **EXTENDED 2026-07-31 — a third word was banned: `content`.** The quotation
+> above is the historical instruction and lists two words; the enforced list has
+> three. The reason is in §3.1, and the executable list is
+> `FORBIDDEN = ("surface", "semantic", "content")` in
+> [`tools/gates/ds-naming-law.py`](../../tools/gates/ds-naming-law.py) Linha 121.
 
 > **De onde vem esta ordem — e de onde NÃO vem.** O DTCG é agnóstico quanto a
 > naming: *"Groups are arbitrary and tools SHOULD NOT use them to infer the type
@@ -69,10 +75,63 @@ The tier remains alive as metadata:
 { "tier": "role", "domain": "color", "owner": "page", "property": "background-color" }
 ```
 
+## 3.1 Why `content` is prohibited as a name
+
+> **Added 2026-07-31**, by the owner’s express decision. Numbered `3.1` and not
+> `4` on purpose: §4, §5 and §7 are cited by number across this repository, and
+> renumbering them would silently break those citations.
+
+`content-*` mixes **two different axes** in one vocabulary without saying which
+one is in use:
+
+| word | axis it answers |
+|---|---|
+| `primary` · `secondary` · `tertiary` | **RANK** — how important is it? |
+| `danger` · `success` · `info` · `placeholder` | **ROLE** — what is it for? |
+
+`content-secondary` and `content-danger` look like siblings and are not: one
+answers *"how important"*, the other *"what kind of message"*. Reading the name
+you cannot tell whether the next value in the family will be a rank or a role.
+
+And `content` on its own says neither that it is a **color** nor that it is
+**text** — it could equally be a container, a slot, or a payload. It fails the
+§7.2 slot test in every slot it occupies, exactly like `surface`.
+
+**Measured debt at the moment of the ban:** 3,086 consumed classes, 90 custom
+properties, and 2 paths in the DTCG source
+([`tools/gates/ds-naming-law.py`](../../tools/gates/ds-naming-law.py)
+Linhas 108-121). The baseline records that number so the ratchet blocks NEW use
+while the migration happens.
+
+**Worked example, measured:** `content-primary` had **1,647 uses across 26
+different owners** — changing the button text changed the modal, the card and
+the field. See `examples.md` §10.
+
 ## 4. CLOSED vocabulary
 
 An agent or person classifying a token chooses **from this list**. A new owner
 requires an explicit justification in the decision’s `justification` field.
+
+> ⚠ **§4.1 is MACHINE-READ. Do not copy this list into another document.**
+> `ds-naming-law.py::vocabulario_do_doc()` (Linhas 216-232) slices this file
+> between the §4.1 and §4.2 headings and takes every backticked term as an
+> owner — 40 owners today, verified. `score-naming.mjs::readVocabulary()` slices
+> §4.1 through §4.5 the same way. A second copy of the list diverges, and when it
+> diverges the code wins in silence while the copy becomes a lie. Cite this
+> section; do not restate it.
+>
+> Two consequences of the reading rule, both measured while writing this note:
+>
+> 1. **Never add a backticked lowercase word inside §4.1 through §4.5** unless it
+>    is a vocabulary term. Prose that needs backticks belongs above the §4.1
+>    heading, as this note does.
+> 2. **Never reproduce a section heading verbatim in prose.** The slicer matches
+>    the heading as a plain substring and takes the FIRST hit. An earlier draft of
+>    this very note quoted both headings literally; the slice then ran from the
+>    note to the note, and `vocabulario_do_doc()` returned **0 owners instead of
+>    40** — the closed vocabulary silently emptied, so every first segment would
+>    have been reported as an unknown owner. Refer to sections by number (§4.1),
+>    never by their literal heading text.
 
 ### 4.1 Owners
 
@@ -110,19 +169,11 @@ owner with no parts writes `owner.property` — the empty slot already means
 `background-color` · `foreground-color` · `border-color` · `outline-color` ·
 `box-shadow` · `fill` · `stroke`
 
-> **CHANGED 2026-07-31: `color` → `foreground-color`.** The CSS property is
-> `color`, but as a *token* name it is ambiguous: `card.color` does not say
-> whether it is the card's text or its fill. Every reference system disambiguates
-> this, each in its own way — Material Design 3 uses the anatomy
-> (`--md-filled-button-label-text-color`), GitHub Primer coins a property
-> (`--button-primary-fgColor-rest`), shadcn/ui appends a role
-> (`--card-foreground`). We take the same decision they took, spelled out:
-> `foreground-color`.
->
-> Abbreviating it to `fg` was measured and rejected — see
-> [`2026-07-31-ordem-do-nome-evidencias.md`](2026-07-31-ordem-do-nome-evidencias.md)
-> §8. Primer is the one reference that abbreviates; it is a declared exception,
-> not an ignored counter-example.
+> **CHANGED 2026-07-31.** The bare CSS property name for text was replaced by
+> `foreground-color`. Rationale, references, and the rejected abbreviation are in
+> §8.2 — deliberately **not here**, because this section is machine-read and any
+> backticked lowercase word placed between the §4.3 and §4.4 headings is parsed
+> as a valid property.
 
 ### 4.4 Variants (only where the owner genuinely has them)
 
@@ -143,8 +194,8 @@ An omitted state means `default`. Do **not** write `.default`.
    page’s. Two contracts with the same value today remain two contracts.
 2. **An incompatible property means the owner is wrong, not that it is a
    synonym.** A background alias painting text (`color: theme.surface.panel`)
-   does not become `x.container.color` — it becomes the text token that the
-   owner already has.
+   does not become `x.container.foreground-color` — it becomes the text token
+   that the owner already has.
 3. **Repetition is evidence, not a verdict.** Thirty uses of the same pair do
    not prove that all thirty have the same role; they prove that all thirty are
    worth inspecting.
@@ -157,14 +208,39 @@ H-020; an honest PENDING classification is not.
 
 ## 6. Emission
 
-The public name produces all three consumption forms, with neither `semantic`
-nor `surface` in any of them:
+The public name produces all three consumption forms, with none of `semantic`,
+`surface` or `content` in any of them:
 
 ```
 DTCG (public ID)  page.background-color
 CSS               --mh-page-background-color
-Tailwind          bg-page          /  text-page  /  border-page
+Tailwind          bg-page
 ```
+
+> **CORRECTED 2026-07-31.** The previous version of the Tailwind line read
+> `bg-page  /  text-page  /  border-page` — three utility families emitted from
+> **one** token that declares `background-color`. That is the H-021 defect
+> written into the law itself: `text-page` paints the TEXT with the PAGE
+> BACKGROUND value. A token declares **one** property, so it is consumed by the
+> **one** utility family that sets that property. Want the page's text color?
+> That is a different token: `page.foreground-color`.
+>
+> This is now executable —
+> [`ds-naming-law.py::violations_prefix_property()`](../../tools/gates/ds-naming-law.py)
+> (Linhas 312-365) reprova the prefix that contradicts the property spelled in
+> the name, with **baseline 0**: there is no debt to tolerate, so the first
+> contradiction anyone writes fails immediately. Measured when the check landed:
+> zero occurrences in real code across all four senses (text×background,
+> bg×border, border×background, text×border).
+>
+> ⚠ **Two spellings in this block are an OPEN architecture decision, not
+> settled law — do not cite them as precedent.** (a) whether the class is
+> `bg-page` or `bg-page-background-color` (shadcn omits the suffix, M3 and Primer
+> write it); (b) whether the CSS variable is `--mh-*` or `--color-*` (the
+> Tailwind namespace `--color-*` is what generates the utilities at all).
+> Registered with the price of each side in commit `4091e37`. What the guard
+> already enforces **under either spelling** is the invariant above: the prefix
+> may not contradict the property.
 
 With anatomy, variant, and state:
 
@@ -214,7 +290,7 @@ and the empty slot already conveys that.
 
 | anatomy | only possible property | therefore, writing the property is noise |
 |---|---|---|
-| `label` · `placeholder` · `helper` · `caret` | `color` | a text node has no surface of its own |
+| `label` · `placeholder` · `helper` · `caret` | `foreground-color` | a text node has no surface of its own |
 | `backdrop` | `background-color` | |
 | `divider` | `border-color` | |
 
@@ -237,7 +313,7 @@ container.
 | criterion | points | fails when |
 |---|---:|---|
 | owner present and in the vocabulary | **30** | without an owner, a token is a paint pot: no new use can be judged |
-| no context word | **25** | it has `surface`/`semantic`/`ui`/a color name — the defect that produced `surface.*` |
+| no context word | **25** | it has `surface`/`semantic`/`content`/`ui`/a color name — the defect that produced `surface.*` |
 | no redundant word | **15** | a word passes the removal test without losing information |
 | coherent anatomy × property pair | **10** | internal contradiction (`label` + `background-color`) |
 | state with a `default` pair | **10** | hover without a base — the zero-delta defect |
@@ -275,3 +351,99 @@ node "$SKILL/scripts/score-naming.mjs" --root "$ROOT" --names     # every name, 
 node "$SKILL/scripts/score-naming.mjs" --root "$ROOT" --applications # every use below the cutoff
 node "$SKILL/scripts/score-naming.mjs" --root "$ROOT" --review    # only items that require review
 ```
+
+## 8. What the guard actually enforces — added 2026-07-31
+
+> The score in §7 is an **advisory oracle**: it grades and ranks. The guard is
+> the **blocking gate**: it fails the build. When this document and
+> [`tools/gates/ds-naming-law.py`](../../tools/gates/ds-naming-law.py) disagree,
+> **the guard is the truth** and this document is the bug.
+
+`python3 tools/gates/ds-naming-law.py` — ratchet mode against a per-app baseline;
+`--listar` shows each violation with its location.
+
+| check | function | what fails |
+|---|---|---|
+| `consumed-class` | `violations_in_source()` | a Tailwind class in `src/**/*.{jsx,tsx}` carrying `surface`, `semantic` or `content` |
+| `custom-property` | `violations_in_css()` | an emitted `--*` custom property whose name carries one of the three |
+| `group-in-source` | `violations_in_token_source()` | a DTCG group that would BECOME a public name with one of the three |
+| `grammar-owner` | `violations_grammar()` | the FIRST segment of a consumed name is not an owner of §4.1 |
+| `prefix-property` | `violations_prefix_property()` | the utility prefix contradicts the property spelled in the name |
+
+### 8.1 The denylist alone was not enough — this is the finding that added §8
+
+Until 2026-07-31 the guard was **only** the three-word denylist. Measured
+consequence: `text-blergh-quux` passed with **exit 0**, and so did
+`text-ink-primary` and `text-copy-strong`. The guard printed
+*"the consumed identifier is owner.anatomy.property"* in its own failure message
+and verified **none of it**.
+
+That is also why `content-*` survived so long: the guard passed it, and the only
+bad examples in this document were the two words already banned. **A denylist
+catches only what someone already thought to prohibit; the next word that commits
+the same sin walks in clean.**
+
+`violations_grammar()` inverts the logic — instead of listing the forbidden, it
+**requires the permitted**. `page`, `button` and `data-table` pass because they
+are in §4.1; `ink`, `copy`, `content` and `blergh` fail because they are not,
+with nobody having to foresee them. Tailwind's own vocabulary and raw pigments
+(`transparent`, `white`, `slate`, …) are exempted by `_IGNORAR_DONO`
+(Linhas 291-296) — failing those would be noise, not signal.
+
+Reproduced against a fixture on 2026-07-31, with §4.1 yielding 40 owners:
+
+```
+consumed-class      text-content-primary          src/A.tsx:2
+grammar-owner       content-primary               src/A.tsx:2
+grammar-owner       blergh-quux                   src/A.tsx:3
+grammar-owner       ink-primary                   src/A.tsx:5
+grammar-owner       copy-strong                   src/A.tsx:5
+prefix-property     text-page-background-color    prefixo pede color, nome diz background-color
+```
+
+`bg-page-background-color` and `text-page-foreground-color` in the same fixture
+produced **no** finding — the law's own spellings pass.
+
+> ⚠ **OPEN DEFECT in `violations_grammar()`, measured 2026-07-31 — code bug, not
+> law.** The check reads the owner as `nome.split("-")[0]`
+> ([`ds-naming-law.py`](../../tools/gates/ds-naming-law.py) Linha 274), i.e. only
+> the **first hyphen segment**. Every compound owner of §4.1 is therefore
+> truncated to a word that is not in the vocabulary, and reported as a violation
+> while being perfectly legal:
+>
+> | owner in §4.1 | what the guard compares | in the vocabulary? |
+> |---|---|---|
+> | `chat-message` · `code-block` · `data-table` · `empty-state` | `chat` · `code` · `data` · `empty` | no |
+> | `list-row` · `nav-item` · `thread-item` · `workspace-item` | `list` · `nav` · `thread` · `workspace` | no |
+>
+> **8 of the 40 owners — 20% of the closed vocabulary — are guaranteed false
+> positives.** Verified on a fixture: `bg-data-table-header-background-color`,
+> `bg-nav-item-background-color` and `bg-nav-item-background-color-hover` are all
+> reported as `grammar-owner`. Existing debt is absorbed by the baseline, so what
+> this blocks is precisely the **new, correct** token.
+>
+> `score-naming.mjs::parseName()` does not have the bug — it matches the longest
+> vocabulary term first, exactly because owners may contain hyphens. The fix is
+> to make the guard match the same way. **Until it is fixed, a `grammar-owner`
+> finding on a compound owner is noise; do not "fix" the token name.**
+
+### 8.2 Why §4.3 says `foreground-color` and not the bare CSS property name
+
+The CSS property for text is `color`. As a **token** name it is ambiguous:
+`card.color` does not say whether it is the card's text or its fill. Every
+reference system disambiguates it, each in its own way — Material Design 3 uses
+the anatomy (`--md-filled-button-label-text-color`), GitHub Primer coins a
+property (`--button-primary-fgColor-rest`), shadcn/ui appends a role
+(`--card-foreground`). We take the same decision they took, spelled out.
+
+Abbreviating it to a two-letter form was measured and rejected — see
+[`2026-07-31-ordem-do-nome-evidencias.md`](2026-07-31-ordem-do-nome-evidencias.md)
+§8. Primer is the one reference that abbreviates; it is a declared exception, not
+an ignored counter-example.
+
+**This rationale lives in §8 and not in §4.3 for a measured reason.** While it
+sat inside §4.3, `readVocabulary()` parsed the backticked words of the
+*explanation* as members of the vocabulary: §4.3 yielded **9 properties instead
+of 7**, and the two extras were the very spellings the change had just banned.
+The law was still accepting `card.color` because its own footnote said the word
+out loud. Same class of defect as the heading-quoting trap in the §4 note.

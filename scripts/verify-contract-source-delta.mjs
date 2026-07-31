@@ -50,11 +50,38 @@ import console from "node:console";
 
 import { parse } from "@babel/parser";
 
+/*
+ * FRONTEND_ROOT e a raiz do APP medido; REPO_ROOT e a raiz do repositorio GIT
+ * que o contem — e os dois NAO tem relacao fixa de profundidade.
+ *
+ * A primeira versao cravava `REPO_ROOT = FRONTEND_ROOT/..`, o que so vale no
+ * layout do alvo (`makers-ai-hub/frontend` dentro de `makers-ai-hub`). No repo
+ * canonico do processo isso resolvia para `/home/augusto/code`, que nao e
+ * repositorio git nenhum — e TODAS as chamadas `git show` deste script rodariam
+ * fora de qualquer repo, falhando de um jeito que parece "arquivo ausente".
+ *
+ * Agora o app vem de TOKENIZE_APP_ROOT (ou do proprio layout) e o repo git e
+ * DESCOBERTO com `git rev-parse --show-toplevel`, que e a unica fonte correta.
+ */
 const FRONTEND_ROOT = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  ".."
+  process.env.TOKENIZE_APP_ROOT ||
+    path.join(path.dirname(new URL(import.meta.url).pathname), "..")
 );
-const REPO_ROOT = path.resolve(FRONTEND_ROOT, "..");
+
+function descobrirRepoGit(desde) {
+  try {
+    return execFileSync("git", ["-C", desde, "rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    throw new Error(
+      `nao ha repositorio git em ${desde} nem acima dele; este verificador compara ` +
+        "a worktree contra um ref, entao precisa de um repo"
+    );
+  }
+}
+
+const REPO_ROOT = descobrirRepoGit(FRONTEND_ROOT);
 
 const argv = process.argv.slice(2);
 const arg = (name, fallback = null) => {

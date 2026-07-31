@@ -7,6 +7,111 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-07-31] medição · processo
+
+**Os números do alvo derivam, e derivaram hoje.** As entradas anteriores deste
+log e as tabelas do `README`/`ESTADO`/`como-funciona` medem o `makers-ai-hub`,
+que está **sendo migrado enquanto medimos** (18 arquivos modificados na árvore de
+trabalho do alvo em 2026-07-31). Nenhum número abaixo é retratação de erro: é
+deriva de alvo móvel, e a única defesa é o comando ao lado.
+
+Re-medido hoje, `node .claude/skills/tokenize-design-system/scripts/tokenize.mjs
+--root /home/augusto/code/makers-ai-hub/frontend`:
+
+| grandeza | valor no log anterior | medido 2026-07-31 |
+|---|---:|---:|
+| ocorrências que violam a lei | 504 | **480** |
+| arquivos atingidos | 201 | **187** |
+| clusters de contexto | 311 | **293** |
+| clusters com nome derivado | 252 | **232** (386 ocorrências, 80,4%) |
+| fusões | 211 (200 + 11) | **192** (179 confiança + 13 outlier) |
+| contratos finais | 41 | **40** |
+| iterações até convergir | 4 | **4** |
+| pares / ocorrências para o dono | 8 / 9 | **8 / 9** (idêntico, mesmas 8 chaves) |
+| clusters sem slot em §4.3 (LAW GAP) | — | **3**, 8 ocorrências |
+
+`score-naming.mjs --root .` no alvo: **97 tokens**, média **68,9**, **56 ok · 41
+em revisão** (o log anterior dizia média 58,4 e 78 em revisão). `NOT EVALUABLE`
+= **3.902** usos.
+
+`measure-coverage.mjs --root .`: denominador **29.253** usos de classe;
+`B` tokenizável fora de entidade **8.878**, dos quais `B1` já em contrato
+**2.889** e `B2` utility cru **5.989**; migrável `A + B2` = **19.437 (66,4%)** —
+não os 68,9% da entrada de 2026-07-30. `4.886` usos (81,6% de B2) caem em
+famílias **sem slot em §4.3**.
+
+`npm test` neste repo: **125 testes, 118 pass, 4 fail, 3 skip**. Com
+`TOKENIZE_TEST_ROOT=/home/augusto/code/makers-ai-hub/frontend`: **125, 122 pass,
+2 fail, 1 skip**. As 2 falhas restantes são de ambiente — `utility-families` e
+`visual-contract` exigem um alvo com `sourceRoots`, e falham fechadas com
+*"No source root found under …"*. O número **45/45** que circulava no `README` e
+no `ESTADO` **não reproduz em nenhuma configuração** e foi substituído nos dois.
+
+## [2026-07-31] release · processo
+
+**`v2.0.0` publicada.** A tag aponta para `cabf1df`, e `origin/main`,
+`origin/v2` e `v2.0.0` são **o mesmo commit** — `1dcaf16` (o v1 congelado) é
+ancestral dele, logo o avanço de `main` foi **fast-forward real**, sem merge
+commit. 49 commits desde o v1, 229 arquivos versionados.
+
+```bash
+git rev-parse v2.0.0 origin/main origin/v2      # três vezes cabf1df
+git merge-base --is-ancestor 1dcaf16 origin/main && echo fast-forward
+git rev-list --count 1dcaf16..origin/main       # 49
+```
+
+Isso encerra o risco *"v2 não pushado, os commits só existem nesta máquina"*
+declarado na §7 do `ESTADO.md`. O ref **local** `main` continua em `1dcaf16` por
+não ter sido atualizado nesta cópia de trabalho; é defasagem de ref local, não
+estado do repositório.
+
+## [2026-07-31] lei · lei
+
+**Terceira palavra banida: `content`.** `FORBIDDEN` em
+`tools/gates/ds-naming-law.py` Linha 121 passa a ser
+`("surface", "semantic", "content")`, e a §3.1 do `GRAMMAR.md` dá o motivo
+medido: `content-*` mistura dois eixos (papel de texto e intenção semântica) sem
+dizer qual, e `content-primary` sozinho tinha **1.647 usos em 26 arquivos**.
+
+**`color` → `foreground-color` na §4.3.** Nome de token `card.color` não diz se
+é o texto ou o preenchimento do card. Material 3 desambigua pela anatomia,
+Primer cunhando a propriedade, shadcn/ui anexando o papel; adotamos a mesma
+decisão, escrita por extenso. Abreviar para `fg` foi medido e rejeitado
+(§8 do doc de evidências).
+
+**O guard deixou de ser só denylist.** `ds-naming-law.py` ganhou duas checagens
+que antes não existiam:
+
+- `violations_grammar()` (Linha 235) — validação **positiva**: em vez de listar o
+  proibido, exige que o nome case a gramática do §4.1/§4.3. `ink`, `copy` e
+  `blergh` reprovam por não estarem no vocabulário, não por estarem numa lista
+  negra;
+- `violations_prefix_property()` (Linha 312) — o prefixo do utility tem que
+  **concordar** com a propriedade declarada no nome. `text-` pede
+  `foreground-color`; `bg-text-…` é violação.
+
+Rodado contra o alvo: `python3 tools/gates/ds-naming-law.py` → *"LEI DE NAMING
+OK — nenhuma violacao nova"*, exit 0.
+
+- [`law/2026-07-31-ordem-do-nome-evidencias.md`](law/2026-07-31-ordem-do-nome-evidencias.md)
+- [`law/GRAMMAR.md`](law/GRAMMAR.md) §3.1 e §4.3
+
+## [2026-07-31] autocontenção · processo
+
+**O repo do processo passou a reproduzir o próprio processo.** 9 scripts estavam
+**ausentes** e 5 **divergentes** em relação ao alvo onde o trabalho aconteceu —
+entre os ausentes, os dois codemods que produzem os lados `before` e `after` do
+par de pixel, sem os quais nenhuma prova visual era regerável a partir daqui.
+Sincronizado e verificado: os 14 arquivos existem e `applyBindingWaivers` está
+em `scripts/lib/visual-contract.mjs` Linha 994.
+
+Terceira falha do mesmo inventário: **nenhuma dependência declarada**. `package.json`
+passa a existir na raiz e declara **7 pacotes** — `@babel/parser`,
+`@playwright/test`, `ajv`, `axe-core`, `pixelmatch`, `pngjs`, `typescript` — e
+expõe `test`, `ui:evidence` e `guard:contrast`.
+
+- [`AUTOCONTENCAO.md`](AUTOCONTENCAO.md) — o inventário e o estado depois
+
 ## [2026-07-31] achado · lei
 
 **F-E ampliou o oráculo de propriedades e bateu no teto da própria lei.**
@@ -72,6 +177,13 @@ fusões, 41 contratos); em fixture que exercita as famílias novas, clusters
 22 → 48 e fusões/contratos/iterações **inalterados** (9 / 10 / 3), porque o
 cluster sem slot falha fechado antes de derivar nome.
 
+> **Deriva de alvo, mesma data.** Os números desta entrada que medem o
+> `makers-ai-hub` (504/211/41, 7.907 → 7.978, 5.683, 2.295/7.978, 75,5% → 68,9%)
+> **não reproduzem mais** — o alvo continuou sendo migrado depois desta medição.
+> Valores de hoje e comandos na entrada *medição · processo* do topo. A
+> conclusão da entrada (§4.3 não tem slot para 41 dos 53 prefixos; convergência
+> não quebra) sobrevive; as contagens não.
+
 - [`law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md`](law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md)
 
 ## [2026-07-31] arquitetura · fork da skill
@@ -97,6 +209,10 @@ Documento e código descreviam projetos diferentes.
 Números que passam a ser contrato: universo **32.662** usos de classe (+158
 `style={{}}`, +index.css), hoje **1,5%** tratado, meta **bloqueante 68,9%**, teto
 **81,4%**, e **18,6%** declarado fora de escopo por não haver padrão.
+
+> **Deriva de alvo (2026-07-31).** `measure-coverage.mjs --root .` no alvo hoje
+> dá denominador **29.253** usos de classe e migrável **66,4%**, não 32.662 e
+> 68,9%. Ver a entrada *medição · processo* do topo.
 
 - [`plans/2026-07-30-plano-reconciliado.md`](plans/2026-07-30-plano-reconciliado.md)
 

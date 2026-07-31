@@ -254,6 +254,8 @@ def violations_grammar():
     que ninguem os preveja.
     """
     owners = vocabulario_do_doc()
+    # do mais longo para o mais curto: `nav-item` tem que ser tentado antes de `nav`
+    owners_por_tamanho = sorted(owners, key=len, reverse=True)
     prefixos = ("bg", "text", "border", "ring", "fill", "stroke", "shadow",
                 "placeholder", "divide", "outline")
     rx = re.compile(
@@ -269,9 +271,24 @@ def violations_grammar():
             continue
         for n, linha in enumerate(sem_comentarios(texto).splitlines(), 1):
             for nome in rx.findall(linha):
-                # o primeiro segmento e o owner candidato; escalas do Tailwind
-                # (numericas) e cores cruas nao sao alvo desta checagem
-                dono = nome.split("-")[0]
+                # CASA O TERMO MAIS LONGO PRIMEIRO, nao o primeiro segmento.
+                #
+                # `nome.split("-")[0]` reprovava 8 dos 40 owners do proprio
+                # vocabulario fechado — `chat-message` virava `chat`,
+                # `data-table` virava `data`, e nenhum dos dois esta na lista.
+                # 20% da lei rejeitada pela lei.
+                #
+                # E o efeito e pior do que parece: a divida velha ja esta
+                # absorvida pelo baseline, entao o que este bug bloqueava era
+                # exatamente o token NOVO e CORRETO. Um guard que so barra quem
+                # acerta e pior que guard nenhum.
+                #
+                # `parseName()` do oraculo (score-naming.mjs) sempre casou o
+                # termo mais longo; era o guard que estava fora de sincronia.
+                dono = next(
+                    (o for o in owners_por_tamanho if nome == o or nome.startswith(o + "-")),
+                    nome.split("-")[0],
+                )
                 if dono in owners:
                     continue
                 if re.fullmatch(r"[a-z]+", dono) and dono in _IGNORAR_DONO:
@@ -380,7 +397,11 @@ def main():
 
     if "--listar" in sys.argv:
         for a in all_found:
-            print(f"  {a['kind']:18} {a['name']:34} {a['local']}")
+            # As checagens antigas emitem `local`; as duas novas emitem
+            # `path`+`line`. Ler so `local` fazia `--listar` estourar KeyError —
+            # justamente o comando que a mensagem de erro do guard recomenda.
+            onde = a.get("local") or f"{a.get('path', '?')}:{a.get('line', '?')}"
+            print(f"  {a['kind']:18} {a['name']:34} {onde}")
         print(f"\ntotal: {len(all_found)}")
         return 0
 

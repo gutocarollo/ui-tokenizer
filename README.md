@@ -40,9 +40,12 @@ APPLY       declarado, NÃO implementado
 Flags: `--until <FASE>` para cedo, `--max-uncertainty <n>` move o corte humano,
 `--json` para saída legível por máquina.
 
-Medido no `makers-ai-hub`, uma corrida completa: **504 ocorrências → 311
-clusters → 41 contratos** em 4 iterações, 211 fusões automáticas, e **9
-ocorrências (2,2%) sobrando para decisão humana**.
+Medido no `makers-ai-hub` em **2026-07-31**, uma corrida completa: **480
+ocorrências → 293 clusters → 40 contratos** em 4 iterações, **192 fusões**
+automáticas (179 por confiança, 13 por outlier), e **9 ocorrências em 8 pares**
+sobrando para decisão humana. O alvo está sendo migrado enquanto medimos, então
+todo número desta página vem com a data e o comando; a deriva contra a medição
+anterior está tabelada em [`docs/log.md`](docs/log.md).
 
 **O loop falha fechado em toda fase.** Faltando compilador, lib de cor ou
 arquivo de token, ele para em vez de seguir com um sinal desligado — uma corrida
@@ -59,8 +62,9 @@ Design artesanal falha de quatro maneiras que ferramenta comum não pega:
    `px-2 gap-2 mb-3` são idênticos e comparação por string não acusa. Pior:
    `p-2 px-1` é equivalente a `py-2 px-1` por sobreposição de cascata.
 2. **Nome de token que não diz nada.** `surface-canvas`, `semantic-color-deep`.
-   Medido no `makers-ai-hub`: de 97 nomes, **78 reprovaram** um oráculo
-   determinístico, e **3.686 usos** tinham nome que não declara dono nenhum.
+   Medido no `makers-ai-hub` em 2026-07-31: de **97 nomes**, **41 reprovaram** um
+   oráculo determinístico (média 68,9, corte 70), e **3.902 usos** têm nome que
+   não declara dono nem propriedade — `score-naming.mjs --root .`.
 3. **Classe que não existe.** Classe desconhecida no Tailwind emite **zero CSS,
    sem erro nenhum**. O build passa verde e a tela fica sem estilo.
 4. **Report sem pixel.** Ler o diff e declarar "limpo" — com 42 pontos fora da
@@ -75,18 +79,28 @@ flowchart TD
     START([preciso mudar cor/token/UI]) --> Q{"o NOME do token<br/>já está decidido?"}
 
     subgraph A["ETAPA A — decidir o nome (CLUSTER + CONVERGE)"]
-        Q -->|não| A1["censo: o que existe e por<br/>quantas vias é consumido"]
-        A1 --> A2["nota do NOME e da APLICAÇÃO<br/>corte 70/100"]
+        Q -->|não| A0{"PREFLIGHT: arquivo DTCG, lib de cor<br/>e compilador do alvo vivos?"}
+        A0 -->|não| STOP(["PARA — falha fechada:<br/>sinal desligado nunca continua"])
+        A0 -->|sim| A1["censo: o que existe e por<br/>quantas vias é consumido"]
+        A1 --> A1B{"varreu ≥80% dos<br/>arquivos elegíveis?"}
+        A1B -->|não| STOP
+        A1B -->|sim| A2["nota do NOME e da APLICAÇÃO<br/>corte 70/100"]
         A2 --> A3{"nota ≥ 70?"}
         A3 -->|não| A4["fila de revisão"]
         A4 --> A5["achar o owner pelo<br/>CONTEXTO RENDERIZADO"]
         A5 --> A6{"owner achado?"}
-        A6 -->|não| A7["clusterizar por (token, tag)"]
+        A6 -->|não| A6B{"a lei tem slot §4.3 para<br/>esta propriedade?"}
+        A6B -->|não| A6C["LAW GAP: emendar a lei —<br/>sem slot não existe nome"]
+        A6C --> A5
+        A6B -->|sim| A7["clusterizar por (token, tag)"]
         A7 --> A8["decisão HUMANA:<br/>owner novo ou cluster"]
         A8 --> A9
         A6 -->|sim| A9["derivar o token específico<br/>HERDANDO o valor atual"]
         A3 -->|sim| A9
-        A9 --> A10["escrever no JSON, tier component<br/><b>NAO IMPLEMENTADO</b>"]
+        A9 --> A9B{"convergiu? duas rodadas<br/>seguidas sem fusão"}
+        A9B -->|ainda funde| A9
+        A9B -->|não converge| STOP
+        A9B -->|sim| A10["escrever no JSON, tier component<br/><b>NAO IMPLEMENTADO</b>"]
         A10 --> A11["rodar TODOS os emissores"]
         A11 --> A12{"classe existe no<br/>CSS BUILDADO?"}
         A12 -->|não| A13["classe desconhecida emite<br/>ZERO CSS sem erro"]
@@ -99,7 +113,7 @@ flowchart TD
     Q -->|sim| H
     A15 -->|não| H([HANDOFF: token pronto,<br/>agora aplicar no código])
 
-    subgraph B["ETAPA B — provar o pixel · PROTOCOLO ESCRITO, NAO EXECUTADO"]
+    subgraph B["ETAPA B — provar o pixel · MOTOR NO REPO, FORA DO tokenize.mjs"]
         H --> B1["que TELAS o diff afeta<br/>BFS de import reverso"]
         B1 --> B2{"sobrou rota :param<br/>sem fixture?"}
         B2 -->|sim| B3["materializar com dado REAL"]
@@ -107,7 +121,12 @@ flowchart TD
         B2 -->|não| B4["capturar o ANTES imutável"]
         B4 --> B5["migrar, SEQUENCIAL,<br/>um padrão por vez"]
         B5 --> B6["capturar o DEPOIS<br/>+ estados: modal, popover,<br/>hover real, foco, drawer"]
-        B6 --> B7["parear e comparar pixel"]
+        B6 --> B6B{"o par amarra a MESMA matriz,<br/>toolchain, rota e fixture?"}
+        B6B -->|só o fingerprint de fixture| B6C["prova por AST: o delta é só valor de<br/>className + import de entidade"]
+        B6C -->|PASS fixado a ESTE par| B7
+        B6C -->|qualquer outro veredito| B6
+        B6B -->|qualquer outro campo| B6
+        B6B -->|sim| B7["parear e comparar pixel"]
         B7 --> B8{"erro de console novo,<br/>par que sumiu, ou<br/>IDÊNTICO onde devia mudar?"}
         B8 -->|sim| B5
         B8 -->|não| B9["a LLM OLHA cada PNG<br/>antes E depois"]
@@ -124,12 +143,11 @@ flowchart TD
     GATE --> DONE([pronto])
 
     style A10 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
-    style A11 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
-    style A12 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
     style A14 fill:#f3f4f6,stroke:#6b7280,stroke-dasharray:5 3,color:#374151
-    style B fill:#fafafa,stroke:#9ca3af,stroke-dasharray:6 4
     style A13 fill:#c22929,color:#fff
     style A8 fill:#b05108,color:#fff
+    style A6C fill:#b05108,color:#fff
+    style STOP fill:#fee2e2,stroke:#b91c1c,color:#111827
     style ADV fill:#fee2e2,stroke:#b91c1c,color:#111827
     style DONE fill:#dcfce7,stroke:#15803d,color:#111827
     style BLOCK fill:#fee2e2,stroke:#b91c1c,color:#111827
@@ -178,8 +196,17 @@ owner . anatomia . propriedade [ . variante ] [ . estado ]
 ```
 
 `tier`, `domain` e `layer` são **metadados centralizados** — nunca aparecem no
-identificador público. Consequência direta: **não existe** token chamado
-`semantic-*`, e `surface` não é grupo válido.
+identificador público. Consequência direta: **três palavras estão banidas** do
+nome público — `surface`, `semantic` e `content`. Não existe token `semantic-*`,
+`surface` não é grupo válido, e `content-*` caiu em 2026-07-31 (§3.1 da lei).
+A lista é executável, não prosa: `FORBIDDEN` em `tools/gates/ds-naming-law.py`
+**Linha 121**.
+
+A propriedade de texto se chama **`foreground-color`**, não `color`: `card.color`
+não diz se é o texto ou o preenchimento do card. Material 3 desambigua pela
+anatomia, Primer cunhando a propriedade, shadcn/ui anexando o papel — a §4.3
+toma a mesma decisão, escrita por extenso. Abreviar para `fg` foi medido e
+rejeitado.
 
 **O princípio, mecânico:** uma palavra tem valor semântico **se, e somente se,
 removê-la perde informação.** Três testes, nenhum opinativo — colisão,
@@ -194,9 +221,14 @@ dedutibilidade, e a pergunta do slot.
 | estado | **QUANDO**? |
 
 `surface` responde *"onde na pilha"* — pergunta que **nenhum slot faz**. Por isso
-está proibido. `container` responde "que parte" com "a parte que é o todo" =
-ausência de parte, que o slot vazio já expressa. Medido: removendo `container` de
-33 tokens, **0 colidem**.
+está proibido. `content` é pior: mistura dois eixos — papel de texto e intenção
+semântica — sem dizer qual, de modo que `content-secondary` e `content-danger`
+parecem irmãos e não são. `container` responde "que parte" com "a parte que é o
+todo" = ausência de parte, que o slot vazio já expressa. Re-medido em 2026-07-31
+no `color.tokens.json` do alvo: **429 nomes públicos distintos**, **23** com a
+anatomia `container`, e removendo `container` de todos os 23 **0 colidem**. (A
+contagem que este README trazia, 33, era de antes da migração; o **0 colidem** é
+o que importa e reproduz.)
 
 Lei completa em [`docs/law/GRAMMAR.md`](docs/law/GRAMMAR.md), e a cópia que os
 scripts realmente leem em
@@ -229,7 +261,7 @@ cp tools/hooks/ui-evidence-gate.sh <alvo>/…   # registrar como Stop hook
 
 | pasta | conteúdo |
 |---|---|
-| `.claude/skills/tokenize-design-system/` | a skill auto-contida: `SKILL.md`, 10 arquivos de `reference/`, 11 oráculos + `lib/` + 8 arquivos de teste |
+| `.claude/skills/tokenize-design-system/` | a skill auto-contida: `SKILL.md`, **12** arquivos de `reference/` (+ `artifact-schemas.json`), **29** scripts em `scripts/` + **17** módulos em `scripts/lib/` + **16** arquivos de teste em `scripts/test/` |
 | `tools/gates/`, `tools/hooks/` | guards determinísticos + Stop hooks (`ds-*`, `docs_wiki_lint`, `ref_integrity`, `clarification-gate`, `ui-evidence-gate`) |
 | `tools/gates/` | ratchets: lei de naming (3 camadas), coesão (5 eixos), anti-hardcode, variedade, classes mortas, avaliador de contraste ΔE, lint de wiki |
 | `scripts/` e `scripts/lib/` | impacto de rota por import reverso, manifest de evidência, comparação de pixel, relatório antes/depois, contrato visual v2 + teste |
@@ -237,7 +269,7 @@ cp tools/hooks/ui-evidence-gate.sh <alvo>/…   # registrar como Stop hook
 | `tools/mining/` | miner AST de `className` (n-grams por economia, com contexto estrutural) |
 | `tools/hooks/` | Stop hook que bloqueia fim de turno com UI alterada sem evidência |
 | `docs/law/` | a gramática de naming |
-| `docs/case-study/` | as **medições reais** do `makers-ai-hub`: veredito dos 139 tokens, fila de revisão, inventário, clusters, 66 PNGs de evidência |
+| `docs/case-study/` | as **medições reais** do `makers-ai-hub`: veredito de naming, fila de revisão, inventário, clusters, **68 PNGs** de evidência (`git ls-files 'docs/case-study/**/*.png' \| wc -l`) |
 | `docs/SCHEMA.md` | constituição da wiki: naming de doc, status, indexação temporal |
 
 ---
@@ -257,7 +289,7 @@ node …/scripts/validate-token-build.mjs # 6. o pixel não mudou
 
 Contrato de cada um em
 [`reference/script-contracts.md`](.claude/skills/tokenize-design-system/reference/script-contracts.md).
-Workflow completo, 13 seções e grafo de 50 nós, em
+Workflow completo, 22 seções e grafo de 49 nós (30 `[D]`, 3 `[H]`), em
 [`reference/end-to-end-workflow.md`](.claude/skills/tokenize-design-system/reference/end-to-end-workflow.md).
 
 ---
@@ -287,21 +319,35 @@ Cada uma aconteceu de verdade. Detalhe em
 
 ## Estado honesto
 
-O que está **provado** com comando rodado:
+O que está **provado** com comando rodado — tudo re-medido em **2026-07-31**:
 
-- oráculo de naming: 97 nomes medidos, média 58,4, corte 70, 78 em revisão
+- oráculo de naming: **97 nomes**, média **68,9**, corte 70, **41 em revisão**
+  (`score-naming.mjs --root .`)
 - normalização de ordem: 3 fingerprints paralelos (ordem, multiset, set)
 - equivalência por sobreposição: `p-2 px-1` ≡ `py-2 px-1`, provado contra o
   compilador Tailwind real
-- 45/45 testes fail-closed dos módulos de extração, normalização, eixos e
-  contrato visual
-- ponte fase→executor: 17 fases, 10 determinísticas, 2 model, 3 human, 0
-  problemas na auditoria contra o contrato
+- a suíte: `npm test` = **125 testes, 118 pass, 4 fail, 3 skip**; com
+  `TOKENIZE_TEST_ROOT=<alvo>` = **125, 122 pass, 2 fail, 1 skip**. As 2 falhas
+  restantes falham **fechadas**, com *"No source root found under …"* — exigem um
+  alvo com `sourceRoots` e recusam aprovar sem ele
+- ponte fase→executor: **15 fases executáveis** (10 determinísticas, 2 model,
+  3 human) + 2 estados não-executáveis (`PENDING`, `BLOCKED`), 0 problemas na
+  auditoria contra o contrato
+- guard da lei: `TOKENIZE_APP_ROOT=<alvo> python3 tools/gates/ds-naming-law.py`
+  → *"LEI DE NAMING OK"*, exit 0, com validação **positiva** de gramática
+  (`violations_grammar`, Linha 235) e checagem prefixo × propriedade
+  (`violations_prefix_property`, Linha 312)
+
+> **Retratação.** Este bloco dizia *"média 58,4, 78 em revisão"* e
+> *"45/45 testes fail-closed"*. O primeiro é deriva de alvo; o segundo **não
+> reproduz em nenhuma configuração** e foi substituído pela contagem real.
 
 O que está **aberto**:
 
-- a migração completa do app de referência (o ratchet de classe consumida segue
-  em 503; control plane pronto ≠ design tokenizado)
+- a migração completa do app de referência (o ratchet de classe consumida está em
+  **3.381**, não nos 503 que este README trazia — a lei cresceu, `content` entrou
+  na lista de banidas e o ratchet passou a enxergar `content-*`; control plane
+  pronto ≠ design tokenizado)
 - normalização de fonte além de padding/margin: `inset`, `gap`, `border-width`,
   `rounded`, `space`, `divide`, `scroll-*` — medido, **25 pares simétricos** e
   **72 sobreposições** restantes
@@ -333,13 +379,13 @@ medição correta é com `extract-design-occurrences.mjs`.
 ### Referência de Stack (shadcn/ui)
 
 - **[shadcn/ui](https://ui.shadcn.com/)** — componentes Radix + Tailwind. Padrão de nomes semânticos canônico para este projeto: `--foreground`, `--muted-foreground`, `--primary-foreground` etc. Utility `text-foreground` para aplicação.
-- **[shadcn/ui Theming](https://ui.shadcn.com/docs/theming)** — convenção de theming com `@theme` inline, split por modo claro/escuro, integrada a `apps/web/styles/globals.css`.
+- **[shadcn/ui Theming](https://ui.shadcn.com/docs/theming)** — convenção de theming com `@theme` inline, split por modo claro/escuro. O path `apps/web/styles/globals.css`, citado aqui antes, é do **outro** repo de onde o processo foi extraído (`learnhouse`); não existe aqui.
 
 ### Auditorias e Evidência Visual
 
 Este projeto exige evidência visual (PNG renderizado) para validar mudanças de token. Referências para captura e comparação:
 
-- **[Playwright Test](https://playwright.dev/)** — motor de captura de screenshots usado em `tools/visual/` e `tools/playwright/`.
+- **[Playwright Test](https://playwright.dev/)** — motor de captura de screenshots. Neste repo ele vive em [`tests/visual/`](tests/visual/) (specs, registry, mapa de temas) com a config em [`playwright.visual.config.ts`](playwright.visual.config.ts). Os paths `tools/visual/` e `tools/playwright/`, citados aqui antes, **nunca existiram** neste repositório.
 - **[ui-evidence skill](https://github.com/gutocarollo/learnhouse/tree/main/.claude/skills/ui-evidence)** — implementação produção de captura antes/depois com temas múltiplos (light, dark, dracula, alucard) e análise de erros de console.
 
 ### Governança de Repositório

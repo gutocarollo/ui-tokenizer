@@ -84,6 +84,16 @@ Legend:
 - `BUILD`: capability is not present as a complete reusable unit.
 - `REPLACE`: existing artifact is unsafe as a source of truth.
 
+Read the `Existing asset` column with its repository in mind — the table mixes
+two of them, and a path alone does not say which:
+
+- paths starting with `reference/` or `scripts/` are **this skill**;
+- paths starting with `.harness/lib/`, `frontend/scripts/`, `frontend/tokens/`,
+  or `frontend/tests/` are the **audited target application** (the Makers
+  worktree listed in section 19), not this repository. In this repository the
+  equivalents live under `tools/gates/`, `tools/hooks/`, `tools/mining/`, and
+  `scripts/`.
+
 | Capability | Existing asset | Status | Decision |
 |---|---|---:|---|
 | AST/JSX class extraction | `.harness/lib/classname-miner-v2.mjs` | ADAPT | Keep one canonical miner; add shared normalization output and branch completeness metadata. |
@@ -105,7 +115,7 @@ Legend:
 | Migration ledger | `reference/migration-ledger-template.md` and project ledger | ADAPT | Add machine-readable batch state, impact, rollback, and evidence references. |
 | Council and adversarial review | Project delivery council and adversarial reviewer | USE | Use as governance around deterministic execution; never replace deterministic gates with LLM judgement. |
 | Durable artifact contracts | `reference/artifact-schemas.json` | USE | Validate all JSON/NDJSON artifacts and enforce the documented cross-artifact invariants at every transition. |
-| Durable state-machine executor | none | BUILD | Implement the manifest-driven executor described in this document. |
+| Durable state-machine executor | `scripts/tokenization-runner.mjs` + `scripts/lib/phase-executors.mjs` | BUILD | The 15-state machine, the append-only journal, the atomic snapshot and the artifact-validated transitions exist; **nothing drives them.** The only entrypoint, `scripts/tokenize.mjs`, never calls the runner. Wiring it is the remaining build. |
 | Absolute completion evaluator | `scripts/evaluate-absolute-completion.mjs` | USE | Recompute live source/toolchain fingerprints and all 24 predicates; write `final-proof.json` only when absolute current residuals are zero. |
 | Tailwind-aware normalizer | partial logic in miner and abstraction analysis | BUILD | Extract one shared adapter-backed normalizer; do not create a fourth scanner. |
 | Exact evidence coverage gate | none | BUILD | Compare requested and produced route × scenario × theme × project sets exactly. |
@@ -519,6 +529,56 @@ containers with no semantic role remain `div` elements.
 
 ## 11. End-to-end execution sequence
 
+### 11.0 What runs today, against what this sequence specifies
+
+Phases 0–17 below are the **target** sequence. The command that exists today is
+`scripts/tokenize.mjs --root <app>`, and it is the only entrypoint. It runs seven
+phases, in this order, and declares the eighth without implementing it:
+
+```text
+PREFLIGHT   MINE   EXTRACT+CLUSTER   CONVERGE   REPORT   DECIDE   (APPLY)
+```
+
+Reproduce the mapping instead of trusting this table — every row below is a line
+of stdout from one run:
+
+```bash
+node .claude/skills/tokenize-design-system/scripts/tokenize.mjs --root <app>
+node .claude/skills/tokenize-design-system/scripts/tokenize.mjs --root <app> --until CLUSTER
+```
+
+| `tokenize.mjs` phase | covers | does **not** cover |
+|---|---|---|
+| `PREFLIGHT` | Phase 1, partially: the target's DTCG file exists and `colorjs.io` resolves from the target. `@tailwindcss/node` is reported but not required | AST config load, token build/check, app build, browser, auth, fixtures, route materialization, Playwright matrix |
+| `MINE` | Phase 3, class-bearing expressions only: extensions are **derived from the target** and coverage below 80% of eligible files is an error, not a warning | every non-class occurrence kind; `axis-discovery.json` is not produced by this path |
+| `EXTRACT` + `CLUSTER` | Phases 3, 6 and 9 for classes: one script, `context-clusters.mjs`, walks and groups by rendered context and derives the name | the relational projection (Phase 5), which nothing implements |
+| `CONVERGE` | Phase 7 with no model in the loop: a deterministic fixed point, iterating until two consecutive rounds merge nothing | LLM classification of cluster packets |
+| `REPORT` | the reporting half of Phases 6 and 8 | — |
+| `DECIDE` | Phase 8, restricted to merge pairs above the uncertainty cut | every other human gate in this document |
+| `APPLY` | **nothing.** Declared and not implemented | Phases 9–17 in full: batch contract, impact, scenarios, before/after capture, mutation, gates, comparison, review, acceptance, re-inventory, final proof |
+
+Two consequences follow, and both are load-bearing:
+
+1. **Nothing in `tokenize.mjs` mutates the target's source.** It emits a proposal
+   and the evidence for it. Every phase from `MIGRATED` onward in section 6 is
+   unreachable through this entrypoint.
+2. **The fail-closed rule is real, not aspirational.** Both stops were exercised
+   while auditing this document, and both exit 1:
+
+   ```bash
+   # PREFLIGHT: --root pointing at a tree with no tokens/color.tokens.json
+   node scripts/tokenize.mjs --root <repository-root-instead-of-app-root>
+
+   # MINE: coverage guard. The threshold is overridable only to test the guard;
+   # production is 0.8, and a guard never seen failing is an intention, not a guard.
+   TOKENIZE_MIN_COVERAGE=1.0 node scripts/tokenize.mjs --root <app>
+   ```
+
+The state names of section 6 (`ANCHORED` … `COMPLETE`) belong to the *other*
+implementation, `scripts/tokenization-runner.mjs`, which validates artifacts and
+journals transitions but is not called by `tokenize.mjs`. Two phase models
+coexist in this repository; do not read one as a description of the other.
+
 ### Phase 0 — Anchor the contract
 
 Deterministically record:
@@ -870,7 +930,7 @@ Legend:
 
 ```mermaid
 flowchart TD
-    START([START]) --> ANCHOR["[D] Anchor request, scope,<br/>toolchain and absolute targets"]
+    START([START]) --> ANCHOR["[H] Anchor request, scope,<br/>toolchain and absolute targets"]
 
     subgraph BASELINE["A. Contract and immutable baseline"]
         ANCHOR --> PREFLIGHT["[D] Preflight AST, token build,<br/>app, browser, auth and fixtures"]
@@ -892,21 +952,27 @@ flowchart TD
         NORMALIZATION_GATE -->|extractor or parser parity failure| EXTRACTION_FIX
         NORMALIZATION_GATE -->|fingerprint or provenance failure| NORMALIZER_FIX["[D] Correct canonicalizer,<br/>compiler adapter or provenance"]
         NORMALIZER_FIX --> NORMALIZE
-        NORMALIZATION_GATE -->|pass| RELATIONAL["[D] Optional NDJSON → relational view<br/>pinned to activeRunId"]
+        NORMALIZATION_GATE -->|pass| RELATIONAL["[D] Optional NDJSON → relational view<br/>pinned to activeRunId<br/><b>NOT IMPLEMENTED</b>"]
         RELATIONAL --> INVENTORIES["[D] Inventories: hardcodes, scales,<br/>owners, equivalence, a11y and coverage"]
     end
 
     subgraph DECISION["C. Classification and contract decision"]
         INVENTORIES --> CLUSTERS["[D] Contextual divergence clusters<br/>with all raw variants retained"]
-        CLUSTERS --> CLASSIFY["[LLM] Classify token, component contract,<br/>variant, hook, local or invalid"]
-        CLASSIFY --> SCORE{"[D] Naming and application<br/>oracles pass?"}
-        SCORE -->|no| OWNER["[LLM] Re-evaluate owner, anatomy,<br/>property, state and cluster split"]
+        CLUSTERS --> CLASSIFY["[D] Derive the contract name from context:<br/>owner, anatomy, property, variant, state"]
+        CLASSIFY -->|no owner in the rendered context| OWNER["[LLM] Re-evaluate owner, anatomy,<br/>property, state and cluster split"]
         OWNER --> CLASSIFY
-        SCORE -->|yes| AMBIGUITY{"Material visual or<br/>semantic ambiguity?"}
+        CLASSIFY -->|no §4.3 slot for this family| LAWGAP["[H] LAW GAP: amend §4.3 before<br/>any name can exist for this family"]
+        LAWGAP --> CLASSIFY
+        CLASSIFY -->|named| CONVERGE{"[D] Fixed point: two consecutive<br/>iterations with no merge?"}
+        CONVERGE -->|not yet| CLASSIFY
+        CONVERGE -->|does not converge| BLOCKED
+        CONVERGE -->|yes| SCORE{"[D] Naming and application<br/>oracles pass?"}
+        SCORE -->|no| OWNER
+        SCORE -->|yes| AMBIGUITY{"Uncertainty above the cut, or material<br/>visual or semantic ambiguity?"}
         AMBIGUITY -->|yes| BOARD["[D/LLM] Build decision board with<br/>frequency, CSS, crops and contexts"]
         BOARD --> HUMAN["[H] Grill decision: standard,<br/>variant, exception or no adoption"]
         HUMAN --> BATCH
-        AMBIGUITY -->|no| BATCH["[D] Freeze one reversible batch and<br/>expected effect: preserve/change/mixed"]
+        AMBIGUITY -->|no| BATCH["[D/H] Freeze one reversible batch and<br/>expected effect: preserve/change/mixed"]
     end
 
     subgraph MIGRATION["D. Impact, evidence and migration"]
@@ -921,7 +987,12 @@ flowchart TD
         BUILD -->|implementation failure| MIGRATE
         BUILD -->|extraction contract invalidated| RAW
         BUILD --> AFTER["[D] Capture AFTER with the<br/>same fixture and exact matrix"]
-        AFTER --> COMPARE["[D] Recompute bytes, dimensions, hashes,<br/>pixel diff, heatmap and error deltas"]
+        AFTER --> BIND{"[D] Do before and after bind the same run, batch,<br/>matrix, toolchain, route and fixture fingerprints?"}
+        BIND -->|yes| COMPARE["[D] Recompute bytes, dimensions, hashes,<br/>pixel diff, heatmap and error deltas"]
+        BIND -->|only fixtureRegistryFingerprint diverges| WAIVER["[D] AST proof: contract-source delta confined<br/>to className value and design-entity import"]
+        WAIVER -->|PASS pinned to this exact pair| COMPARE
+        WAIVER -->|any other verdict, E-COMPARE| AFTER
+        BIND -->|any other field, never waivable| AFTER
         COMPARE -->|implementation regression| MIGRATE
         COMPARE -->|late coverage gap| RESTORE["[D] Restore pre-batch source;<br/>expand impact and baseline"]
         RESTORE --> IMPACT
@@ -937,7 +1008,7 @@ flowchart TD
         ADV -->|evidence gap| IMPACT
         ADV -->|contract decision gap| BOARD
         ADV -->|blocked or review limit| PENDING([PENDING / BLOCKED])
-        ADV -->|satisfied| ACCEPT["[D] Accept batch and append ledger;<br/>only now update ratchets"]
+        ADV -->|satisfied| ACCEPT["[D/H] Accept batch and append ledger;<br/>only now update ratchets"]
         ACCEPT --> REINVENTORY["[D] Re-run global census<br/>from current source"]
         REINVENTORY --> RESIDUAL{"Absolute residual targets<br/>all satisfied?"}
         RESIDUAL -->|no| NORMALIZE
@@ -966,10 +1037,12 @@ flowchart TD
     classDef human fill:#fef3c7,stroke:#b45309,color:#111827;
     classDef adversarial fill:#fee2e2,stroke:#b91c1c,color:#111827;
     classDef terminal fill:#dcfce7,stroke:#15803d,color:#111827;
+    classDef notImplemented fill:#f3f4f6,stroke:#6b7280,color:#374151,stroke-dasharray:5 3;
 
-    class ANCHOR,PREFLIGHT,GLOBAL_MATRIX,GLOBAL_BEFORE,FIXTURE,RAW,PARITY,EXTRACTION_FIX,NORMALIZE,NORMALIZER_FIX,NORMALIZATION_GATE,RELATIONAL,INVENTORIES,CLUSTERS,SCORE,BATCH,IMPACT,COVERAGE,SCENARIO,BEFORE,MIGRATE,BUILD,AFTER,COMPARE,RESTORE,ACCEPT,REINVENTORY,RESIDUAL,FINAL_MATRIX,FINAL_GATES,FAILURE_CODE,COMPARISON_FIX,PROOF deterministic;
-    class CLASSIFY,OWNER,BOARD,VISUAL model;
-    class HUMAN human;
+    class PREFLIGHT,GLOBAL_MATRIX,GLOBAL_BEFORE,FIXTURE,RAW,PARITY,EXTRACTION_FIX,NORMALIZE,NORMALIZER_FIX,NORMALIZATION_GATE,INVENTORIES,CLUSTERS,CLASSIFY,CONVERGE,SCORE,BATCH,IMPACT,COVERAGE,SCENARIO,BEFORE,MIGRATE,BUILD,AFTER,BIND,WAIVER,COMPARE,RESTORE,ACCEPT,REINVENTORY,RESIDUAL,FINAL_MATRIX,FINAL_GATES,FAILURE_CODE,COMPARISON_FIX,PROOF deterministic;
+    class OWNER,BOARD,VISUAL model;
+    class ANCHOR,HUMAN,LAWGAP human;
+    class RELATIONAL notImplemented;
     class ADV,FINAL_ADV adversarial;
     class START,DONE,BLOCKED,PENDING terminal;
 ```
@@ -1092,6 +1165,22 @@ current runner has no common interaction-state registry, its per-project labels
 must be kept separate to prevent PNG overwrite, and its manifests do not yet
 prove the batch contract. Therefore this sequence intentionally stops short of
 `ACCEPTED` or `DONE`.
+
+**Run this block from the audited target's repository root, not from this one.**
+Everything under `.harness/lib/`, `frontend/scripts/` and `frontend/tokens/` is
+the target's, per the note in section 4; only `$TOKENIZATION_SKILL/scripts/*` is
+this skill's. `TOKENIZATION_APP_ROOT` must be the directory that owns
+`package.json` and `tokens/`, which for the audited target is `frontend/` and not
+the repository root — pointing it at the root is what makes `tokenize.mjs` stop in
+`PREFLIGHT`.
+
+The single-command path of section 11.0 is deliberately absent from the sequence
+below, because it answers a different question. Run it first to get the proposal,
+then this block to get the per-project evidence:
+
+```bash
+node "$TOKENIZATION_SKILL/scripts/tokenize.mjs" --root "$TOKENIZATION_APP_ROOT"
+```
 
 Replace the explicit batch values with paths from the machine-readable batch
 contract:
@@ -1288,6 +1377,32 @@ process memory.
 1. Generate a decision board with crops and computed-style deltas.
 2. Add optional `data-ai-*` source mapping for region-level visual review.
 3. Store report assets immutably by run and batch.
+
+### Measured on 2026-07-31, in this repository
+
+These four are not forecasts. Each was observed by running the command shown.
+
+1. **`APPLY` is declared and not implemented.** `scripts/tokenize.mjs` prints the
+   phase and states what is missing — token creation in `color.tokens.json`, an
+   AST codemod at the call sites, and pixel proof. Nothing downstream of it in
+   section 11 can run today.
+   Command: `node scripts/tokenize.mjs --root <app>`, final block of stdout.
+2. **The durable runner is built but unwired.** `scripts/tokenization-runner.mjs`
+   and `scripts/lib/phase-executors.mjs` implement all 15 states of section 6,
+   and `scripts/tokenize.mjs` never imports either. The repository has two phase
+   models and no bridge between them.
+   Command: `grep -rn "tokenization-runner" scripts/tokenize.mjs` → no match.
+3. **The artifact-contract layer cannot be exercised in this repository.** Its
+   validator resolves Ajv from a target `package.json`, so every test that builds
+   a run fails at setup with `Target package.json not found: <repo>/frontend/package.json`.
+   Command: `node --test scripts/test/ scripts/tokenization-runner.test.mjs
+   scripts/lib/artifact-contract.test.mjs` → 29 tests, 1 pass, 28 fail, all with
+   that same error. The schema bundle is therefore validated only by
+   `scripts/validate-contract.mjs`, which reads files and never instantiates Ajv.
+4. **The clarification Stop hook has no regression suite.** `tools/hooks/clarification-gate.py`
+   is registered in `.claude/settings.json` and has no test anywhere in the tree;
+   see `reference/clarification.md` §4.
+   Command: `find . -name '*clarification*'` → the hook and its document, no test.
 
 ## 18. Decision records and trade-offs
 
@@ -1492,25 +1607,55 @@ was corrected so all three now use:
 30 + 25 + 15 + 10 + 10 + 10 = 100
 ```
 
+That parity is not a claim to be trusted; it is a gate that runs. It also checks
+the cutoff, the closed 19 artifact types, the closed 19 occurrence kinds, the
+closed 24-predicate completion contract and its 14 report-backed IDs, and that
+every predicate ID appears in this document exactly once:
+
+```bash
+node .claude/skills/tokenize-design-system/scripts/validate-contract.mjs
+```
+
 Historical counts are useful provenance but are never accepted as current run
-state without reproducing them from the current source fingerprint.
+state without reproducing them from the current source fingerprint. Section 20
+now applies that rule to itself.
 
 ## 20. Measured baseline from the current Makers audit
 
-These measurements describe the audited worktree, not a timeless guarantee:
+A measurement is only usable with the command that produced it and the state it
+was produced from. **The numbers previously stored in this section no longer
+reproduce** — the class extractor was replaced (regex splitting → literal
+reading) after they were taken, so the census moved. They are kept below only as
+the delta that proves the point.
 
-- AST miner: 6,013 occurrences, 5,416 entities, 5,187 n-grams, and 136 clusters.
-- Whitespace-normalized static recipes: 2,227 distinct raw strings and 2,145
-  order-insensitive fingerprints.
-- 74 fingerprints collapse multiple orderings, affecting 1,134 occurrences and
-  156 raw variants.
-- Abstraction analysis: 2,835 chains, 752 signatures, 58 divergent signatures,
-  and impact 2,256.
-- Portable colour-usage inventory: 10,594 uses, 6,446 groups, and 452 files.
-- Semantic census: 2,877 `div` elements; 2,688 are layout-only and should not be
-  mass-converted; 41 are confirmed keyboard defects.
-- Playwright defines four viewport projects, but existing evidence does not
-  demonstrate complete execution of those four projects.
+Every number here was re-measured on **2026-07-31**, with
+`--root /home/augusto/code/makers-ai-hub/frontend`, against target HEAD
+`01fab2a7` with **169 modified entries under `frontend/src`**. That worktree is
+dirty: no commit reproduces these values, and the next run will not either. Treat
+the commands as the durable part and the numbers as a dated sample.
+
+| metric | command | re-measured 2026-07-31 | previously stored |
+|---|---|---|---|
+| AST miner | `classname-miner-v2.mjs --root <app> --ext js,jsx,ts,tsx` | 608 files · 5,639 occurrences · 4,915 n-grams · 5,042 entities · **136 clusters** | 6,013 · 5,187 · 5,416 · 136 — only the cluster count survived |
+| Colour-usage inventory | `inventory-usage.mjs --root <app>` | 8,348 uses · 5,369 groups · 413 files | 10,594 · 6,446 · 452 — none reproduce |
+| Abstraction analysis | target's own `tokens/analyze-abstractions.mjs` | 2,441 chains · **752 signatures** · 56 divergent · impact 641 | 2,835 · 752 · 58 · 2,256 — only the signature count survived |
+| Full loop | `tokenize.mjs --root <app>` | 729/730 files (99.9%) · 480 law-violating occurrences · 293 context clusters · 232 named (80.4%) · 58 ownerless · 3 clusters / 8 occurrences in LAW GAP · converged in 4 iterations · 192 merges · 40 final contracts · 8 pairs / 9 occurrences above the cut | not previously recorded |
+| Name and use oracles | `score-naming.mjs --root <app>` | 97 names (avg 68.9; 56 pass, 41 in review) · 145 evaluable uses (avg 86.3; 117 pass, 28 in review) · 3,902 NOT EVALUABLE · 6 LAW GAP · 45 of 53 prefixes unlawed | not previously recorded |
+| Disposition partition | `measure-disposition.mjs --root <app>` | universe 29,253 uses, sum closes at 100% · 438 exact entities | not previously recorded |
+| Playwright viewport projects | `playwright.visual.config.ts` | four: `mobile-sm`, `mobile-md`, `tablet`, `desktop` | four — reproduces |
+
+Two measurements in the previous list could **not** be re-run and are therefore
+withdrawn rather than restated: the whitespace-normalized recipe/fingerprint
+counts, whose producer is not identified anywhere in this repository; and the
+semantic `div` census, whose script fails closed on the dirty target worktree and
+refuses to emit a number without a declared `--baseline`.
+
+⚠ The last two rows moved **during this audit**, not between sessions. §4.3 of the
+law renamed the text property while these commands were being re-run, and the
+loop went from 234 named / 193 merges / 41 contracts / 0 LAW GAP to the values in
+the table. The numbers above are post-change. This is the argument for storing
+commands rather than results, made by the section that used to do the opposite —
+see `reference/oracle.md` §2.2 for the divergence that caused it.
 
 Current false-green risks include stale versioned inventory, duplicate route
 engines, a route-generator stub, ratchets with residual debt, and visual

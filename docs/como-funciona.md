@@ -1,9 +1,21 @@
 # Como funciona, em português
 
-Este documento existe porque os números do relatório — *"504 ocorrências → 311
-clusters → 41 contratos, 211 fusões, 9 para o humano"* — não se explicam
+Este documento existe porque os números do relatório — *"480 ocorrências → 293
+clusters → 40 contratos, 192 fusões, 9 para o humano"* — não se explicam
 sozinhos. Cada termo é definido aqui com um caso real do
 [`makers-ai-hub`](https://github.com/gutocarollo), arquivo e linha.
+
+> **Medição de 2026-07-31.** Todo número desta página sai de uma corrida só:
+>
+> ```bash
+> node .claude/skills/tokenize-design-system/scripts/tokenize.mjs \
+>   --root /home/augusto/code/makers-ai-hub/frontend
+> ```
+>
+> O alvo está sendo migrado enquanto medimos, então esses números **derivam** —
+> a versão anterior desta página dizia 504 → 311 → 41 contratos, 211 fusões. A
+> tabela de deriva está na entrada *medição · processo* de [`log.md`](log.md).
+> O que **não** derivou: as 8 decisões humanas da §4 são bit a bit as mesmas.
 
 ---
 
@@ -33,18 +45,18 @@ coisa — e mexe, porque o mesmo nome é usado em toda parte.
 **Uma ocorrência é um ponto de uso**, não um token. O trecho acima é **uma**
 ocorrência: arquivo, linha, prefixo (`bg`), token (`surface-hover`).
 
-> **504 ocorrências** = 504 lugares no código, espalhados por **201 arquivos**.
+> **480 ocorrências** = 480 lugares no código, espalhados por **187 arquivos**.
 
 ### Token = o nome declarado
 
 Um token é o nome que existe no design system. E aqui está o dado que muda a
 leitura de tudo:
 
-> As 504 ocorrências usam **apenas 12 tokens distintos**.
+> As 480 ocorrências usam **apenas 12 tokens distintos**.
 
 | usos | token |
 |---:|---|
-| **336** | `surface-hover` |
+| **312** | `surface-hover` |
 | 51 | `surface-elevated` |
 | 44 | `surface-panel` |
 | 26 | `surface-destructive-tint` |
@@ -54,9 +66,13 @@ leitura de tudo:
 | 4 | `surface-inset-inverse` |
 | 1 cada | `surface-info-tint`, `surface-warning-tint`, `surface-sunken`, `surface-success-tint` |
 
-Então o problema não é "504 tokens bagunçados". É **12 nomes vagos fazendo o
+Então o problema não é "480 tokens bagunçados". É **12 nomes vagos fazendo o
 trabalho de dezenas de contratos diferentes** — e um deles, `surface-hover`,
-sozinho carrega 336 usos que não têm nada a ver uns com os outros.
+sozinho carrega 312 usos que não têm nada a ver uns com os outros.
+
+A cauda longa é estável: das medições de 2026-07-30 e 2026-07-31, os **12 nomes
+e a ordem deles são idênticos**; só o topo encolheu (336 → 312), porque a
+migração no alvo está comendo `surface-hover` primeiro.
 
 ### Contexto = o que cerca a ocorrência
 
@@ -75,10 +91,10 @@ Para cada ocorrência o processo mede o que a cerca, sem adivinhar:
 
 **A unidade de decisão não é o token — é o cluster.** Isso é o ponto que este
 processo existe para acertar. Perguntar *"qual o novo nome de `surface-hover`?"*
-é a pergunta errada, porque força **uma** resposta para 336 usos diferentes.
+é a pergunta errada, porque força **uma** resposta para 312 usos diferentes.
 A pergunta certa é feita por contexto.
 
-> 504 ocorrências → **311 clusters**.
+> 480 ocorrências → **293 clusters**.
 
 ### Contrato = o nome derivado da lei
 
@@ -91,24 +107,34 @@ owner=button + propriedade=background-color + estado=hover
         button-background-color-hover
 ```
 
-Nada de gosto pessoal: o nome cai dos eixos medidos. **252 dos 311 clusters
-(82,7% das ocorrências) receberam nome derivado assim.** Os 59 restantes não
-tinham owner detectável no contexto e viraram fila.
+Nada de gosto pessoal: o nome cai dos eixos medidos. **232 dos 293 clusters
+receberam nome derivado assim**, cobrindo **386 das 480 ocorrências (80,4%)**.
+Dos 61 restantes, **58** não tinham owner detectável no contexto e viraram fila
+de IA; os outros **3** caem em famílias **sem slot na §4.3 da lei** (8
+ocorrências) e falham fechadas num balde `LAW GAP` — a lei não tem onde
+encaixá-las, e forçar um nome seria inventar.
 
 ### O resultado prático — 1 nome vago vira 11 contratos
 
-`surface-hover`, os 336 usos, separados pelo que de fato são:
+`surface-hover`, os 312 usos, separados pelo que de fato são:
 
-| clusters | contrato derivado | exemplo real |
-|---:|---|---|
-| 119 | `button-background-color-hover` | `Directory/index.jsx:224` — `<button>` |
-| 9 | `menu-background-color-hover` | `Export/index.jsx:56` — `<div>` |
-| 6 | `card-background-color-hover` | `agentFlow.jsx:11` — `<Link>` |
-| 6 | `modal-background-color-hover` | `NewEmbedModal/index.jsx:200` — `<label>` |
-| 4 | `nav-item-background-color-hover` | `DesignSystem/index.tsx:475` — `<a>` |
-| 3 | `prompt-background-color-hover` | `systemPrompt.jsx:12` — `<Link>` |
-| 3 | `data-table-background-color-hover` | `FileRow/index.jsx:15` — `<tr>` |
-| 3 | `code-block-background-color-hover` | `NewEmbedModal/index.jsx:109` — `<code>` |
+| clusters | usos | contrato derivado | exemplo real |
+|---:|---:|---|---|
+| 100 | 203 | `button-background-color-hover` | `Directory/index.jsx:224` — `<button>` |
+| 9 | 15 | `menu-background-color-hover` | `Export/index.jsx:56` — `<div>` |
+| 6 | 17 | `card-background-color-hover` | `agentFlow.jsx:11` — `<Link>` |
+| 6 | 7 | `modal-background-color-hover` | `NewEmbedModal/index.jsx:204` — `<label>` |
+| 4 | 5 | `nav-item-background-color-hover` | `DesignSystem/index.tsx:475` — `<a>` |
+| 3 | 6 | `prompt-background-color-hover` | `systemPrompt.jsx:12` — `<Link>` |
+| 3 | 3 | `data-table-background-color-hover` | `FileRow/index.jsx:15` — `<tr>` |
+| 3 | 3 | `code-block-background-color-hover` | `NewEmbedModal/index.jsx:113` — `<code>` |
+| 2 | 7 | `field-background-color-hover` | `Password/MultiUserAuth.jsx:58` — `<input>` |
+| 2 | 2 | `search-background-color-hover` | `Sidebar/SearchBox/index.jsx:234` — `<Link>` |
+| 1 | 1 | `page-background-color-hover` | `ScheduledJobs/RunHistoryPage.jsx:88` — `<div>` |
+
+**11 contratos, e são os 11 desde a primeira medição** — a redação anterior
+listava só os 8 maiores e chamava o total de 11, o que dava a impressão de que 3
+estavam faltando. Estão aqui.
 
 Agora dá para mudar o hover dos botões sem tocar no hover das linhas de tabela.
 Antes, era o mesmo token.
@@ -132,12 +158,12 @@ um número que **parece resultado** e não é. Por isso toda fase falha fechada.
 
 ### EXTRACT — o censo
 
-Varre os 201 arquivos e registra as 504 ocorrências com arquivo, linha, prefixo e
+Varre os 187 arquivos e registra as 480 ocorrências com arquivo, linha, prefixo e
 token. Não muta nada.
 
 ### CLUSTER — agrupar por contexto e derivar o nome
 
-Agrupa pelos eixos da §2 e aplica a lei. Saída: 311 clusters, 252 com nome.
+Agrupa pelos eixos da §2 e aplica a lei. Saída: 293 clusters, 232 com nome.
 
 ### CONVERGE — fundir o que é a mesma coisa
 
@@ -159,9 +185,17 @@ Uma fusão real, com a nota aberta:
 button-background-color-hover                          confiança 88%
   cor          40/40   ΔE 0.00 ≤ 2.3 (imperceptível)
   contrato     25/25   mesmo owner+propriedade+variante+estado
-  componente   10/15   similaridade de nome 67%
+  componente  9,6/15   similaridade de nome 64%
   sinal-owner   3/10   força mínima 0.3
   função       10/10   mesma tag <button> e mesmo role
+```
+
+Reproduz esta fusão específica (é a primeira iteração, absorvendo
+`WorkspaceDirectory` em `Directory`):
+
+```bash
+node -e 'const g=require("/home/augusto/code/makers-ai-hub/frontend/.tokenize/converged.json");
+console.log(JSON.stringify(g.fusoes.find(f=>f.nome==="button-background-color-hover"),null,1))'
 ```
 
 **Por que "convergir" e não só "rodar uma vez":** fundir dois clusters muda o
@@ -169,7 +203,7 @@ cluster resultante, que pode então casar com um terceiro. Então o processo rep
 até **duas iterações consecutivas não mudarem nada** — o critério de parada de
 Newton–Raphson. Aqui: **4 iterações**.
 
-> **211 fusões**: 200 por confiança + 11 absorvidas por outlier.
+> **192 fusões**: 179 por confiança + 13 absorvidas por outlier.
 
 **Outlier** é o caso em que um lado é ocorrência isolada com cor
 imperceptivelmente diferente do lado dominante. Critério **relativo**, não número
@@ -187,10 +221,10 @@ seria arbitrário. Por isso ele sobrou para você (é o D6/D7 da §4).
 ### REPORT — três capítulos, de propósito
 
 1. o que o processo decidiu **sozinho**, com o sinal que sustentou cada decisão;
-2. o que ele **expôs e não decidiu** — 49 divergências de estado: token que
-   declara `hover` no nome sendo consumido **sem** o prefixo `hover:`, ou seja
-   fundo estático usando token de interação. Renomear em silêncio apagaria a
-   evidência;
+2. o que ele **expôs e não decidiu** — **42 divergências de estado** e 2 clusters
+   com valor divergente: token que declara `hover` no nome sendo consumido **sem**
+   o prefixo `hover:`, ou seja fundo estático usando token de interação. Renomear
+   em silêncio apagaria a evidência;
 3. o que precisa de você.
 
 Um relatório só com o capítulo 1 vende progresso. Só com o 3, transfere
@@ -200,10 +234,15 @@ ambiguidade crua. Os três juntos deixam decidir.
 
 ---
 
-## 4. O que sobrou para você: 8 pares, 9 ocorrências de 417 (2,2%)
+## 4. O que sobrou para você: 8 pares, 9 ocorrências de 480 (1,9%)
 
 Em todos, **a cor diz que é a mesma coisa (ΔE 0,00) e a função diz que não**.
 O processo não decide porque a evidência aponta para os dois lados.
+
+Esta é a parte **estável** da medição: as 8 chaves, as contagens A/B e as
+incertezas saíram idênticas em 2026-07-30 e 2026-07-31, mesmo com o alvo mudando
+por baixo. O "de 417 (2,2%)" da redação anterior tinha um denominador que não se
+reproduz; o denominador correto é o universo de ocorrências da corrida.
 
 | | contrato | A | B | incerteza |
 |---|---|---:|---:|---:|
@@ -224,13 +263,15 @@ A pergunta em cada um é a mesma: **um contrato ou dois?**
 
 | número | o que é | o que **não** é |
 |---:|---|---|
-| **504** | pontos de uso no código, em 201 arquivos | não é 504 tokens |
+| **480** | pontos de uso no código, em 187 arquivos | não é 480 tokens |
 | **12** | tokens distintos envolvidos | — |
-| **311** | grupos de ocorrências com o mesmo contexto | não é 311 nomes novos |
-| **252** | clusters que ganharam nome derivado (82,7% das ocorrências) | — |
-| **211** | pares fundidos por evidência medida | não é 211 renomeações aplicadas |
-| **41** | contratos finais | não estão escritos no `color.tokens.json` ainda |
-| **9** | ocorrências presas em 8 decisões suas (2,2%) | — |
+| **293** | grupos de ocorrências com o mesmo contexto | não é 293 nomes novos |
+| **232** | clusters que ganharam nome derivado (386 ocorrências, 80,4%) | não é 232 contratos — a convergência ainda os funde |
+| **58** | clusters sem owner no contexto → fila de IA | — |
+| **3** | clusters sem slot na §4.3 → `LAW GAP` (8 ocorrências) | não é erro do motor; é buraco da lei |
+| **192** | pares fundidos por evidência medida | não é 192 renomeações aplicadas |
+| **40** | contratos finais | não estão escritos no `color.tokens.json` ainda |
+| **9** | ocorrências presas em 8 decisões suas (1,9% de 480) | — |
 
 ---
 
@@ -241,16 +282,34 @@ pretendido e o código cobre a primeira metade:
 
 | etapa | estado |
 |---|---|
-| escrever os 41 contratos no `color.tokens.json` | **não implementado** |
+| escrever os 40 contratos no `color.tokens.json` | **não implementado** |
 | rodar os emissores e provar que a classe existe no **CSS buildado** | **não implementado** |
-| codemod nos 504 call sites | **não implementado** |
+| codemod nos 480 call sites | **não implementado** |
 | capturar pixel antes/depois por estado | protocolo escrito, **não executado** |
 
 `tokenize.mjs` entrega **proposta e prova**, nunca mutação. Nenhuma linha do
 `makers-ai-hub` foi alterada por ele.
 
-Detalhe que importa antes de escrever qualquer contrato: **32 dos 63 tokens
-existentes usam a anatomia `container`**. Criar `card-background-color` ao lado
-do `card-container-background-color` existente faria o repo ter **duas convenções
+Detalhe que importa antes de escrever qualquer contrato: o `color.tokens.json` do
+alvo tem hoje **429 nomes públicos distintos**, e **23 deles usam a anatomia
+`container`** (medido em 2026-07-31; a redação anterior dizia "32 de 63", que não
+reproduz — o denominador era outro). Criar `card-background-color` ao lado do
+`card-container-background-color` existente faria o repo ter **duas convenções
 vivas** — exatamente o defeito que este esforço existe para eliminar. Essa
 decisão vem antes.
+
+Reproduz as duas contagens:
+
+```bash
+cd /home/augusto/code/makers-ai-hub/frontend
+node --input-type=module -e '
+const t=JSON.parse((await import("fs")).readFileSync("tokens/color.tokens.json","utf8"));
+const out=[]; (function w(o,p){for(const[k,v]of Object.entries(o)){if(k.startsWith("$"))continue;
+  if(v&&typeof v==="object"&&"$value"in v)out.push([...p,k].join("."));
+  else if(v&&typeof v==="object")w(v,[...p,k]);}})(t,[]);
+const pub=new Set(out.map(x=>x.split(".").slice(2).join(".")));   // tira tier e tema
+const cont=[...pub].filter(x=>x.split(".").includes("container"));
+console.log("nomes publicos",pub.size,"| com container",cont.length,
+  "| colisoes ao remover", cont.filter(x=>pub.has(x.split(".").filter(s=>s!=="container").join("."))).length);'
+# nomes publicos 429 | com container 23 | colisoes ao remover 0
+```

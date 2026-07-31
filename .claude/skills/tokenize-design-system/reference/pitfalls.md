@@ -1,7 +1,12 @@
-# The pitfalls — 12 measured errors, with symptoms and fixes
+# The pitfalls — 18 measured errors, with symptoms and fixes
 
 Each item is a measured failure mode from reference work. The order reflects
 how often each one recurred; verify its relevance in the target repository.
+
+Items 1–13 are token and build failures. Items 14–18 belong to the rendered
+evidence pipeline; the protocol they defend is in
+[`visual-evidence.md`](visual-evidence.md) and its file inventory in
+[`visual-evidence-engine.md`](visual-evidence-engine.md).
 
 ---
 
@@ -216,3 +221,154 @@ and report them in English.
 The invariant applies even to examples inside comments. A quoted historical
 bad example may retain its original spelling only when the surrounding text
 explicitly identifies it as input evidence rather than workflow vocabulary.
+
+---
+
+## 14. Two different values are called `fixtureRegistryFingerprint`
+
+**Symptom:** `verify-contract-source-delta.mjs` returns `PASS`, the waiver is
+declared, and the comparator still throws
+`Binding exception evidence does not prove this exact mismatch`. The sha256 you
+pasted was real — it was just the other one.
+
+There are **two** distinct hashes under that name, and neither is derived from
+the other by copying:
+
+| where it lives | how it is computed |
+|---|---|
+| **registry** — `contexts.json`, `scenarios.json` | `tests/visual/visual-registry.mjs` `Linha 559`: sha256 of the checked-in fixture registry + `NETWORK_FIXTURE_REGISTRY_FINGERPRINT` + the effective contexts. Written out by `scripts/gen-visual-routes.mjs` `Linha 75` and `Linha 97`. |
+| **manifest** — the evidence binding | `scripts/lib/evidence-matrix.mjs` `Linha 424` calls `fixtureRegistryBindingFingerprint` (`Linha 53`), which hashes the registry value **as one input** (`declared`) together with `networkFixtureFileFingerprint`, `contractSourceFingerprint`, and projections of contexts and scenarios. |
+
+The manifest value is the one the comparator compares (`visual-contract.mjs`
+`Linha 1257`, `Linha 1259`–`Linha 1265`) and therefore the only one that may be
+passed to `--field-before` / `--field-after`.
+
+The consequence of the nesting is the part that surprises people:
+`contractSourceFingerprint` is the sha256 of the **files** listed in
+`contractSources` (`evidence-matrix.mjs` `Linha 91`–`Linha 113`). So a codemod
+that only rewrites `className` inside one of those files moves the manifest hash
+while the registry hash — and every recorded network response — stays put.
+
+**Fix:** read both sha256 values out of `.claude/evidence/<label>/manifest.json`,
+never out of `contexts.json` or `scenarios.json`.
+```bash
+node -e 'const m=n=>JSON.parse(require("fs").readFileSync(n,"utf8")).fixtureRegistryFingerprint;
+console.log(m(process.argv[1]), m(process.argv[2]))' \
+  .claude/evidence/<before>/manifest.json .claude/evidence/<after>/manifest.json
+```
+
+---
+
+## 15. `| tail -40` deletes the reason the run failed
+
+**Symptom:** `ui-evidence: Playwright exited with code 1`, and nothing above it
+says why. With a 40-test matrix the tail is entirely the test list, so the actual
+error — a failed witness assertion, an HTTP 500, a missing fixture — has already
+scrolled out.
+
+`scripts/ui-evidence.sh` `Linha 190`–`Linha 191` pipes the whole Playwright run
+through `tail -40`. `PIPESTATUS[0]` preserves the exit code (`Linha 192`), so the
+run correctly fails closed — only the diagnosis is gone.
+
+**Fix:** do not re-run blind. The failed staging directory is retained
+(`Linha 120`–`Linha 129`), and the HTML reporter wrote a full report
+(`playwright.visual.config.ts` `Linha 18`–`Linha 20`):
+
+```bash
+ls -d .claude/evidence/FAILED-*        # retained staging, newest last
+npx playwright show-report playwright-visual-report
+```
+
+To capture the untruncated output for one diagnostic run, invoke the test
+directly with the same environment the runner exports (`Linha 184`–`Linha 191`)
+and tee it instead of tailing. Never "fix" this by widening the tail — a bigger
+window still truncates a bigger matrix.
+
+---
+
+## 16. Declaring a zero noise floor without the determinism flags
+
+**Symptom:** a `preserve` batch fails with 1 to 5 changed pixels and no source
+change can explain it. Re-running sometimes passes. It looks like a flaky test;
+it is the renderer.
+
+Measured with three NULL runs — two captures, zero code change between them —
+all three diverged: 1 to 5 pixels, always in column `x=293`, delta confined to
+the BLUE channel (43 → 49 → 55), neighbour at `x=294` being `rgb(79,148,208)`.
+Raster antialiasing on the left edge of a blue element bleeding into the previous
+column, by a varying amount. Recorded in version control at
+`playwright.visual.config.ts` `Linha 27`–`Linha 38`, and in the (gitignored) run
+log `.claude/runs/tokenizer-cobertura/RUN.md` `Linha 279`.
+
+This is fatal rather than annoying because `preserve` defaults to
+`preserveMaxExactChangedPixels: 0` and
+`preserveMaxExactChangedPixelRatio: 0` (`scripts/lib/visual-contract.mjs`
+`Linha 1134`–`Linha 1137`). A noise floor above zero makes `preserve`
+unsatisfiable **by a no-op**, and batch acceptance becomes luck.
+
+**Fix at the source, not with a threshold** — six flags pinning software raster
+and deterministic font/colour, in `playwright.visual.config.ts`
+`Linha 39`–`Linha 51`:
+```
+--disable-gpu  --disable-partial-raster  --disable-skia-runtime-opts
+--disable-lcd-text  --disable-font-subpixel-positioning
+--force-color-profile=srgb
+```
+After them: two null runs, **40/40 byte-identical**, verdict `pass` (same
+`Linha 279`). Any claim that this pipeline has a zero noise floor is conditional
+on those flags being present in the repository actually running the capture.
+
+Raising `preserveMaxExactChangedPixels` to swallow the floor is the forbidden
+shortcut: it turns a render defect into a permanent budget and hides every real
+one-pixel regression underneath it.
+
+---
+
+## 17. A toolchain file that does not exist is silently not fingerprinted
+
+**Symptom:** none. `toolchainFingerprint` matches across a pair that should have
+diverged.
+
+`fingerprintPaths` throws only when the **entire** resolved file set is empty
+(`scripts/lib/evidence-matrix.mjs` `Linha 313`–`Linha 318`). An individual target
+that does not exist is dropped without a word by `walkFiles`
+(`Linha 284`–`Linha 285`). The toolchain list at `Linha 383`–`Linha 418` includes
+`scripts/compose-evidence-manifests.mjs`, which is absent from this repository —
+so it contributes nothing, and a future change to it would not move the hash.
+
+**Fix:** assert the members exist before trusting the binding.
+```bash
+for f in playwright.visual.config.ts tests/visual/evidence.spec.ts \
+         tests/visual/evidence-matrix.json tests/visual/network-fixtures.mjs \
+         scripts/lib/{visual-contract,evidence-matrix,evidence-composer}.mjs \
+         scripts/compose-evidence-manifests.mjs package.json; do
+  [ -e "$f" ] || echo "NOT FINGERPRINTED: $f"
+done
+```
+
+---
+
+## 18. The Stop hook is keyed to a script NAME, not to the engine on disk
+
+**Symptom:** none, which is the problem. UI changes end the turn with no rendered
+evidence and no complaint.
+
+`tools/hooks/ui-evidence-gate.sh` `Linha 144`–`Linha 163` deliberately refuses to
+treat `scripts/ui-evidence.sh` existing on disk as proof of wiring — it requires a
+`package.json` script literally named **`ui:evidence`**. This repository's
+`package.json` `Linha 9` declares `evidence`. Different name ⇒ `ENGINE_WIRED=0` ⇒
+`exit 0` with a warning on stderr: the gate is **fail-open**, by design, so that a
+fresh install does not block every commit.
+
+Compounding it here: `.claude/settings.json` registers `marathon-stop-gate.sh` and
+`tools/hooks/clarification-gate.py` only — `ui-evidence-gate.sh` is not registered
+as a Stop hook at all.
+
+**Fix:** verify both facts before relying on the gate; a silent hook is
+indistinguishable from a satisfied one.
+```bash
+node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync("package.json","utf8")).scripts))'
+grep -o 'hooks/[a-z-]*\.\(sh\|py\)' .claude/settings.json
+```
+Either add a `ui:evidence` alias and register the hook, or state plainly in the
+turn verdict that the gate is inactive and the evidence discipline is manual.

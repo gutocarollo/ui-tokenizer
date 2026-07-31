@@ -1,0 +1,376 @@
+{
+  "schemaVersion": "1.0.0",
+  "readOnly": true,
+  "fixtures": [
+    {
+      "id": "onboarding-home-v1",
+      "routePattern": "/onboarding",
+      "routeParams": {},
+      "contractSources": [
+        "frontend/src/models/system.js",
+        "frontend/src/hooks/useOnboardingComplete.js",
+        "frontend/src/pages/OnboardingFlow/Steps/Home/index.jsx",
+        "server/endpoints/system.js"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/onboarding",
+          "status": 200,
+          "body": {
+            "onboardingComplete": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "onboarding-llm-preference-v1",
+      "routePattern": "/onboarding/:step",
+      "routeParams": {
+        "step": "llm-preference"
+      },
+      "contractSources": [
+        "frontend/src/models/system.js",
+        "frontend/src/hooks/useOnboardingComplete.js",
+        "frontend/src/pages/OnboardingFlow/Steps/LLMPreference/index.jsx",
+        "server/endpoints/system.js"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/onboarding",
+          "status": 200,
+          "body": {
+            "onboardingComplete": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "telegram-settings-v1",
+      "routePattern": "/settings/external-connections/telegram",
+      "routeParams": {},
+      "contractSources": [
+        "frontend/src/models/system.js",
+        "frontend/src/models/telegram.js",
+        "frontend/src/pages/GeneralSettings/Connections/TelegramBot/index.jsx",
+        "server/endpoints/system.js",
+        "server/endpoints/telegram.js"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/system/multi-user-mode",
+          "status": 200,
+          "body": {
+            "multiUserMode": false
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/telegram/config",
+          "status": 200,
+          "body": {
+            "config": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "scheduled-jobs-list-v1",
+      "routePattern": "/settings/scheduled-jobs",
+      "routeParams": {},
+      "contractSources": [
+        "frontend/src/components/PrivateRoute/index.jsx",
+        "frontend/src/models/scheduledJobs.js",
+        "frontend/src/models/system.js",
+        "frontend/src/pages/GeneralSettings/ScheduledJobs/index.jsx",
+        "server/endpoints/scheduledJobs.js",
+        "server/endpoints/system.js"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/onboarding",
+          "status": 200,
+          "body": {
+            "onboardingComplete": true
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/setup-complete",
+          "status": 200,
+          "body": {
+            "results": {
+              "MultiUserMode": false,
+              "RequiresAuth": false
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/scheduled-jobs",
+          "status": 200,
+          "body": {
+            "jobs": [
+              {
+                "id": 920001,
+                "name": "Daily visual evidence report",
+                "prompt": "Summarize the deterministic visual evidence fixture.",
+                "tools": "[]",
+                "schedule": "0 9 * * *",
+                "enabled": true,
+                "lastRunAt": "2025-01-15T09:30:00.000Z",
+                "nextRunAt": "2025-01-16T09:00:00.000Z",
+                "createdAt": "2025-01-15T09:00:00.000Z",
+                "updatedAt": "2025-01-15T09:30:01.250Z"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "agent-flow-builder-v1",
+      "routePattern": "/settings/agents/builder/:flowId",
+      "routeParams": {
+        "flowId": "00000000-0000-4000-8000-000000000101"
+      },
+      "contractSources": [
+        "frontend/src/models/agentFlows.js",
+        "frontend/src/pages/Admin/AgentBuilder/index.jsx",
+        "server/endpoints/agentFlows.js",
+        "server/utils/agentFlows/index.js"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/agent-flows/list",
+          "status": 200,
+          "body": {
+            "success": true,
+            "flows": [
+              {
+                "name": "Visual evidence flow",
+                "uuid": "00000000-0000-4000-8000-000000000101",
+                "description": "Stable read-only fixture for visual evidence.",
+                "active": true
+              }
+            ]
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/agent-flows/00000000-0000-4000-8000-000000000101",
+          "status": 200,
+          "body": {
+            "success": true,
+            "flow": {
+              "name": "Visual evidence flow",
+              "uuid": "00000000-0000-4000-8000-000000000101",
+              "config": {
+                "name": "Visual evidence flow",
+                "description": "Stable read-only fixture for visual evidence.",
+                "active": true,
+                "steps": [
+                  {
+                    "type": "start",
+                    "config": {
+                      "variables": []
+                    }
+                  },
+                  {
+                    "type": "finish",
+                    "config": {}
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "model-router-rules-v1",
+      "routePattern": "/settings/model-routers/:id",
+      "routeParams": {
+        "id": "910001"
+      },
+      "contractSources": [
+        "frontend/src/models/modelRouter.js",
+        "frontend/src/pages/GeneralSettings/ModelRouters/RouterRulesPage/index.jsx",
+        "server/endpoints/modelRouter.js",
+        "server/models/modelRouter.js",
+        "server/prisma/schema.prisma"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/model-routers/910001",
+          "status": 200,
+          "body": {
+            "router": {
+              "id": 910001,
+              "name": "Visual evidence router",
+              "description": "Stable read-only fixture for visual evidence.",
+              "fallback_provider": "openai",
+              "fallback_model": "gpt-4o-mini",
+              "cooldown_seconds": 30,
+              "created_by": null,
+              "createdAt": "2025-01-15T09:00:00.000Z",
+              "lastUpdatedAt": "2025-01-15T09:00:00.000Z",
+              "rules": [],
+              "workspaceCount": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "scheduled-job-runs-v1",
+      "routePattern": "/settings/scheduled-jobs/:id/runs",
+      "routeParams": {
+        "id": "920001"
+      },
+      "contractSources": [
+        "frontend/src/models/scheduledJobs.js",
+        "frontend/src/pages/GeneralSettings/ScheduledJobs/RunHistoryPage.jsx",
+        "frontend/src/pages/GeneralSettings/ScheduledJobs/components/RunRow.jsx",
+        "server/endpoints/scheduledJobs.js",
+        "server/prisma/schema.prisma"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/onboarding",
+          "status": 200,
+          "body": {
+            "onboardingComplete": true
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/setup-complete",
+          "status": 200,
+          "body": {
+            "results": {
+              "MultiUserMode": false,
+              "RequiresAuth": false
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/scheduled-jobs/920001",
+          "status": 200,
+          "body": {
+            "job": {
+              "id": 920001,
+              "name": "Daily visual evidence report",
+              "prompt": "Summarize the deterministic visual evidence fixture.",
+              "tools": "[]",
+              "schedule": "0 9 * * *",
+              "enabled": true,
+              "lastRunAt": "2025-01-15T09:30:00.000Z",
+              "nextRunAt": "2025-01-16T09:00:00.000Z",
+              "createdAt": "2025-01-15T09:00:00.000Z",
+              "updatedAt": "2025-01-15T09:30:01.250Z"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/scheduled-jobs/920001/runs",
+          "status": 200,
+          "body": {
+            "runs": [
+              {
+                "id": 930001,
+                "jobId": 920001,
+                "status": "completed",
+                "result": "{\"text\":\"Scheduled analysis completed successfully.\",\"duration\":1250,\"metrics\":{\"prompt_tokens\":120,\"completion_tokens\":48,\"model\":\"visual-evidence-model\"}}",
+                "error": null,
+                "startedAt": "2025-01-15T09:30:00.000Z",
+                "completedAt": "2025-01-15T09:30:01.250Z",
+                "readAt": "2025-01-15T09:31:00.000Z"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "scheduled-job-run-detail-v1",
+      "routePattern": "/settings/scheduled-jobs/:id/runs/:runId",
+      "routeParams": {
+        "id": "920001",
+        "runId": "930001"
+      },
+      "contractSources": [
+        "frontend/src/models/scheduledJobs.js",
+        "frontend/src/pages/GeneralSettings/ScheduledJobs/RunDetailPage.jsx",
+        "server/endpoints/scheduledJobs.js",
+        "server/prisma/schema.prisma"
+      ],
+      "responses": [
+        {
+          "method": "GET",
+          "path": "/api/onboarding",
+          "status": 200,
+          "body": {
+            "onboardingComplete": true
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/setup-complete",
+          "status": 200,
+          "body": {
+            "results": {
+              "MultiUserMode": false,
+              "RequiresAuth": false
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/scheduled-jobs/runs/930001",
+          "status": 200,
+          "body": {
+            "run": {
+              "id": 930001,
+              "jobId": 920001,
+              "status": "completed",
+              "result": {
+                "text": "Scheduled analysis completed successfully.",
+                "duration": 1250,
+                "metrics": {
+                  "prompt_tokens": 120,
+                  "completion_tokens": 48,
+                  "model": "visual-evidence-model"
+                }
+              },
+              "error": null,
+              "startedAt": "2025-01-15T09:30:00.000Z",
+              "completedAt": "2025-01-15T09:30:01.250Z",
+              "readAt": "2025-01-15T09:31:00.000Z"
+            },
+            "job": {
+              "id": 920001,
+              "name": "Daily visual evidence report",
+              "prompt": "Summarize the deterministic visual evidence fixture.",
+              "tools": "[]",
+              "schedule": "0 9 * * *",
+              "enabled": true,
+              "lastRunAt": "2025-01-15T09:30:00.000Z",
+              "nextRunAt": "2025-01-16T09:00:00.000Z",
+              "createdAt": "2025-01-15T09:00:00.000Z",
+              "updatedAt": "2025-01-15T09:30:01.250Z"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

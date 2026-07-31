@@ -37,6 +37,12 @@ numeric oracle in prose.
 **Score: 100/100.** `page` answers "whose," and `background-color` answers
 "what it paints." Removing any word loses information.
 
+> ⚠ §6 of the law prints the shorter `bg-page` for the same token. Whether the
+> class repeats the property suffix is an **open architecture decision**, not a
+> contradiction to resolve here — see the warning in §6 of the law. Both
+> spellings satisfy the guard; what it does enforce is that the prefix may not
+> **contradict** the property.
+
 ---
 
 ## 2. `container` where the owner has no parts
@@ -63,7 +69,9 @@ with an existing token. Zero information, 33 times.
 
 ```
 button.background-color          ← the button’s own surface
-button.label.color               ← the text inside it
+button.label                     ← the text inside it (§2.1 of anatomy-property.md:
+                                    `label` permits only one property, so writing
+                                    `foreground-color` here would be redundant)
 button.icon.fill                 ← the icon inside it
 ```
 
@@ -85,11 +93,12 @@ information: removing `header` collides with `row`.
 ### ❌ Bad
 
 ```
-field.placeholder.color
+field.placeholder.foreground-color
 ```
 
-`placeholder` **can only** have color. `placeholder.background-color` does not
-exist — a placeholder is text. The property is derivable from the anatomy.
+`placeholder` **can only** have `foreground-color`. `placeholder.background-color`
+does not exist — a placeholder is text. The property is derivable from the
+anatomy.
 
 ### ✅ Good
 
@@ -102,7 +111,7 @@ field.placeholder
 ```
 field.background-color
 field.border-color
-field.color
+field.foreground-color
 ```
 
 `field` itself permits background, border, **and** text. Without the property,
@@ -129,7 +138,7 @@ an internal contradiction, not a token.
 
 ```
 button.background-color      ← the background
-button.label.color           ← the text
+button.label                 ← the text (the anatomy already implies the property)
 ```
 
 ---
@@ -263,7 +272,7 @@ const STRUCTURE = new Set(["src","pages","components","ui","lib","hooks",
 
 ---
 
-## 10. One token for many owners
+## 10. One token for many owners — and why `content` was BANNED
 
 ### ❌ Bad
 
@@ -273,6 +282,25 @@ content-primary     ← 1,647 uses, 26 different owners
 
 Changing the button text changes the modal, card, and field text. **That is not
 DRY; it is coupling** — the value is shared *and so is the contract*.
+
+> **BANNED 2026-07-31.** `content` joined `surface` and `semantic` in the
+> guard's denylist — `FORBIDDEN = ("surface", "semantic", "content")` in
+> `tools/gates/ds-naming-law.py` Linha 121. Everything in this section that reads
+> `content-*` is therefore a **historical measurement of the defect**, never a
+> spelling to copy.
+>
+> The coupling above is the *consequence*. The defect in the NAME is that
+> `content-*` mixes **two axes** in one vocabulary without saying which is in
+> use: `primary`/`secondary`/`tertiary` answer **RANK** (how important), while
+> `danger`/`success`/`info`/`placeholder` answer **ROLE** (what for).
+> `content-secondary` and `content-danger` look like siblings and are not. And
+> `content` alone says neither that it is a color nor that it is text — it could
+> be a container, a slot, or a payload. Full reasoning in §3.1 of the law.
+>
+> Two independent checks now reject it: `violations_in_source()` (the denylist)
+> and `violations_grammar()` (`content` is not an owner of §4.1). Verified
+> 2026-07-31 on a fixture — `text-content-primary` produces one finding of each
+> kind.
 
 ### ✅ Good
 
@@ -292,11 +320,17 @@ The pixels are **identical** today (the same primitive). Each contract can diver
 
 ### ✅ Good — a cluster that adds value
 
+> The ✅ marks the **clustering decision**, not the class in the evidence. The
+> two lines below are the measured BEFORE state, quoted verbatim from the source;
+> `text-content-primary` is a banned name that **fails the guard today** (§10).
+> The ✅ is the token on the right-hand side of the arrow.
+
 **50 components** — `CohereOptions`, `GeminiOptions`, `OpenAiOptions`,
 `VoyageAiOptions`, `LocalAiOptions`… — with an **identical** consumption
 signature:
 
 ```
+BEFORE (measured, now a guard violation):
 src/components/LLMSelection/OpenAiOptions/index.jsx:11
   <label className="text-content-primary text-sm font-semibold block mb-3">
 src/components/EmbeddingSelection/VoyageAiOptions/index.jsx:9
@@ -304,13 +338,19 @@ src/components/EmbeddingSelection/VoyageAiOptions/index.jsx:9
 ```
 
 They all render the label of a credentials form field. **One contract with 50
-instances** → `field.label.color`. The cluster is legitimate: all 50 change
-together because **they are the same thing**.
+instances** → `field.label`. The cluster is legitimate: all 50 change together
+because **they are the same thing**.
+
+(`field.label` and not `field.label.foreground-color`: `label` permits only one
+property, so the property would be redundant — §2.1 of `anatomy-property.md`.)
 
 ### ❌ Bad — a cluster that destroys information
 
-Putting `<p>` + `content-primary` (198 uses) into one `text.color` because "it
-is all text." A `<p>` inside a `modal`, a `card`, and an `empty-state` represents
+Putting `<p>` + `content-primary` (198 uses) into one `text.foreground-color`
+because "it is all text." Note that the *proposed* name is doubly illegal:
+`text` is not an owner of §4.1, so `violations_grammar()` rejects it on the
+first segment — replacing a banned name with an ownerless one is not a
+migration. A `<p>` inside a `modal`, a `card`, and an `empty-state` represents
 **three** contracts: empty-state text is intentionally weaker than modal text.
 Flattening the three removes the ability to express that.
 

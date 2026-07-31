@@ -90,11 +90,23 @@ export const NO_SLOT = {
  * that can carry multiple properties (`container`, `icon`), property remains
  * informative and is intentionally absent here.
  */
+/*
+ * A propriedade que cada anatomia JA IMPLICA. Serve a dois criterios: marcar
+ * palavra redundante e detectar par contraditorio.
+ *
+ * ATUALIZADO 2026-07-31 junto com §4.3 da lei, que trocou `color` por
+ * `foreground-color`. Sem esta atualizacao o oraculo produzia FALSO VERMELHO no
+ * nome canonico: `button-label-foreground-color` tirava 75/100 e reprovava em
+ * `coherent-pair` com "`label` cannot carry `foreground-color` — only `color`".
+ * Ou seja, o oraculo reprovava exatamente a grafia que a lei passou a exigir.
+ *
+ * Medido apos a correcao: o mesmo nome volta a pontuar cheio.
+ */
 export const IMPLIED_PROPERTY = {
-  label: "color",
-  placeholder: "color",
-  helper: "color",
-  caret: "color",
+  label: "foreground-color",
+  placeholder: "foreground-color",
+  helper: "foreground-color",
+  caret: "foreground-color",
   backdrop: "background-color",
   divider: "border-color",
 };
