@@ -65,9 +65,49 @@ export const INTERP = "${}";
  * divergisse em silencio entre os scripts.
  */
 export function splitClasses(bruto) {
-  return bruto
-    .split(/\s+/)
+  return partirRespeitandoColchete(bruto)
     .filter((c) => c && !c.startsWith("$") && !c.includes("${"));
+}
+
+/**
+ * Separa por espaco, MENOS dentro de `[]`.
+ *
+ * `split(/\s+/)` cru quebra valor arbitrario com espaco no meio. Medido no
+ * alvo: `font-['Plus Jakarta Sans']` virava TRES tokens — `font-['Plus`,
+ * `Jakarta` e `Sans']` — e os tres apareciam no residuo do ratchet como se
+ * fossem classes distintas, inflando o vocabulario com fragmentos que nao
+ * existem. Uma familia de fonte contada como tres decisoes de design.
+ *
+ * O mesmo vale para qualquer arbitrario com espaco: `grid-cols-[repeat(2,
+ * minmax(0, 1fr))]`, `shadow-[0 1px 2px rgb(0 0 0 / 0.1)]`.
+ *
+ * Colchete nao fechado NAO consome o resto da string: o texto vem de codigo
+ * real e um `[` solto e mais provavel que um arbitrario gigante. A profundidade
+ * volta a zero no fim e o token corrente e emitido como esta.
+ */
+function partirRespeitandoColchete(bruto) {
+  const out = [];
+  let atual = "";
+  let prof = 0;
+  for (const ch of bruto) {
+    if (ch === "[") prof += 1;
+    else if (ch === "]") prof = Math.max(0, prof - 1);
+    if (/\s/.test(ch) && prof === 0) {
+      if (atual) out.push(atual);
+      atual = "";
+      continue;
+    }
+    atual += ch;
+  }
+  if (atual) out.push(atual);
+  /*
+   * Desbalanceado = nao confie na varredura. Com `[` aberto e nunca fechado a
+   * profundidade nunca volta a zero e TODO o resto da string vira um token so,
+   * fundindo classes que nao tem relacao num fragmento gigante — pior que o
+   * defeito original. Nesse caso volta ao split cru, que ao menos separa.
+   */
+  if (prof !== 0) return bruto.split(/\s+/);
+  return out;
 }
 
 /**

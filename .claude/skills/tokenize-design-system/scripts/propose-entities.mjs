@@ -1840,10 +1840,34 @@ for (const c of [...composicoes.slice(0, 5), ...compConflitoA]) {
 md.push("");
 md.push("### 6.3.4 O que a composição NÃO resolve");
 md.push("");
-md.push("- **`cn` não existe no alvo.** Medido: `tailwind-merge` não está em `package.json`,");
-md.push("  não está em `node_modules`, e não há util `cn`/`clsx` em `src/`. A composição é a");
-md.push("  única parte desta fase que introduz **dependência de runtime** — decisão do dono, e");
-md.push(`  ela estava implícita no plano. Esta corrida mediu com \`${tm.origem}\`.`);
+/*
+ * ESTA PROSA E MEDIDA, NAO CRAVADA. A versao anterior AFIRMAVA que
+ * `tailwind-merge` nao estava em `package.json` nem em `node_modules`. Virou
+ * mentira no dia em que o alvo instalou as duas (`clsx` e `tailwind-merge` hoje
+ * sao dependencias declaradas) — e um relatorio que afirma o contrario do
+ * `package.json` faz quem le duvidar do resto dos numeros. Texto sobre estado
+ * do repo tem que ler o repo.
+ */
+{
+  const pkgDeps = (() => {
+    try {
+      const j = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8"));
+      return { ...(j.dependencies ?? {}), ...(j.devDependencies ?? {}) };
+    } catch { return {}; }
+  })();
+  const declaradas = ["tailwind-merge", "clsx"].filter((d) => pkgDeps[d]);
+  if (declaradas.length) {
+    md.push(`- **Dependencia de composicao JA DECLARADA no alvo:** ${declaradas.map((d) => `\`${d}@${pkgDeps[d]}\``).join(", ")}.`);
+    md.push("  A composicao `cn(NUCLEO, extras)` nao introduz dependencia nova aqui — o que");
+    md.push("  resta e decidir se o util `cn` passa a existir, e isso e escolha de codigo, nao");
+    md.push(`  de dependencia. Esta corrida mediu com \`${tm.origem}\`.`);
+  } else {
+    md.push("- **`cn` nao existe no alvo.** Medido AGORA no `package.json`: nem `tailwind-merge`");
+    md.push("  nem `clsx` estao declarados. A composicao seria a unica parte desta fase que");
+    md.push("  introduz **dependencia de runtime** — decisao do dono.");
+    md.push(`  Esta corrida mediu com \`${tm.origem}\`.`);
+  }
+}
 if (compSemNome.length) {
   md.push(`- **${compSemNome.length} bundles têm núcleo SEM nome derivado.** \`cn(NOME, …)\` não pode`);
   md.push("  ser escrito enquanto a entidade-núcleo não tiver nome — a fila dela é a §7.");
@@ -1961,11 +1985,17 @@ md.push("- **não cobre `className={...}` dinâmico** além do literal interno e
 md.push(`  ${dinamicos} atributos dinâmicos ficam parcialmente fora e são declarados aqui, não omitidos.`);
 md.push("");
 
-const outMd = path.join(ROOT, OUT_MD);
+/*
+ * `path.join(ROOT, x)` com `x` ABSOLUTO nao devolve `x`: ele CONCATENA, e o
+ * relatorio ia parar dentro do alvo num caminho espelhado (`<alvo>/home/...`).
+ * Quem pediu `--out /tmp/x.md` recebia "gravado" e o arquivo nao estava la.
+ * `path.resolve` respeita absoluto e resolve relativo contra ROOT.
+ */
+const outMd = path.resolve(ROOT, OUT_MD);
 mkdirSync(path.dirname(outMd), { recursive: true });
 writeFileSync(outMd, md.join("\n"));
 
-const outJson = path.join(ROOT, OUT_JSON);
+const outJson = path.resolve(ROOT, OUT_JSON);
 mkdirSync(path.dirname(outJson), { recursive: true });
 writeFileSync(outJson, JSON.stringify({
   root: ROOT,
