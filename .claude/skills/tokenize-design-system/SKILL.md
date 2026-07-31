@@ -121,8 +121,8 @@ owner . anatomy . property [ . variant ] [ . state ]
 ```
 
 Only those slots belong in the identifier. Tier, architecture, visual depth, and
-location are metadata. `surface`, `semantic`, pigment names, and generic layer
-names are therefore forbidden in a new identifier.
+location are metadata. `surface`, `semantic`, `content`, pigment names, and
+generic layer names are therefore forbidden in a new identifier.
 
 | Slot | Question answered |
 |---|---|

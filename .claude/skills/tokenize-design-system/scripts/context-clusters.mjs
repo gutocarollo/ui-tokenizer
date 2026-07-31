@@ -36,8 +36,8 @@ import { prefixAlternation, lawSlotFor } from "./lib/utility-families.mjs";
 const ROOT = resolveRoot();
 const SRC = path.join(ROOT, "src");
 
-/** Palavras proibidas no nome publico — a lei §2 e §3. */
-const FORBIDDEN = ["surface", "semantic"];
+/** Palavras proibidas no nome publico — a lei §2, §3 e §3.1 (content, 2026-07-31). */
+const FORBIDDEN = ["surface", "semantic", "content"];
 
 /* --------------------------------------------------------------- varredura -- */
 

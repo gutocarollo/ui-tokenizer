@@ -264,7 +264,7 @@ if (truncated.length) {
  * Offsets reais do token no arquivo. Repete o regex do `context-clusters.mjs`
  * em vez de confiar em `line` sozinho, porque a mesma linha pode ter dois usos.
  */
-const FORBIDDEN = ["surface", "semantic"];
+const FORBIDDEN = ["surface", "semantic", "content"];
 const TOKEN_RX = new RegExp(
   `(?<![\\w-])((?:[a-z-]+:)*)([a-z-]+)-((?:${FORBIDDEN.join("|")})-[a-z0-9-]+)(?![\\w-])`, "g");
 
