@@ -63,11 +63,18 @@ intenção; este, da execução.
 
 ### Fase A — Control plane exercitável
 
-- **A0. Diagnóstico dos 2 fails do avaliador absoluto** —
-  `absolute-completion.test.mjs` ("writes one schema-valid 24-predicate proof"
-  e "a failed re-evaluation atomically archives"). São defeito funcional não
-  diagnosticado; nenhuma fase seguinte declara verde antes deste diagnóstico
-  (fix aqui se a causa for do avaliador; item novo do plano se for maior).
+- **A0. Diagnóstico dos 2 fails do avaliador absoluto — CONCLUÍDO 2026-07-31.**
+  Causa-raiz única, provada com refutação: `buildFixture()` cria o app-alvo em
+  `mkdtempSync(os.tmpdir(), ...)` (`absolute-completion.test.mjs:119`) e, desde
+  `a2f357e` ("conserta a portabilidade"), `createArtifactValidator` resolve o
+  Ajv **do alvo** (`artifact-contract.mjs:266`, `createRequire` subindo
+  diretórios) — de `/tmp` não há `node_modules` acima → "Artifact validator is
+  unavailable" em `contractViolations` → records invalidados → inventário
+  "vacuous" → 8 predicados fail → exit 1 (o 2º teste morre na pré-condição
+  `exitCode === 0`). Refutação executada: trocando SÓ o mkdtemp para dentro do
+  repo, **7/7 pass**. Consequência: **os 29 fails da suíte têm UMA causa-raiz**
+  (a mesma do item 3 da lista do dono) e A0 se funde em A1 — não há defeito no
+  avaliador em si.
 - **A1. Fixture-alvo mínimo in-repo** em `scripts/test/fixtures/target-app/`,
   com o conjunto COMPLETO que os consumidores exigem (medido na rodada
   adversarial): (a) `package.json` — `ajv/dist/2020` resolve subindo até o
@@ -76,7 +83,10 @@ intenção; este, da execução.
   `project-layout.mjs:36` lança); (c) ≥1 arquivo-fonte elegível;
   (d) script `tokens:build` no-op — o step PREFLIGHTED o invoca.
   Fallback do `tokenization-runner.test.mjs` passa a apontar para a fixture.
-  Meta: os 27 fails viram pass **sem** env externa.
+  **+ (do A0):** `absolute-completion.test.mjs:119` troca `os.tmpdir()` por
+  tempdir dentro do repo (ex.: `import.meta.dirname`), com cleanup no
+  teardown — refutação já provou 7/7 com só essa mudança.
+  Meta: os **29** fails viram pass **sem** env externa.
   - Alternativa rejeitada: `skip` condicional quando `TOKENIZE_TEST_ROOT`
     ausente — esconderia a camada inteira do CI do repo canônico (28 skips
     ≈ 0 cobertura). Fixture custa ~4 arquivos e dá cobertura permanente.
