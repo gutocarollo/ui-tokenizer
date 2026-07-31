@@ -43,8 +43,10 @@ medição desta sessão, não estimativa.
 | vetor | volume | observação |
 |---|---:|---|
 | `className` | **6.370** atributos (+269 dinâmicos) → **32.662 usos de classe** | 98,9% da superfície |
-| `style={{ }}` inline | **158** | `calc()`, `maxHeight`, `objectFit`, alturas condicionais |
-| `src/index.css` à mão | **1.695 linhas** | 286 `var(--token)` · **11 cores cravadas** (9 hex + 2 `white` literais, L661 e L688) · **172 px** (31 distintos) |
+| `style={{ }}` inline | **158 atributos → 322 declarações** | **224 cravadas** (alvo) · 95 dinâmicas (`calc()`, ternário → exceção) · 3 já com `var(--token)` |
+| `src/index.css` à mão | **1.695 linhas** | 333 `var(--token)` · **11 cores cravadas** (9 hex + 2 `white`, L661/L688) · **172 px** |
+| `chat/themes/github*.css` | 252 linhas | **36 cores** — paleta de realce do GitHub, **exceção** de terceiro |
+| `public/embed/*.min.css` | minificado | **43 cores** — build de terceiro, **fora de escopo** |
 | CSS gerado de token | 1.348 linhas | saída, não entrada |
 | `styled-components`·`cva`·`tailwind-variants`·`sx`·CSS modules | **0** | não usados. `clsx` existe mas é **transitivo**, não declarado |
 
@@ -291,7 +293,7 @@ app e reportou sucesso**. Requisitos da fase:
 |---|---|---|---|
 | **F-A** | validar libs (LEI ZERO) | **✔ concluída — §5.1** | 3 subagents, código clonado e executado |
 | **F-A2** | LEI ZERO do **veículo de entidade** | **✔ concluída — §5.3** | miner rodado contra 10 fixtures |
-| **F-B** | `NORMALIZE` | 158 `style={{}}` + **11 cores cravadas** + 172 px | `measure-coverage.mjs` **não cobre CSS** — F-B precisa do seu próprio medidor de `index.css` |
+| **F-B** | `NORMALIZE` | **224** decl. inline cravadas + **11** cores + 172 px | `measure-vectors.mjs` — medidor próprio, classifica app/tema/vendor |
 | **F-B2** | HTML semântico (spec nº 3 do dono) | `<div onClick>` → `<button>`, landmarks | os 59 clusters sem owner recontados — §7.1 |
 | **F-C** | `MINE` no loop | **✔ concluída** — ext derivada + guard | regressão 3/3, 722/723 arquivos |
 | **F-D0** | **validar os pesos** | conjunto rotulado, amostra e limiar | ver §5.2 — **bloqueia F-F** |
