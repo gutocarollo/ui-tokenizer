@@ -318,6 +318,30 @@ const migrouDe = { arbitrary: 0, vocabulario: 0, excecao: 0 };
   }
 }
 
+/**
+ * VOCABULARIO DO UNIVERSO INTEIRO — a jurisdicao que faltava.
+ *
+ * A particao do residuo PULA todo bundle que e entidade ou composicao
+ * (`if (ents.has(k) || comp.has(k)) continue`). Isso esta certo para MEDIR
+ * disposicao: entidade ja tem dono, e o pipeline de entidade que cuida dela.
+ *
+ * Mas o ratchet de vocabulario faz outra pergunta — "entrou classe NOVA no
+ * app?" — e para essa pergunta o pulo e um buraco. Medido: o residuo e 17,6%
+ * do universo, entao 82,4% das classes eram territorio onde ninguem olhava.
+ * Pior: uma classe nova DENTRO de um bundle-entidade e a mudanca de maior
+ * alcance possivel, porque propaga para todos os call sites daquela entidade de
+ * uma vez. `bg-red-500` somado a SETTINGS_INPUT chega em 190 lugares e nao
+ * acendia nada.
+ *
+ * Este conjunto e emitido SEM pular nada. Ele nao substitui o do residuo — sao
+ * perguntas diferentes, com baselines diferentes, e trocar um pelo outro
+ * jogaria fora o historico do ratchet atual.
+ */
+const classesTotais = new Map();
+for (const [, v] of bundles) {
+  for (const c of v.classes) classesTotais.set(c, (classesTotais.get(c) ?? 0) + v.n);
+}
+
 const R = {
   root: ROOT, universo: total,
   criterio: { minRepeat: MIN_REPEAT, minClasses: MIN_CLASSES },
@@ -327,6 +351,12 @@ const R = {
    * `usosDeClasse` aqui e `usosDeClasse` la sao o mesmo numero por construcao, e
    * `usosViaContratoNomeado` e a parcela que o censo proprio antigo nao enxergava.
    */
+  /** Vocabulario do universo INTEIRO — inclui o que vive dentro de entidade. */
+  vocabularioTotal: {
+    classes: [...classesTotais.entries()].sort((a, b) => b[1] - a[1]).map(([c, n]) => [c, n]),
+    distintas: classesTotais.size,
+    usos: [...classesTotais.values()].reduce((a, b) => a + b, 0),
+  },
   censo: {
     arquivos: arquivos.length,
     atributosClassName: atributos,
