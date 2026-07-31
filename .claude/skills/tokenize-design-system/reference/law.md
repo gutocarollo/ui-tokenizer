@@ -154,7 +154,7 @@ Overlays: `popover` · `menu` · `modal` · `overlay` · `tooltip` · `drawer`
 
 Controls: `button` · `field` · `select` · `checkbox` · `radio` · `toggle` · `slider` · `search`
 
-Content: `chat-message` · `prompt` · `code-block` · `markdown` · `attachment` · `citation`
+Authored text and media: `chat-message` · `prompt` · `code-block` · `markdown` · `attachment` · `citation`
 
 Data: `data-table` · `list-row` · `card` · `badge` · `pill` · `progress` · `chart` · `stat`
 
