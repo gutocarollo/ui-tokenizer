@@ -239,6 +239,27 @@ NORMALIZE → MINE → EXTRACT → CLUSTER → CONVERGE → REPORT → DECIDE �
 | `APPLY` | determinístico | escreve token, `tokens:build`, **grep no CSS buildado**, codemod |
 | `EVIDENCE` | modelo + humano | pixel antes/depois por estado, review adversarial |
 
+### 4.0 O que o censo de F-B revelou: inline tem a MESMA estrutura do `className`
+
+Eu tratava os `style={{}}` como 224 decisões espalhadas. Medido, eles são **55
+bundles distintos**, e os **3 maiores cobrem 86 dos 156 atributos**:
+
+| | bundle | disposição |
+|---:|---|---|
+| **49×** | `height: isMobile ? "100%" : "calc(…)"` | **dinâmico → exceção** |
+| **29×** | `maxWidth:"250px" · whiteSpace:"normal" · wordWrap:"break-word"` | **entidade** — bloco de dica |
+| **8×** | `maxHeight:"calc(100vh - 200px)"` | dinâmico → exceção |
+| **4×** | `maxWidth:"350px" · …` | mesma entidade, variante de largura |
+| **4×** | `minHeight:"150px" · overflowY:"scroll" · resize:"vertical"` | **entidade** — textarea |
+| 40 bundles | 1× cada | cauda → exceção |
+
+**Consequência para a fase:** a conversão não são 224 itens, são **2 entidades**
+(~37 atributos) mais uma cauda de exceções declaradas. E o bundle mais frequente
+de todos — 49 usos — é **dinâmico**, logo exceção legítima, não trabalho.
+
+Isso confirma o critério do §2.4 num vetor independente: **repetição e tamanho**
+separam entidade de coincidência aqui exatamente como no `className`.
+
 ### 4.1 `NORMALIZE` — duas fontes que se conferem
 
 | vetor | forma canônica |
