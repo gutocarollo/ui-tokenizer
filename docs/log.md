@@ -7,6 +7,18 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-08-01] pesquisa · lei
+
+- [`law/2026-08-01-ui-ux-pro-max-o-que-serve.md`](law/2026-08-01-ui-ux-pro-max-o-que-serve.md)
+  — LEI ZERO sobre `nextlevelbuilder/ui-ux-pro-max` (112.173 ⭐, MIT, push de 2026-07-31), a skill
+  de onde descende nosso `design_system_template.json`. Dissecada por 4 agentes. Veredito:
+  **COMPLEMENTAR** — ela resolve VALOR (que cor escolher), nós resolvemos NOME. Os tokens dela não
+  têm dono e pontuam **35/100** no nosso oráculo (`NO OWNER`), logo ela não arbitra a ordem do
+  nome. Serve a espinha de cobertura (24 seções), o checklist de estados e o contrato de
+  zero-match anti-alucinação. O vocabulário dela — `surface`, `on-surface`, `semantic tokens`,
+  `danger`, `accent`, `tertiary`, recomendados POSITIVAMENTE em `quick-reference.md:161` e
+  `app-interface.csv:30` — é o nosso anti-vocabulário, e vira corpus de anti-exemplos.
+
 ## [2026-08-01] cookbook · lei
 
 **O cookbook completo: 643 exemplos, 643 com nota 100.** 9 capítulos gerados por 10 agentes a
