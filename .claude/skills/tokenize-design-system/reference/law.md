@@ -415,28 +415,18 @@ prefix-property     text-page-background-color    prefixo pede color, nome diz b
 `bg-page-background-color` and `text-page-foreground-color` in the same fixture
 produced **no** finding — the law's own spellings pass.
 
-> ⚠ **OPEN DEFECT in `violations_grammar()`, measured 2026-07-31 — code bug, not
-> law.** The check reads the owner as `nome.split("-")[0]`
-> ([`ds-naming-law.py`](../../../../tools/gates/ds-naming-law.py) Linha 274), i.e. only
-> the **first hyphen segment**. Every compound owner of §4.1 is therefore
-> truncated to a word that is not in the vocabulary, and reported as a violation
-> while being perfectly legal:
->
-> | owner in §4.1 | what the guard compares | in the vocabulary? |
-> |---|---|---|
-> | `chat-message` · `code-block` · `data-table` · `empty-state` | `chat` · `code` · `data` · `empty` | no |
-> | `list-row` · `nav-item` · `thread-item` · `workspace-item` | `list` · `nav` · `thread` · `workspace` | no |
->
-> **8 of the 40 owners — 20% of the closed vocabulary — are guaranteed false
-> positives.** Verified on a fixture: `bg-data-table-header-background-color`,
-> `bg-nav-item-background-color` and `bg-nav-item-background-color-hover` are all
-> reported as `grammar-owner`. Existing debt is absorbed by the baseline, so what
-> this blocks is precisely the **new, correct** token.
->
-> `score-naming.mjs::parseName()` does not have the bug — it matches the longest
-> vocabulary term first, exactly because owners may contain hyphens. The fix is
-> to make the guard match the same way. **Until it is fixed, a `grammar-owner`
-> finding on a compound owner is noise; do not "fix" the token name.**
+> ✔ **DEFECT FIXED in `b7a0405` (2026-07-31) — kept as the record of a real
+> failure class.** `violations_grammar()` used to read the owner as
+> `nome.split("-")[0]` (first hyphen segment only), so all 8 compound owners of
+> §4.1 (20% of the closed vocabulary — `chat-message`, `code-block`,
+> `data-table`, `empty-state`, `list-row`, `nav-item`, `thread-item`,
+> `workspace-item`) were guaranteed false positives — and since old debt is
+> baselined, what the guard blocked was precisely the NEW, correct token
+> (`bg-nav-item-background-color` reported as `grammar-owner`). The fix matches
+> the longest vocabulary term first (`owners_por_tamanho = sorted(owners,
+> key=len, reverse=True)`), the same strategy `score-naming.mjs::parseName()`
+> always used. A `grammar-owner` finding on a compound owner is a REAL finding
+> again.
 
 ### 8.2 Why §4.3 says `foreground-color` and not the bare CSS property name
 
