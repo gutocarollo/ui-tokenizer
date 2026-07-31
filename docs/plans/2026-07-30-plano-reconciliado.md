@@ -42,11 +42,11 @@ medição desta sessão, não estimativa.
 
 | vetor | volume | observação |
 |---|---:|---|
-| `className` | 6.412 atributos → **32.662 usos de classe** | 98,9% da superfície |
+| `className` | **6.370** atributos (+269 dinâmicos) → **32.662 usos de classe** | 98,9% da superfície |
 | `style={{ }}` inline | **158** | `calc()`, `maxHeight`, `objectFit`, alturas condicionais |
-| `src/index.css` à mão | **1.695 linhas** | 286 `var(--token)` · **28 ocorrências** de cor cravada (9 hex + 19 rgb/rgba, **16 valores distintos**) · **172 px** (31 distintos) |
+| `src/index.css` à mão | **1.695 linhas** | 286 `var(--token)` · **11 cores cravadas** (9 hex + 2 `white` literais, L661 e L688) · **172 px** (31 distintos) |
 | CSS gerado de token | 1.348 linhas | saída, não entrada |
-| `styled-components`·`cva`·`clsx`·`twMerge`·`sx`·CSS modules | **0** | não usados |
+| `styled-components`·`cva`·`tailwind-variants`·`sx`·CSS modules | **0** | não usados. `clsx` existe mas é **transitivo**, não declarado |
 
 **`className` domina, mas volume não é o critério.** Um `style={{ color:'#fff' }}`
 não é 1/32.662 do problema — é um ponto que **contorna o sistema inteiro** e não
@@ -57,14 +57,21 @@ fecha vazamento.
 
 | | |
 |---:|---|
-| já passa por contrato nomeado | **5.852** (17,9%) |
+| já passa por contrato nomeado | **5.847** (17,9%) |
 | utility cru | **26.810** (82,1%) |
 | **o loop trata hoje** | **504** (**1,5%**) |
 
 Top utilities crus: `flex` 2286 · `text-sm` 1440 · `w-full` 1310 · `flex-col`
 1086 · `items-center` 1017 · `rounded-lg` 855 · `block` 770 · `border-none` 635.
 
-### 2.3 O teto, com memorial
+### 2.3 O teto — MEMORIAL HISTÓRICO, regra revogada
+
+> **Esta seção descreve o critério da versão 1, que o §2.4 revogou.** Fica como
+> registro do que mudou e por quê. **Um executor deve seguir o §2.4, não esta
+> seção.** O critério de entidade aqui conta só repetição; o vigente exige
+> repetição **e** tamanho. Os percentuais abaixo (68,9% / 81,4% / 18,6%) estão
+> **superados**.
+
 
 Dois caminhos de cobertura, que **somam**:
 
@@ -86,7 +93,7 @@ spacing, radius, tipografia).
 A 68,9%  +  B 12,5%  =  TETO 81,4%
 ```
 
-**O que fica de fora, por design: 6.064 usos (18,6%)** — `flex`, `absolute`,
+**[REVOGADO — virou fila de exceção no §2.4]** ~~O que fica de fora, por design: 6.064 usos (18,6%)~~ — `flex`, `absolute`,
 `w-full`, `z-10` em bundles que aparecem **uma única vez**. Tokenizar `flex` é
 anti-padrão (composição, não decisão de design) e sem repetição não há evidência
 de padrão. Forçar esses 18,6% para bater 90% seria **inventar contrato onde não
@@ -114,7 +121,7 @@ há padrão** — o defeito oposto ao que corrigimos.
 > exceção aprovada, e toda exceção carrega `owner`, `reason`, `scope`, `evidence`,
 > `review policy` (§14 de `reference/end-to-end-workflow.md`).
 
-Sob esse critério, os **18,6%** de utility de composição não são "fora de escopo"
+Sob esse critério, os **24,5%** de utility de composição não são "fora de escopo"
 por decreto: são **fila de exceções**, cada uma com as cinco chaves. É o que os
 torna auditáveis em vez de convenientes.
 
@@ -123,7 +130,7 @@ torna auditáveis em vez de convenientes.
 | | escopo | natureza |
 |---|---|---:|
 | **BLOQUEANTE** | disposição terminal de **100%** das ocorrências | predicado |
-| **BLOQUEANTE** | eixo B — famílias tokenizáveis (cor·spacing·radius·tipografia) em bundle único: **12,5%** | decisão de design incontestável |
+| **BLOQUEANTE** | eixo B — famílias tokenizáveis (cor·spacing·radius·tipografia) fora de entidade: **24,1%** | decisão de design incontestável |
 | **alvo** | entidade canônica sob critério defensável: **51,4%** | ver abaixo |
 | **fila de exceção** | utility de composição sem padrão | 5 chaves obrigatórias por item |
 
@@ -151,14 +158,21 @@ com a regra — nunca em silêncio. Saída de hoje:
 USOS DE CLASSE               32662   <- o denominador
   ja em contrato nomeado      5847   17,9%
   entidades (430)            16798   51,4%
-  tokenizavel fora            6583   20,2%
-  sem disposicao -> EXCECAO   9281   28,4%
+  tokenizavel fora            7877   24,1%
+  sem disposicao -> EXCECAO   7987   24,5%
 ```
 
 | disposição | usos | |
 |---|---:|---:|
-| **migrável** — entidade + tokenizável | 23.381 | **71,6%** |
-| **fila de exceção** — 5 chaves por item | 9.281 | **28,4%** |
+| **migrável** — entidade + tokenizável | 24.675 | **75,5%** |
+| **fila de exceção** — 5 chaves por item | 7.987 | **24,5%** |
+
+> **Corrigido na rodada 2.** A primeira versão do oráculo trazia `p` e `m` crus
+> no regex de família tokenizável — `p(?:-|$)` casa `p-2.5` mas **não** casa
+> `px- py- pt- pb- pl- pr- mt- mb- ml- mx- my-`. Onze das quinze variantes ficavam
+> de fora, e como spacing é família **bloqueante**, **1.294 usos de trabalho
+> obrigatório eram classificados como exceção aprovável** — falso-verde dentro do
+> próprio oráculo que este plano usa como fonte da verdade.
 
 O bloqueante é que a soma dê **100%** com toda exceção justificada, não que a
 primeira linha atinja um percentual escolhido por mim.
@@ -200,8 +214,8 @@ ecossistema" foi retratada.
 
 **Por que B vem antes de A na entidade canônica:** sem normalizar ordem e
 equivalência, `flex items-center gap-2` e `items-center gap-2 flex` contam como
-bundles **diferentes**, e a contagem de 739 entidades está subestimada. O
-número 68,9% é portanto um **piso**.
+bundles **diferentes**, e a contagem de 739 entidades está subestimada. O critério vigente (§2.4) exige repetição **e** tamanho; sob ele são 430
+entidades e 51,4%, e esse número é igualmente um **piso**.
 
 ---
 
@@ -233,11 +247,25 @@ NORMALIZE → MINE → EXTRACT → CLUSTER → CONVERGE → REPORT → DECIDE �
 | px em `index.css` | → escala de spacing (oráculo do eixo B) |
 | `className` | normalização de ordem/equivalência/sobreposição |
 
-**Verificação cruzada obrigatória.** Hoje lemos `className` por regex e **269
-atributos `className={...}` dinâmicos** ficam parcialmente invisíveis. `NORMALIZE` tem duas fontes —
-estática (AST) e renderizada (computed style via Playwright, que já temos na fase
-de evidência). Se a contagem por fonte divergir da contagem por DOM, **há
-vazamento e o loop para**.
+**Verificação cruzada, com direção definida.** Lemos `className` por regex e
+**269 atributos `className={...}` dinâmicos** ficam parcialmente invisíveis.
+`NORMALIZE` tem duas fontes: estática (AST) e renderizada (computed style via
+Playwright).
+
+A versão anterior dizia *"se a contagem divergir, o loop para"* — o que
+**travaria sempre**: o censo estático inclui branches nunca renderizados
+(condicionais, rotas de erro, estados de modal) e o DOM só vê o que foi visitado.
+**Divergência é o estado normal, e por isso a regra não pode ser sobre magnitude
+— tem que ser sobre direção:**
+
+| direção | significado | ação |
+|---|---|---|
+| classe **no DOM** e ausente do censo estático | **vazamento real** — o scanner não enxerga o que o app renderiza | **PARA** |
+| classe **no censo** e ausente do DOM | apenas não exercitada por aquele conjunto de rotas | registra, **não para** |
+
+O conjunto de rotas e estados é **o mesmo declarado em F-H** (`EVIDENCE`) — não um
+conjunto próprio, senão as duas fases medem universos diferentes e nenhuma das
+duas prova nada.
 
 ### 4.2 `MINE` — e o bug que ela existe para impedir
 
@@ -263,7 +291,7 @@ app e reportou sucesso**. Requisitos da fase:
 |---|---|---|---|
 | **F-A** | validar libs (LEI ZERO) | **✔ concluída — §5.1** | 3 subagents, código clonado e executado |
 | **F-A2** | LEI ZERO do **veículo de entidade** | **✔ concluída — §5.3** | miner rodado contra 10 fixtures |
-| **F-B** | `NORMALIZE` | 158 `style={{}}` + 28 ocorrências de cor + 172 px | `measure-coverage.mjs`, antes/depois |
+| **F-B** | `NORMALIZE` | 158 `style={{}}` + **11 cores cravadas** + 172 px | `measure-coverage.mjs` **não cobre CSS** — F-B precisa do seu próprio medidor de `index.css` |
 | **F-B2** | HTML semântico (spec nº 3 do dono) | `<div onClick>` → `<button>`, landmarks | os 59 clusters sem owner recontados — §7.1 |
 | **F-C** | `MINE` no loop | **✔ concluída** — ext derivada + guard | regressão 3/3, 722/723 arquivos |
 | **F-D0** | **validar os pesos** | conjunto rotulado, amostra e limiar | ver §5.2 — **bloqueia F-F** |
@@ -290,9 +318,18 @@ intenção, não mitigação.
 |---|---|
 | **amostra** | 40 pares estratificados: 10 de confiança ≥85, 10 de 70–85, 10 na faixa de corte 60–70, 10 da fila humana |
 | **rótulo** | o dono responde apenas *"mesmo contrato?"* sim/não, sem ver a nota |
-| **limiar de aceite** | concordância ≥ 85% (34/40). O par da fila humana conta como acerto se o processo **não** fundiu |
+| **limiar de aceite** | concordância ≥ 85% (34/40) **E piso de 7/10 na faixa 60–70** |
+| **regra da fila humana** | o par conta como acerto **só se o rótulo do dono confirmar que a dúvida era real** (ele responde "não é o mesmo contrato", ou responde "é" e marca como difícil). Se ele responder "é o mesmo contrato" sem hesitar, o processo **errou ao não fundir** e isso conta como falha |
 | **se reprovar** | as 211 fusões são invalidadas, os pesos são reajustados por regressão sobre os 40 rótulos, e a convergência roda de novo. **Não** se aplica nada com pesos reprovados |
 | **bloqueia** | F-F (`APPLY`) |
+
+> **Duas armadilhas de calibração, apontadas pela rodada 2.** A regra original
+> dizia *"o par da fila humana conta como acerto se o processo não fundiu"* — e
+> **todo** par da fila humana é, por definição, um par que o processo não fundiu.
+> Eram **10 acertos automáticos**, e a barra efetiva caía de 34/40 para 24/30.
+> Pior: sem piso por estrato, `10 + 10 + 7 + 7 = 34` **passa com 30% de erro na
+> faixa 60–70**, que é exatamente onde o erro mora — a faixa de corte. As duas
+> linhas acima corrigem isso.
 
 O custo para o dono é 40 respostas binárias. É o menor preço para não aplicar 211
 decisões sustentadas por números que inventei.
@@ -415,9 +452,21 @@ e o `surfaceRole` degrada de `input` para `structural`.
 
 **LEI ZERO satisfeita sem invenção:** o padrão **já existe no repo** —
 `src/pages/Admin/AgentBuilder/VariableInput/index.jsx` Linha 33 tem
-`const FIELD_TEXT = "block w-full p-2.5 text-sm"`. Não estamos criando convenção,
-estamos promovendo uma local para módulo compartilhado. `clsx@1.2.1` já está
-instalado.
+`const FIELD_TEXT = "block w-full p-2.5 text-sm"` (hoje **não exportado** — daí
+"promover", não "criar").
+
+**As dependências precisam ser declaradas, e não estão.** `tailwind-merge`
+**não existe** no `node_modules` do alvo; `clsx@1.2.1` está presente mas é
+**transitivo** — zero ocorrências nas `dependencies` do `package.json`. Importar
+dependência transitiva em código de aplicação é dependência não declarada, e
+quebra quando o hoisting mudar. F-D começa com `npm i clsx tailwind-merge`
+explícito.
+
+> Ressalva medida sobre o `tailwind-merge`: ele deduplica o caso real
+> `w-full … w-full` e respeita override, mas **não funde**
+> `focus:outline-primary-button` com `focus:outline-none`, porque é utility
+> custom fora do grupo conhecido — exige `extendTailwindMerge`. E são 1,01 MB
+> unpacked, o maior custo do pacote.
 
 #### Três premissas minhas que caíram
 
@@ -428,9 +477,11 @@ instalado.
    `base` + extras aditivos**, não uma string congelada — o que também derruba o
    argumento de variantes da `cva`/`tv`, porque o drift é aditivo pontual
    (`mt-2`, `pr-10`), não um eixo de variante limpo.
-2. **91 call sites não têm `focus:`/`active:outline`** — defeito de
-   acessibilidade real que a tokenização expõe e corrige de graça. E 33 têm
-   classe duplicada no mesmo bundle.
+2. **Call sites sem anel de foco** — defeito de acessibilidade real que a
+   tokenização expõe e corrige de graça. **O número não reproduz sem critério
+   declarado**: medi 91, a rodada 2 mediu 169 com um critério mais frouxo. Fica
+   como achado direcional até F-B fixar o critério num script. Os **33 com classe
+   duplicada** no mesmo bundle reproduzem exatos.
 3. **Landmine no `tailwind.config.js`:** `content.files` cobre
    `src/{components,pages}/**/*.{js,jsx}`, `src/{hooks,models,utils}/**/*.js`,
    `src/*.jsx` — **`src/styles/**` não é varrido**. Contrato posto ali tem as
@@ -482,7 +533,7 @@ fato tem duas partes.
 | rev2 (F4–F7) | oráculo de equivalência, conflito, codemod `ts-morph`, prevenção |
 | rev2 (F9) | prova visual |
 | redireções do dono nesta sessão | contexto por token, iteração até ponto fixo, sinais ponderados, corte de incerteza |
-| pergunta do dono sobre `rounded-lg` | entidade canônica (**maior alavanca: 68,9%**) |
+| pergunta do dono sobre `rounded-lg` | entidade canônica (**maior alavanca: 51,4%**) |
 | pergunta do dono sobre vetores | `NORMALIZE` como passo inicial |
 | **spec nº 3 do pedido original** | HTML semântico — ver §7.1 |
 

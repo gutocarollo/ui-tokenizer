@@ -54,8 +54,22 @@ const SKIP = new Set(["node_modules", ".git", "dist", "build", ".next", "coverag
 const CLS = /className\s*=\s*(?:"([^"]*)"|\{`([^`]*)`\}|\{"([^"]*)"\})/g;
 const DYN = /className\s*=\s*\{/g;
 
-/** Familias que um design system NOMEIA. `flex`/`absolute` nao entram: sao composicao. */
-const TOKENIZAVEL = /^(?:hover:|focus:|active:|group-hover:|dark:|light:|disabled:|focus-visible:|sm:|md:|lg:|xl:|2xl:)*-?(?:bg|text|border|ring|shadow|fill|stroke|outline|divide|accent|caret|placeholder|p|m|gap|space|rounded|font|leading|tracking)(?:-|$)/;
+/**
+ * Familias que um design system NOMEIA. `flex`/`absolute`/`w-`/`h-` nao entram:
+ * sao composicao e dimensionamento, nao decisao de design.
+ *
+ * ATENCAO ao spacing direcional. A primeira versao trazia `p` e `m` crus, e
+ * `p(?:-|$)` casa `p-2.5` mas NAO casa `px- py- pt- pb- pl- pr-` nem
+ * `mt- mb- ml- mr- mx- my-`. Onze das quinze variantes ficavam de fora. Como
+ * spacing e familia BLOQUEANTE, o efeito era 1.294 usos de trabalho obrigatorio
+ * classificados como "excecao aprovavel" — falso-verde no proprio oraculo que o
+ * plano usa como fonte da verdade. Achado pela review adversarial rodando o
+ * script com o fix de uma linha.
+ *
+ * `s`/`e` cobrem as variantes logicas (ms- me- ps- pe-). Nao ha falso positivo:
+ * `mask-` para em `a`, `min-w-` para em `i` — nenhum e seguido de `-` ou fim.
+ */
+const TOKENIZAVEL = /^(?:hover:|focus:|active:|group-hover:|dark:|light:|disabled:|focus-visible:|sm:|md:|lg:|xl:|2xl:)*-?(?:bg|text|border|ring|shadow|fill|stroke|outline|divide|accent|caret|placeholder|p[xytrbles]?|m[xytrbles]?|gap|space|rounded|font|leading|tracking)(?:-|$)/;
 
 /** Uso que ja passa por contrato: a classe cita um token nomeado do DS. */
 const EM_CONTRATO = /-(?:theme|surface|content|primary-button|secondary|menu-item|modal|sidebar|chat|checklist-item|search-input|file-row|workspace-item)(?:-|$)/;
