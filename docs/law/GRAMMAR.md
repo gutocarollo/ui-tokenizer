@@ -15,6 +15,17 @@
 > `FORBIDDEN = ("surface", "semantic", "content")` in
 > [`tools/gates/ds-naming-law.py`](../../tools/gates/ds-naming-law.py) Linha 121.
 
+> **EXTENDED 2026-07-31 (2) — the ban covers FRAMING, not only token names.**
+> The three words are whitelabels that hide the physical entity (button, modal,
+> text). They may appear ONLY as *old name being eliminated* — never as the NAME
+> of a family, artifact, report section, variable, or concept. The text family
+> is called by its physical entity (**text / foreground**), the background
+> family by **background** — never "the content family" / "the surface family".
+> Every migration doc or artifact states the one-way rule up front: banned words
+> are SOURCE, never TARGET. (Origin: the owner caught reports and artifacts
+> baptized `content-*`, which teaches future agents to keep thinking in the
+> banned vocabulary.)
+
 > **De onde vem esta ordem — e de onde NÃO vem.** O DTCG é agnóstico quanto a
 > naming: *"Groups are arbitrary and tools SHOULD NOT use them to infer the type
 > or purpose of design tokens."* Citá-lo para justificar ordem de segmentos é
