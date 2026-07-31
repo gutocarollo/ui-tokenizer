@@ -6,6 +6,14 @@
 > só entra onde o processo o toca (sync da skill vendorizada, paths de steps).
 > Status: AGUARDANDO avaliação do dono após 1 rodada adversarial.
 
+> ⚠ **O TERRENO MUDOU EM 2026-08-01, depois que este plano foi escrito.** Três
+> correções estruturais entraram na lei (variante colada à entidade; entidade
+> global como cabeça legítima; banimento cobrindo enquadramento), a suíte com
+> alvo passou de 278 para **287 testes**, e a Fase A4 fechou pela metade — ver a
+> atualização na própria fase. O corpo abaixo permanece como foi revisado, para
+> a avaliação não perseguir um alvo móvel; as divergências estão marcadas onde
+> ocorrem.
+
 ## 0. Auditoria da lista do dono (pré-requisito §14.1)
 
 | # | Claim | Veredicto | Evidência |
@@ -116,6 +124,20 @@ intenção; este, da execução.
   `inventory-usage.mjs` ou lê `--json` de verdade ou a usage para de anunciar.
   Critério: teste novo que valida CADA step contra a usage real do script
   invocado (mesma classe do `lei-x-familias`: registro × contrato).
+> **ATUALIZAÇÃO 2026-08-01 — a metade cara da A4 já caiu, por necessidade do
+> cookbook.** O `validate-cookbook.mjs` precisa só da LEI, não de um app-alvo, e
+> ao escrevê-lo o efeito de módulo estourou na cara. `PROJECT` virou preguiçoso
+> em `score-naming.mjs` (só `collectUses` e o CLI o resolvem). Medido, sem env de
+> alvo: a suíte foi de **166 testes / 132 pass / 31 fail** para **287 / 255 / 29**,
+> e os dois testes que crashavam no próprio import voltaram a rodar — 114/114.
+> O invariante lei × família, que não rodava em lugar nenhum, agora roda.
+>
+> **O que RESTA da A4:** fechar o gate. `validate-contract.mjs` ainda tem zero
+> referências a `PREFIX_PROPERTY`/`utility-families` (medido: `grep -c` = 0), ou
+> seja, continua PASSando enquanto a lei e o motor divergem. A extração da função
+> compartilhada para `lib/` e o import pelos dois lados é o que sobra — barato
+> agora que o side effect saiu do caminho.
+
 - **A4. Gate fecha lei × PREFIX_PROPERTY — e destrava o invariante** — a
   causa de o invariante não rodar em lugar nenhum é o side effect de módulo de
   `score-naming.mjs:48-49` (resolve o alvo no import). Fix: mover leitura da
