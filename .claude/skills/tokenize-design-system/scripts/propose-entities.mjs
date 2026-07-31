@@ -563,7 +563,7 @@ function localizarPorCenso(root, arquivos, contratos) {
       return lo + 1;
     };
     for (const at of classNameAttributes(texto)) {
-      const nomes = at.kind === "expr" ? contratosNaExpressao(at.expr, contratos) : [];
+      const nomes = at.kind === "expr" ? contratosNaExpressao(at.expr, contratos, { arquivo: f, texto }) : [];
       const cs = [...at.classes, ...nomes.flatMap((n) => contratos.get(n).classes)];
       if (!cs.length) continue;
       const k = bundleKey(cs);

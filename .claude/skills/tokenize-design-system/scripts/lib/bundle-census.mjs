@@ -201,13 +201,53 @@ export function tabelaDeContratos(textos) {
  * lida como referência à `const BASE_CARD` e as classes seriam contadas duas
  * vezes — uma pelo literal, outra pelo contrato.
  */
-export function contratosNaExpressao(expr, contratos) {
+/**
+ * Identificadores de contrato citados numa expressao `className={...}`.
+ *
+ * DOIS FILTROS, cada um comprado com um bundle FABRICADO no alvo real:
+ *
+ * 1. CHAMADA DE FUNCAO NAO E REFERENCIA A STRING. `ui/TagsInput/index.jsx`
+ *    declara `function classNames(...values)` e usa
+ *    `className={classNames("rti--tag", className)}`. Outro arquivo,
+ *    `AgentSkills/SkillRow/index.jsx`, declara `let classNames = "border-none
+ *    bg-transparent w-full ..."`. Sem este filtro o censo lia a CHAMADA como
+ *    referencia aquela string e inventava um bundle que nao existe em runtime —
+ *    e a proposta chegou a sugerir `cn(COMMON_ROW_W_FULL, "rti--tag ...")` para
+ *    um componente que nunca teve aquelas classes.
+ *
+ * 2. ESCOPO. Um `const` declarado no arquivo A so vale no arquivo B se B o
+ *    IMPORTAR. Sem isso qualquer homonimo entre arquivos vira o mesmo contrato.
+ *    `arquivo` e `texto` sao opcionais: quando ausentes a funcao mantem o
+ *    comportamento antigo, entao nenhum chamador quebra em silencio — mas os
+ *    dois chamadores do repo passam ambos.
+ */
+export function contratosNaExpressao(expr, contratos, { arquivo, texto } = {}) {
+  const codigo = apenasCodigo(expr);
   const out = [];
-  for (const m of apenasCodigo(expr).matchAll(IDENT_NA_EXPR)) {
+  for (const m of codigo.matchAll(IDENT_NA_EXPR)) {
     const id = m[1];
-    if (contratos.has(id) && !out.includes(id)) out.push(id);
+    if (!contratos.has(id) || out.includes(id)) continue;
+    // (1) `id(` e chamada, nao leitura da string
+    const depois = codigo.slice(m.index + id.length);
+    if (/^\s*\(/.test(depois)) continue;
+    // (2) declarado NESTE arquivo, ou importado por ele
+    if (arquivo !== undefined && texto !== undefined) {
+      const decl = contratos.get(id);
+      const daqui = Array.isArray(decl?.arquivos) && decl.arquivos.includes(arquivo);
+      if (!daqui && !importadoNoTexto(id, texto)) continue;
+    }
+    out.push(id);
   }
   return out;
+}
+
+/** `id` aparece na lista de especificadores de algum `import` do arquivo. */
+function importadoNoTexto(id, texto) {
+  for (const m of texto.matchAll(/import\s+([^;]*?)\s+from\s*["'][^"']+["']/g)) {
+    const spec = m[1];
+    if (new RegExp(`(^|[{,\\s])${id}([},\\s]|$)`).test(spec)) return true;
+  }
+  return false;
 }
 
 /**
@@ -312,7 +352,7 @@ export function census(root) {
    */
   for (const [f, t] of textos) {
     for (const at of classNameAttributes(t, descartados)) {
-      const nomes = at.kind === "expr" ? contratosNaExpressao(at.expr, contratos) : [];
+      const nomes = at.kind === "expr" ? contratosNaExpressao(at.expr, contratos, { arquivo: f, texto: t }) : [];
       const doContrato = nomes.flatMap((n) => contratos.get(n).classes);
       const cs = [...at.classes, ...doContrato];
 
