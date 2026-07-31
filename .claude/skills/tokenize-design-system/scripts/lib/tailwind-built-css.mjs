@@ -198,9 +198,36 @@ export async function carregarCssBuildado(root) {
   try { twPkg = JSON.parse(readFileSync(req.resolve("tailwindcss/package.json"), "utf8")).version; }
   catch { twPkg = null; }
 
-  let ds;
-  try {
-    ds = await tw.__unstable__loadDesignSystem(readFileSync(entrada, "utf8"), {
+    /*
+     * O CONFIG PRECISA ENTRAR, e o motivo e uma divergencia real entre como o
+     * app builda e como este probe le.
+     *
+     * O alvo roda Tailwind v4 mas o `src/index.css` esta escrito no estilo v3 —
+     * `@tailwind base/components/utilities`, sem `@import "tailwindcss"` e sem
+     * `@config`. O `vite build` funciona porque a via PostCSS carrega o
+     * `tailwind.config.js` por fora do CSS. Ja o `__unstable__loadDesignSystem`
+     * so enxerga o que o CSS declara — entao nao acha as 232 cores da ponte de
+     * tokens e recusa `@apply border-info` com "unknown utility class", mesmo a
+     * classe existindo e funcionando no app.
+     *
+     * Sem isto o probe media um design system DIFERENTE do que o app compila e
+     * reportava "indisponivel" por um motivo que nao e defeito do app.
+     *
+     * `@config` so e injetado quando o CSS NAO o declara: se o alvo migrar para
+     * o estilo v4, a diretiva dele vence e nada e sobrescrito.
+     */
+    let fonteCss = readFileSync(entrada, "utf8");
+    const configDoAlvo = ["tailwind.config.js", "tailwind.config.mjs", "tailwind.config.cjs", "tailwind.config.ts"]
+      .map((n) => path.join(root, n))
+      .find((p) => existsSync(p));
+    if (configDoAlvo && !/@config\s/.test(fonteCss)) {
+      const rel = path.relative(path.dirname(entrada), configDoAlvo).replace(/\\/g, "/");
+      fonteCss = `@config "${rel.startsWith(".") ? rel : "./" + rel}";\n${fonteCss}`;
+    }
+
+    let ds;
+    try {
+      ds = await tw.__unstable__loadDesignSystem(fonteCss, {
       base: path.dirname(entrada),
       onDependency() {},
     });

@@ -51,7 +51,20 @@ function config(runId) {
         validator: "color-validator",
         namingContract: "color-contract",
         emitter: "token-emitter",
-        completionPredicateIds: ["P1"],
+        /*
+         * ID REAL do vocabulario fechado do §14, nao um placeholder.
+         *
+         * Este fixture usava "P1" desde o commit inicial. Quando o schema fechou
+         * `absoluteCompletionPredicateId` num enum de 24 IDs, o fixture nao foi
+         * junto — e as 7 falhas resultantes ficaram invisiveis porque a suite
+         * que eu rodava para reportar "0 fail" (so `test/*.test.mjs` da skill)
+         * NAO inclui este arquivo, enquanto o gate commitado
+         * `tokens:workflow:test` inclui.
+         *
+         * A suite que eu escolhia media coisa diferente do gate do repo. Foi a
+         * review adversarial que apontou, rodando o gate em vez do meu comando.
+         */
+        completionPredicateIds: ["inventory.class-projection-reconciled"],
       },
     ],
     matrix: {
@@ -128,6 +141,11 @@ function inventoryArtifacts(run) {
   const design = {
     ...common,
     artifactType: "design-occurrence",
+    // Terceira fixture com o mesmo buraco: o refactor de linhagem tornou
+    // `recordStage` e `supersedes` obrigatorios no schema e nao atualizou
+    // fixture nenhuma. `raw` e a base da cadeia e nao supera ninguem.
+    recordStage: "raw",
+    supersedes: null,
     occurrenceId: "occ-1",
     occurrenceKind: "utility-class",
     axis: "color",
