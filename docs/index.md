@@ -24,6 +24,12 @@ Catálogo por categoria, orientado a conteúdo. Para ordem cronológica, ver
 | [`law/GRAMMAR.md`](law/GRAMMAR.md) | a gramática de naming: vocabulário fechado de owners, anatomias, propriedades, variantes e estados | living |
 | [`law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md`](law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md) | §4.3 tem 7 propriedades e as 7 são pintura: radius, spacing e tipografia não têm slot. Achado de F-E, emenda proposta e NÃO aplicada | event |
 
+## Arquitetura
+
+| doc | o que é | status |
+|---|---|---|
+| [`architecture/2026-07-31-fork-da-skill-causa-raiz.md`](architecture/2026-07-31-fork-da-skill-causa-raiz.md) | por que existe uma cópia vendorizada da skill, o que a medição refutou, e o guard de dois níveis | event |
+
 ## Planos
 
 Coleção: `plans/` — ver [`plans/README.md`](plans/README.md).

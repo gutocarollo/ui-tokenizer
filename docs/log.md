@@ -21,10 +21,51 @@ prefixos não têm slot. Nada foi forçado — as famílias sem slot falham fech
 num balde `LAW GAP` declarado, e a emenda está proposta, não aplicada.
 
 Medido no alvo (`measure-coverage.mjs`): tokenizável fora de entidade
-**7.877 → 7.948** (24,1% → 24,3%), exceção **7.987 → 7.916** (24,5% → 24,2%).
-Os 71 usos vêm da cadeia de variante genérica — a allowlist fixa não enxergava
-`placeholder:` (339 usos), `peer-checked/public:`, `group-disabled:`,
-`enabled:`, `after:`, `[&_p]:`. Mesmo defeito do `p`/`px`.
+**7.907 → 7.978**, exceção cai na mesma medida. Os 71 usos vêm da cadeia de
+variante genérica — a allowlist fixa não enxergava `placeholder:` (339 usos),
+`peer-checked/public:`, `group-disabled:`, `enabled:`, `after:`, `[&_p]:`.
+Mesmo defeito do `p`/`px`.
+
+> **Retificação (mesma data).** A redação original dizia que esses 71 usos
+> saíram de "exceção aprovável" para **trabalho BLOQUEANTE**. Falso para 53
+> deles: `placeholder:text-theme-settings-input-placeholder` (17),
+> `light:placeholder:text-content-tertiary` (11),
+> `placeholder:text-content-tertiary` (10),
+> `group-disabled:text-content-tertiary` (4) e afins **já citam token nomeado
+> do DS** — casam `EM_CONTRATO`, logo já estão migrados. Trabalho novo de
+> verdade: **18 usos**, não 71.
+>
+> A causa é maior que a frase: o balde inteiro era rotulado BLOQUEANTE porque
+> `emContrato` nunca era subtraído de balde nenhum. Medido, **2.295 de 7.978
+> (28,8%)** do balde já passam por contrato. Corrigido em
+> `lib/bundle-census.mjs::partition` (quatro baldes, soma verificada) e travado
+> por `scripts/test/bundle-partition.test.mjs` (8/8). O `migrável` do plano cai
+> de **75,5% para 68,9%**.
+>
+> Reproduz o split 71 = 53 + 18:
+>
+> ```bash
+> cd /home/augusto/code/makers-ai-hub/frontend
+> S=/home/augusto/code/ui-tokenizer-v2/.claude/skills/tokenize-design-system/scripts
+> node --input-type=module -e '
+> const S=process.env.S;
+> const {census,isEntity,EM_CONTRATO}=await import(S+"/lib/bundle-census.mjs");
+> const {TOKENIZABLE_UTILITY_RX:NOVO}=await import(S+"/lib/utility-families.mjs");
+> const HEAD=/^(?:hover:|focus:|active:|group-hover:|dark:|light:|disabled:|focus-visible:|sm:|md:|lg:|xl:|2xl:)*-?(?:bg|text|border|ring|shadow|fill|stroke|outline|divide|accent|caret|placeholder|p[xytrbles]?|m[xytrbles]?|gap|space|rounded|font|leading|tracking)(?:-|$)/;
+> const {bundles}=census(process.cwd());
+> let cru=0,contrato=0;
+> for(const[,v]of bundles){ if(isEntity(v,2,4))continue;
+>   for(const c of v.classes) if(!HEAD.test(c)&&NOVO.test(c))
+>     EM_CONTRATO.test(c)?contrato+=v.n:cru+=v.n; }
+> console.log("delta",contrato+cru,"| ja em contrato",contrato,"| trabalho novo",cru);'
+> # delta 71 | ja em contrato 53 | trabalho novo 18
+> ```
+
+**Segundo achado, quantificado só agora:** dos 5.683 usos que sobram como
+trabalho bloqueante real, **3.572 (62,9%)** caem nas propriedades sem slot em
+§4.3 — são trabalho **bloqueado pela lei**, não trabalho executável. O oráculo
+passa a imprimir o veredito por propriedade e a **falhar fechada (exit 3)** se
+não conseguir ler §4.3.
 
 Convergência **não quebra**: no alvo real tudo idêntico (504 ocorrências, 211
 fusões, 41 contratos); em fixture que exercita as famílias novas, clusters
@@ -32,6 +73,19 @@ fusões, 41 contratos); em fixture que exercita as famílias novas, clusters
 cluster sem slot falha fechado antes de derivar nome.
 
 - [`law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md`](law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md)
+
+## [2026-07-31] arquitetura · fork da skill
+
+**Causa raiz medida.** O alvo executa uma cópia divergente da skill — inclusive
+no gate de conclusão. Origem: eu versionei 47 arquivos de código executável para
+calar um guard de **link markdown**. O risco foi declarado em prosa no commit, e
+prosa não é enforcement.
+
+Duas explicações minhas foram **refutadas pela medição**: o alvo não está
+uniformemente atrás, e não são linhagens rivais — 9 dos arquivos "à frente" são
+**trabalho não commitado**, a um `git checkout` de sumir.
+
+- [`architecture/2026-07-31-fork-da-skill-causa-raiz.md`](architecture/2026-07-31-fork-da-skill-causa-raiz.md)
 
 ## [2026-07-30] plano · planos
 
@@ -74,14 +128,6 @@ existiam — 73 órfãos.
 
 - [`ESTADO.md`](ESTADO.md) — estado da empreitada, atualizado
 - `plans/` — coleção de planos
-
-## [2026-07-30] plano · planos
-
-Upstream como oráculo: usar o compilador do Tailwind para decidir equivalência
-por assinatura de CSS compilado, em vez de comparar nome de classe. Rev2
-incorpora a auditoria.
-
-- `plans/` — coleção
 
 ## [2026-07-29] evidência · estudo de caso
 
