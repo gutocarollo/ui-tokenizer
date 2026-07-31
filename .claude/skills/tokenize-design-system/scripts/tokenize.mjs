@@ -197,10 +197,18 @@ writeFileSync(clustersFile, c.out);
 const CL = JSON.parse(c.out);
 const comNome = CL.clusters.filter((x) => x.proposedName);
 const ocorr = comNome.reduce((s, x) => s + x.count, 0);
+// Um cluster sem nome derivado tem DUAS causas possiveis, e chamar as duas de
+// "sem owner" mente sobre onde esta o bloqueio: o owner pode estar perfeitamente
+// resolvido e ainda assim nao haver nome, porque §4.3 da lei nao tem slot para a
+// propriedade daquela familia (radius/spacing/tipografia). Uma some com trabalho
+// de atribuicao; a outra so some com emenda na lei.
+const semSlot = CL.clusters.filter((x) => !x.proposedName && /§4\.3/.test(x.reason ?? ""));
+const semOwner = CL.clusters.filter((x) => !x.proposedName && !/§4\.3/.test(x.reason ?? ""));
 say(`  ${CL.total} ocorrencias que violam a lei`);
 say(`  ${CL.clusters.length} clusters de contexto`);
 say(`  ${comNome.length} com nome DERIVADO (${ocorr} ocorrencias, ${((100 * ocorr) / CL.total).toFixed(1)}%)`);
-say(`  ${CL.clusters.length - comNome.length} sem owner no contexto -> fila de IA`);
+say(`  ${semOwner.length} sem owner no contexto -> fila de IA`);
+say(`  ${semSlot.length} sem slot em §4.3 da lei -> LAW GAP, ${semSlot.reduce((s, x) => s + x.count, 0)} ocorrencias`);
 if (stopAt < 4) finish();
 
 /* ────────────────────────────────────────────────────────────── CONVERGE ── */

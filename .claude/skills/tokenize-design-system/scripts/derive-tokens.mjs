@@ -27,6 +27,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { readVocabulary, parseName, PREFIX_PROPERTY, IMPLIED_PROPERTY } from "./score-naming.mjs";
+import { prefixAlternation, lawSlotFor } from "./lib/utility-families.mjs";
 import { findUseOwner } from "./find-owner.mjs";
 
 import { resolveRoot, resolveLaw } from "./lib/paths.mjs";
@@ -71,8 +72,15 @@ function deriveAnatomy({ prefix, statePrefix, tag }) {
  * the generated DTCG id via `buildName`, so it must be a §4.3 term; raw CSS
  * would emit ids like `button.--tw-ring-color`. See score-naming.mjs.
  */
-function deriveProperty(prefix, anatomy) {
-  const p = PREFIX_PROPERTY[prefix];
+function deriveProperty(prefix, anatomy, vocabulary) {
+  // FAIL CLOSED. F-E widened the prefix table to radius, spacing and typography,
+  // and §4.3 has no slot for any of them. Emitting `card.border-radius` here
+  // would produce a DTCG id whose property segment `parseName` cannot parse back
+  // — a token the oracle itself would score below the cutoff for a defect the
+  // generator introduced. `undefined` means "not derivable"; the caller records
+  // it as unresolved rather than inventing a slot.
+  const p = lawSlotFor(prefix, vocabulary);
+  if (!p) return undefined;
   // §7.2: an anatomy with one possible property need not spell it out.
   if (anatomy && IMPLIED_PROPERTY[anatomy] === p) return null;
   return p;
@@ -173,7 +181,8 @@ if (isMain) {
   const universe = await loadColourNames(PROJECT);
   const values = currentValues();
 
-  const PRE = Object.keys(PREFIX_PROPERTY).join("|");
+  // longest-first: unsorted, `rounded` consumes `rounded-t` and `p` consumes `px`.
+  const PRE = prefixAlternation();
   const rx = new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${PRE})-([a-z][a-z0-9-]*)(?![\\w-])`, "g");
 
   const newTokens = new Map();   // new class -> data
@@ -196,7 +205,12 @@ if (isMain) {
       if (!owner) { unresolved.push({ local, className: `${statePrefix}${prefix}-${legacyToken}`, signal }); continue; }
 
       const anatomy = deriveAnatomy({ prefix, statePrefix, tag: ctx.tag });
-      const property = deriveProperty(prefix, anatomy);
+      const property = deriveProperty(prefix, anatomy, vocabulary);
+      if (property === undefined) {
+        unresolved.push({ local, className: `${statePrefix}${prefix}-${legacyToken}`,
+          signal: `law §4.3 has no slot for \`${PREFIX_PROPERTY[prefix]}\`` });
+        continue;
+      }
       const { variant, state } = deriveVariantState(legacyToken, statePrefix, vocabulary);
       const { dtcg, className } = buildName({ owner, anatomy, property, variant, state });
 

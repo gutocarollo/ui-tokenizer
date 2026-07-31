@@ -19,6 +19,8 @@ import {
 import {
   ABSOLUTE_COMPLETION_PREDICATES,
   ABSOLUTE_COMPLETION_PREDICATE_IDS,
+  ABSOLUTE_REPORT_IDS,
+  ABSOLUTE_REPORT_PREFIX,
   ABSOLUTE_REPORT_PREDICATES,
   absoluteReportId,
 } from "./absolute-completion-contract.mjs";
@@ -499,6 +501,19 @@ export function evaluateAbsoluteCompletion({
       `Absolute evaluation requires REINVENTORIED; current phase is ${state.currentPhase}`
     );
   }
+  const canonicalPredicateIds = new Set(ABSOLUTE_COMPLETION_PREDICATE_IDS);
+  for (const axisContract of config?.axisRegistry ?? []) {
+    const invalidPredicateIds = axisContract.completionPredicateIds.filter(
+      (predicateId) => !canonicalPredicateIds.has(predicateId)
+    );
+    if (invalidPredicateIds.length > 0) {
+      globalGaps.push(
+        `run-config axisRegistry.${axisContract.axis}.completionPredicateIds contains non-canonical IDs: ${invalidPredicateIds.join(
+          ", "
+        )}`
+      );
+    }
+  }
 
   const sourceEvaluation = config
     ? fingerprintSourceRoots({
@@ -516,6 +531,28 @@ export function evaluateAbsoluteCompletion({
         canonical: null,
       };
   globalGaps.push(...toolchainEvaluation.problems);
+  const currentAbsoluteReportIds = reportRecords
+    .map(({ artifact }) => artifact)
+    .filter(
+      (artifact) =>
+        artifact?.artifactType === "inventory-report" &&
+        artifact.sourceFingerprint === currentFingerprint &&
+        typeof artifact.reportId === "string" &&
+        artifact.reportId.startsWith(ABSOLUTE_REPORT_PREFIX)
+    )
+    .map((artifact) => artifact.reportId);
+  if (
+    currentAbsoluteReportIds.length !== ABSOLUTE_REPORT_IDS.length ||
+    new Set(currentAbsoluteReportIds).size !== currentAbsoluteReportIds.length ||
+    !sameSet(
+      new Set(currentAbsoluteReportIds),
+      new Set(ABSOLUTE_REPORT_IDS)
+    )
+  ) {
+    globalGaps.push(
+      `Current absolute/* inventory-report IDs must equal exactly the ${ABSOLUTE_REPORT_IDS.length} canonical report-backed predicate IDs with no missing, duplicate, or extra IDs`
+    );
+  }
 
   const validator = (() => {
     try {

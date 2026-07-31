@@ -3,7 +3,12 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ABSOLUTE_COMPLETION_PREDICATE_IDS } from "./absolute-completion-contract.mjs";
+import {
+  ABSOLUTE_COMPLETION_PREDICATE_IDS,
+  ABSOLUTE_REPORT_IDS,
+  ABSOLUTE_REPORT_PREFIX,
+} from "./absolute-completion-contract.mjs";
+import { resolveDesignOccurrenceLineage } from "./design-occurrence-lineage.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_SCHEMA_PATH = path.resolve(
@@ -1036,15 +1041,12 @@ function checkSourceKindRegistry(runConfig, violations) {
 
 function checkDesignReconciliation(
   index,
+  currentDesignRecords,
   targetPhase,
   activeSourceFingerprint,
   violations
 ) {
-  const design = (index.get("design-occurrence") ?? [])
-    .map((record) => record.artifact)
-    .filter(
-      (artifact) => artifact.sourceFingerprint === activeSourceFingerprint
-    );
+  const design = currentDesignRecords.map((record) => record.artifact);
   if (
     (phaseAtLeast(targetPhase, "INVENTORIED") || targetPhase === "COMPLETE") &&
     design.length === 0
@@ -1054,16 +1056,6 @@ function checkDesignReconciliation(
         "design-reconciliation",
         "E-EXTRACT",
         "Active source design inventory is empty"
-      )
-    );
-  }
-  const ids = design.map((artifact) => artifact.occurrenceId);
-  for (const duplicate of duplicateValues(ids)) {
-    violations.push(
-      violation(
-        "design-reconciliation",
-        "E-EXTRACT",
-        `Design occurrence ID is not unique: ${duplicate}`
       )
     );
   }
@@ -1119,6 +1111,7 @@ function phaseAtLeast(targetPhase, phase) {
 
 function checkClassProjection(
   index,
+  currentDesignRecords,
   targetPhase,
   activeSourceFingerprint,
   violations
@@ -1126,11 +1119,7 @@ function checkClassProjection(
   if (!phaseAtLeast(targetPhase, "NORMALIZED") && targetPhase !== "COMPLETE") {
     return;
   }
-  const design = (index.get("design-occurrence") ?? [])
-    .map((record) => record.artifact)
-    .filter(
-      (artifact) => artifact.sourceFingerprint === activeSourceFingerprint
-    );
+  const design = currentDesignRecords.map((record) => record.artifact);
   const normalized = (index.get("normalized-occurrence") ?? [])
     .map((record) => record.artifact)
     .filter(
@@ -1197,6 +1186,7 @@ function checkClassProjection(
 
 function checkAxisDiscovery(
   index,
+  currentDesignRecords,
   runConfig,
   targetPhase,
   activeSourceFingerprint,
@@ -1219,11 +1209,7 @@ function checkAxisDiscovery(
   const registeredKinds = new Set(
     runConfig.sourceKindRegistry.map((entry) => entry.occurrenceKind)
   );
-  const activeDesign = (index.get("design-occurrence") ?? [])
-    .map((record) => record.artifact)
-    .filter(
-      (artifact) => artifact.sourceFingerprint === activeSourceFingerprint
-    );
+  const activeDesign = currentDesignRecords.map((record) => record.artifact);
   const actualAxisCounts = new Map();
   const actualKindCounts = new Map();
   for (const artifact of activeDesign) {
@@ -1422,6 +1408,75 @@ function checkAxisDiscovery(
         )
       );
     }
+  }
+}
+
+function checkAbsoluteCompletionRegistry(
+  index,
+  runConfig,
+  targetPhase,
+  activeSourceFingerprint,
+  violations
+) {
+  const canonicalPredicateIds = new Set(ABSOLUTE_COMPLETION_PREDICATE_IDS);
+  for (const axisContract of runConfig.axisRegistry) {
+    const invalidPredicateIds = axisContract.completionPredicateIds.filter(
+      (predicateId) => !canonicalPredicateIds.has(predicateId)
+    );
+    if (invalidPredicateIds.length > 0) {
+      violations.push(
+        violation(
+          "absolute-completion-registry",
+          "E-EXTRACT",
+          `axisRegistry.${axisContract.axis}.completionPredicateIds contains non-canonical IDs`,
+          runConfig,
+          { invalidPredicateIds }
+        )
+      );
+    }
+  }
+
+  const absoluteReportIds = (index.get("inventory-report") ?? [])
+    .map((record) => record.artifact)
+    .filter(
+      (artifact) =>
+        artifact.sourceFingerprint === activeSourceFingerprint &&
+        artifact.reportId.startsWith(ABSOLUTE_REPORT_PREFIX)
+    )
+    .map((artifact) => artifact.reportId);
+  const canonicalReportIds = new Set(ABSOLUTE_REPORT_IDS);
+  const invalidReportIds = absoluteReportIds.filter(
+    (reportId) => !canonicalReportIds.has(reportId)
+  );
+  if (invalidReportIds.length > 0) {
+    violations.push(
+      violation(
+        "absolute-completion-registry",
+        "E-EXTRACT",
+        "absolute/* inventory-report IDs contain non-canonical report-backed predicates",
+        runConfig,
+        { invalidReportIds: [...new Set(invalidReportIds)] }
+      )
+    );
+  }
+  if (
+    targetPhase === "COMPLETE" &&
+    (absoluteReportIds.length !== ABSOLUTE_REPORT_IDS.length ||
+      duplicateValues(absoluteReportIds).length > 0 ||
+      !sameSet(new Set(absoluteReportIds), canonicalReportIds))
+  ) {
+    violations.push(
+      violation(
+        "absolute-completion-registry",
+        "E-EXTRACT",
+        `COMPLETE requires exactly the ${ABSOLUTE_REPORT_IDS.length} canonical absolute/* inventory-report IDs with no missing, duplicate, or extra IDs`,
+        runConfig,
+        {
+          expectedReportIds: ABSOLUTE_REPORT_IDS,
+          actualReportIds: absoluteReportIds.sort(),
+        }
+      )
+    );
   }
 }
 
@@ -2652,14 +2707,59 @@ export function validateArtifactSet({
   checkRunIdentity(schemaValidRecords, runConfig, violations);
   checkSourceKindRegistry(runConfig, violations);
   checkSourceFreshness(index, schemaValidRecords, runConfig, violations);
+  /*
+   * A PROJECAO ATIVA da historia imutavel de design-occurrence.
+   *
+   * O extrator emite um registro `raw` por ocorrencia; a classificacao emite no
+   * maximo um `classified` com o mesmo ID e um ponteiro criptografico para
+   * aquele raw exato. O raw permanece no fechamento de referencia para
+   * auditabilidade — por isso `index.get("design-occurrence")` devolve AMBOS, e
+   * consumir isso direto conta cada ocorrencia duas vezes.
+   *
+   * Esta chamada faltava. O refactor que introduziu o parametro
+   * `currentDesignRecords` nas tres funcoes abaixo atualizou as ASSINATURAS e
+   * nao os CALL SITES: as tres eram invocadas com 4 argumentos para 5
+   * parametros, entao `currentDesignRecords` recebia a string `targetPhase` e
+   * `"COMPLETE".map` estourava com `TypeError: currentDesignRecords.map is not
+   * a function`. O modulo `design-occurrence-lineage.mjs` estava escrito e
+   * importado, e `resolveDesignOccurrenceLineage` nunca era chamada.
+   *
+   * As violacoes da linhagem entram no mesmo balde: raw duplicado, `supersedes`
+   * nao-nulo num raw e mais de um `classified` por identidade sao defeitos de
+   * contrato, nao ruido de resolucao.
+   */
+  const designLineage = resolveDesignOccurrenceLineage({
+    records: index.get("design-occurrence") ?? [],
+    runRoot,
+    runId: runConfig.runId,
+    sourceFingerprint: activeSourceFingerprint,
+  });
+  violations.push(...designLineage.violations);
+  const currentDesignRecords = designLineage.currentRecords;
+
   checkDesignReconciliation(
     index,
+    currentDesignRecords,
     targetPhase,
     activeSourceFingerprint,
     violations
   );
-  checkClassProjection(index, targetPhase, activeSourceFingerprint, violations);
+  checkClassProjection(
+    index,
+    currentDesignRecords,
+    targetPhase,
+    activeSourceFingerprint,
+    violations
+  );
   checkAxisDiscovery(
+    index,
+    currentDesignRecords,
+    runConfig,
+    targetPhase,
+    activeSourceFingerprint,
+    violations
+  );
+  checkAbsoluteCompletionRegistry(
     index,
     runConfig,
     targetPhase,

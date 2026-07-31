@@ -8,12 +8,13 @@ import {
   openSync,
   readFileSync,
   renameSync,
+  unlinkSync,
   writeSync,
 } from "node:fs";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { canonicalJson } from "./lib/artifact-contract.mjs";
+import { canonicalJson, sha256Bytes } from "./lib/artifact-contract.mjs";
 import { evaluateAbsoluteCompletion } from "./lib/absolute-completion.mjs";
 
 function usage() {
@@ -99,6 +100,37 @@ function atomicWriteJson(filePath, value) {
   fsyncDirectory(directory);
 }
 
+function archiveCanonicalProof(outPath) {
+  const absolute = path.resolve(outPath);
+  if (!existsSync(absolute)) return null;
+  const bytes = readFileSync(absolute);
+  const directory = path.dirname(absolute);
+  const archiveDirectory = path.join(
+    directory,
+    `.${path.basename(absolute)}.archive`
+  );
+  const archivePath = path.join(
+    archiveDirectory,
+    `${sha256Bytes(bytes)}.invalidated`
+  );
+  mkdirSync(archiveDirectory, { recursive: true });
+
+  if (existsSync(archivePath)) {
+    const archivedBytes = readFileSync(archivePath);
+    if (!archivedBytes.equals(bytes)) {
+      throw new Error(
+        `Refusing to invalidate ${absolute}: deterministic archive collision at ${archivePath}`
+      );
+    }
+    unlinkSync(absolute);
+  } else {
+    renameSync(absolute, archivePath);
+  }
+  fsyncDirectory(archiveDirectory);
+  fsyncDirectory(directory);
+  return archivePath;
+}
+
 function existingProofGeneratedAt(outPath) {
   if (!existsSync(outPath)) return null;
   try {
@@ -128,34 +160,54 @@ export function runAbsoluteCompletionCli(argv) {
   requireWithinRunRoot(runRoot, gapReportPath, "--gap-report");
   const generatedAt =
     existingProofGeneratedAt(outPath) ?? new Date().toISOString();
-  const evaluation = evaluateAbsoluteCompletion({
-    applicationRoot,
-    runRoot,
-    finalMatrixPath: path.resolve(
-      options.matrix ?? path.join(runRoot, "final", "evidence-manifest.json")
-    ),
-    finalChecksPath: path.resolve(
-      options.checks ?? path.join(runRoot, "final", "deterministic-checks.json")
-    ),
-    finalReviewPath: path.resolve(
-      options.review ?? path.join(runRoot, "final", "adversarial-review.json")
-    ),
-    completionReportPaths:
-      options.report.length > 0
-        ? options.report.map((filePath) => path.resolve(filePath))
-        : [path.join(runRoot, "final", "completion-reports.ndjson")],
-    generatedAt,
-  });
+  let evaluation;
+  try {
+    evaluation = evaluateAbsoluteCompletion({
+      applicationRoot,
+      runRoot,
+      finalMatrixPath: path.resolve(
+        options.matrix ?? path.join(runRoot, "final", "evidence-manifest.json")
+      ),
+      finalChecksPath: path.resolve(
+        options.checks ??
+          path.join(runRoot, "final", "deterministic-checks.json")
+      ),
+      finalReviewPath: path.resolve(
+        options.review ?? path.join(runRoot, "final", "adversarial-review.json")
+      ),
+      completionReportPaths:
+        options.report.length > 0
+          ? options.report.map((filePath) => path.resolve(filePath))
+          : [path.join(runRoot, "final", "completion-reports.ndjson")],
+      generatedAt,
+    });
+  } catch (error) {
+    const archivedFinalProofPath = archiveCanonicalProof(outPath);
+    if (archivedFinalProofPath) {
+      error.archivedFinalProofPath = archivedFinalProofPath;
+    }
+    throw error;
+  }
 
-  if (!evaluation.completed) {
+  const failedResult = () => {
+    const archivedFinalProofPath = archiveCanonicalProof(outPath);
+    evaluation.gapReport.invalidatedFinalProofArchive =
+      archivedFinalProofPath === null
+        ? null
+        : path.relative(runRoot, archivedFinalProofPath).split(path.sep).join("/");
     atomicWriteJson(gapReportPath, evaluation.gapReport);
     return {
       completed: false,
       exitCode: 1,
       gapReportPath,
       finalProofPath: null,
+      archivedFinalProofPath,
       summary: evaluation.gapReport.summary,
     };
+  };
+
+  if (!evaluation.completed) {
+    return failedResult();
   }
 
   if (existsSync(outPath)) {
@@ -167,28 +219,14 @@ export function runAbsoluteCompletionCli(argv) {
       evaluation.gapReport.contractViolations.push(
         `Immutable final proof exists but cannot be parsed: ${error.message}`
       );
-      atomicWriteJson(gapReportPath, evaluation.gapReport);
-      return {
-        completed: false,
-        exitCode: 1,
-        gapReportPath,
-        finalProofPath: null,
-        summary: evaluation.gapReport.summary,
-      };
+      return failedResult();
     }
     if (!equivalentProof(existing, evaluation.proof)) {
       evaluation.gapReport.verdict = "pending";
       evaluation.gapReport.contractViolations.push(
         "Immutable final-proof.json already exists with different bytes; refusing overwrite"
       );
-      atomicWriteJson(gapReportPath, evaluation.gapReport);
-      return {
-        completed: false,
-        exitCode: 1,
-        gapReportPath,
-        finalProofPath: null,
-        summary: evaluation.gapReport.summary,
-      };
+      return failedResult();
     }
   } else {
     atomicWriteJson(outPath, evaluation.proof);

@@ -216,8 +216,14 @@ Override them with `--matrix`, `--checks`, `--review`, and repeated `--report`
 arguments. The command writes `<run-root>/final-proof.json` only when all 24
 predicates in Section 14 of `end-to-end-workflow.md` pass. On any failure it
 writes `<run-root>/final-proof.gaps.json`, leaves `final-proof.json` absent, and
-exits nonzero. An existing proof is immutable: a byte-different replacement is
-refused.
+exits nonzero. If a canonical proof from a prior successful evaluation exists,
+the failing rerun first atomically renames it to
+`<out-dir>/.<out-basename>.archive/<proof-bytes-sha256>.invalidated`. The
+content-addressed destination is deterministic and its extension is deliberately
+outside artifact discovery. Repeating the same invalidation reuses the same
+archive bytes; the canonical path remains absent. An existing proof is
+immutable: a byte-different replacement is refused and invalidated instead of
+being overwritten.
 
 The evaluator derives source-kind coverage, axis coverage, class projection,
 dynamic-fragment accounting, terminal reconciliation, scenario coverage,
@@ -241,6 +247,12 @@ residuals require a target adapter use one current `inventory-report` with:
 final `deterministic-checks` artifact must contain exactly one passing check
 whose `checkId` is the predicate ID and whose `outputSha256` equals the report
 file bytes. A green ratchet without this absolute report is rejected.
+
+Every `run-config.axisRegistry[*].completionPredicateIds[]` value must belong to
+the canonical closed 24-predicate registry. The final
+`completion-reports.ndjson` must contain exactly one current `absolute/*`
+`inventory-report` for each of the 14 predicates whose evidence mode is
+`absolute-report`: no missing, duplicate, or extra absolute ID is accepted.
 
 For live freshness, every `run-config.toolchain.configurationFingerprints` key
 must use `file:<application-relative-path>`, and its value must be the current

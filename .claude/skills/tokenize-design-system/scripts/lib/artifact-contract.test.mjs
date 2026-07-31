@@ -12,13 +12,36 @@ import {
   validateArtifactSet,
   validateTransition,
 } from "./artifact-contract.mjs";
-import { ABSOLUTE_COMPLETION_PREDICATE_IDS } from "./absolute-completion-contract.mjs";
+import {
+  ABSOLUTE_COMPLETION_PREDICATE_IDS,
+  ABSOLUTE_REPORT_PREDICATES,
+  absoluteReportId,
+} from "./absolute-completion-contract.mjs";
 
 const REPOSITORY_ROOT = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
   "../../../../.."
 );
-const APPLICATION_ROOT = path.join(REPOSITORY_ROOT, "frontend");
+/*
+ * A raiz da APLICACAO analisada, nao a da skill.
+ *
+ * A versao anterior era `path.join(REPOSITORY_ROOT, "frontend")` cravado, o que
+ * assume que a skill vive DENTRO de um repo que tem um app em `frontend/`. Isso
+ * e verdade na copia vendorizada e falso no repo canonico do processo — e o
+ * efeito era o canonico nao conseguir rodar 22 dos proprios testes, todos
+ * morrendo em `Target package.json not found`.
+ *
+ * O repo que define o processo nao poder validar o processo e o pior lugar para
+ * um teste nao rodar: e exatamente onde a regressao entra sem ser vista.
+ *
+ * `TOKENIZE_TEST_ROOT` ja e a convencao local — `extract-design-occurrences` e
+ * `tailwind-normalizer` a usam para apontar um alvo real. Aqui ela vira o
+ * override, com o `frontend/` irmao como default para nao quebrar a copia
+ * vendorizada.
+ */
+const APPLICATION_ROOT = process.env.TOKENIZE_TEST_ROOT
+  ? path.resolve(process.env.TOKENIZE_TEST_ROOT)
+  : path.join(REPOSITORY_ROOT, "frontend");
 const SOURCE_A = "a".repeat(64);
 const SOURCE_B = "b".repeat(64);
 const HASH_C = "c".repeat(64);
@@ -64,7 +87,7 @@ function runConfig(overrides = {}) {
         validator: "spacing-validator",
         namingContract: "spacing-contract",
         emitter: "token-emitter",
-        completionPredicateIds: ["P1"],
+        completionPredicateIds: [ABSOLUTE_COMPLETION_PREDICATE_IDS[0]],
       },
     ],
     matrix: {
@@ -109,6 +132,19 @@ const CONTEXT = {
 function designOccurrence(overrides = {}) {
   return {
     ...header("design-occurrence"),
+    /*
+     * A LINHAGEM. O extrator emite um `raw` por ocorrencia; a classificacao
+     * emite no maximo um `classified` com o mesmo ID apontando para aquele raw
+     * exato. `supersedes: null` e obrigatorio no raw — ele nao supera ninguem,
+     * e a base da cadeia.
+     *
+     * Estes dois campos entraram no schema como REQUIRED, mas a fixture nao foi
+     * atualizada junto: o refactor que introduziu a linhagem mexeu no schema, no
+     * modulo e nas assinaturas, e deixou call sites e fixtures para tras. Sem
+     * eles, 17 testes falhavam contra a propria validacao Ajv.
+     */
+    recordStage: "raw",
+    supersedes: null,
     occurrenceId: "occ-1",
     occurrenceKind: "utility-class",
     axis: "spacing",
@@ -539,6 +575,75 @@ test("schema failures return the producer-specific re-entry code", () => {
   });
   assert.equal(result.valid, false);
   assert.equal(result.reentryCode, "E-NORMALIZE");
+});
+
+test("schema rejects P1 mutations in axis bindings and absolute report IDs", () => {
+  const validator = createArtifactValidator({ root: APPLICATION_ROOT });
+  const config = runConfig();
+  config.axisRegistry[0].completionPredicateIds = ["P1"];
+  const invalidAxis = validator.validate(config);
+  assert.equal(invalidAxis.valid, false);
+  assert.equal(invalidAxis.reentryCode, "E-EXTRACT");
+
+  const report = schemaFixtures().get("inventory-report");
+  report.reportId = "absolute/P1";
+  const invalidReport = validator.validate(report);
+  assert.equal(invalidReport.valid, false);
+  assert.equal(invalidReport.reentryCode, "E-EXTRACT");
+});
+
+test("COMPLETE requires the exact 14 report-backed absolute IDs without duplicates", () => {
+  const validator = createArtifactValidator({ root: APPLICATION_ROOT });
+  const reports = ABSOLUTE_REPORT_PREDICATES.map((contract) => ({
+    ...header("inventory-report"),
+    reportId: absoluteReportId(contract.predicateId),
+    inventoryKind: contract.inventoryKind,
+    inputArtifactRefs: [REF],
+    counts: { population: 1, unapprovedResidual: 0 },
+    detailArtifactRefs: [],
+    reconciled: true,
+  }));
+  const baseRecords = [
+    runConfig(),
+    designOccurrence(),
+    normalizedOccurrence(),
+    axisDiscovery(),
+  ];
+  const exact = validateArtifactSet({
+    records: [...baseRecords, ...reports],
+    runRoot: mkdtempSync(path.join(os.tmpdir(), "artifact-contract-")),
+    validator,
+    targetPhase: "COMPLETE",
+    resolveReferences: false,
+  });
+  assert.equal(
+    exact.violations.some(
+      ({ invariant }) => invariant === "absolute-completion-registry"
+    ),
+    false,
+    JSON.stringify(exact.violations, null, 2)
+  );
+
+  const duplicate = {
+    ...reports.at(-1),
+    reportId: reports[0].reportId,
+    inventoryKind: reports[0].inventoryKind,
+  };
+  const mutated = validateArtifactSet({
+    records: [...baseRecords, ...reports.slice(0, -1), duplicate],
+    runRoot: mkdtempSync(path.join(os.tmpdir(), "artifact-contract-")),
+    validator,
+    targetPhase: "COMPLETE",
+    resolveReferences: false,
+  });
+  assert.ok(
+    mutated.violations.some(
+      ({ invariant, message }) =>
+        invariant === "absolute-completion-registry" &&
+        /exactly the 14 canonical/u.test(message)
+    ),
+    JSON.stringify(mutated.violations, null, 2)
+  );
 });
 
 test("source-kind registry detects duplicates that JSON Schema alone cannot", () => {
@@ -1074,6 +1179,17 @@ test("final order binds matrix and checks before review and proof on one source"
     ],
     allPassed: true,
   });
+  const absoluteReports = ABSOLUTE_REPORT_PREDICATES.map((contract, index) =>
+    writeArtifact(runRoot, `final/absolute-report-${index}.json`, {
+      ...header("inventory-report"),
+      reportId: absoluteReportId(contract.predicateId),
+      inventoryKind: contract.inventoryKind,
+      inputArtifactRefs: [finalChecks.ref],
+      counts: { population: 1, unapprovedResidual: 0 },
+      detailArtifactRefs: [],
+      reconciled: true,
+    })
+  );
   const finalReview = writeArtifact(runRoot, "final/adversarial.json", {
     ...header("adversarial-review"),
     generatedAt: "2026-07-30T00:03:00.000Z",
@@ -1119,6 +1235,7 @@ test("final order binds matrix and checks before review and proof on one source"
       { artifact: normalizedOccurrence() },
       { artifact: axisDiscovery() },
       { artifact: scenario() },
+      ...absoluteReports.map(({ record }) => record),
       proof.record,
     ],
     runRoot,

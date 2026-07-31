@@ -86,6 +86,68 @@
       "minItems": 1,
       "uniqueItems": true
     },
+    "absoluteCompletionPredicateId": {
+      "enum": [
+        "inventory.class-projection-reconciled",
+        "inventory.dynamic-fragments-accounted",
+        "inventory.design-occurrences-terminal",
+        "inventory.occurrence-kinds-covered",
+        "inventory.axes-covered",
+        "inventory.exceptions-complete",
+        "tokens.hardcodes-and-arbitrary-zero",
+        "tokens.naming-and-application-zero",
+        "tokens.classes-emitted-live",
+        "tokens.scale-cardinalities-approved",
+        "tokens.legacy-vocabulary-zero",
+        "tokens.dtcg-parity",
+        "rendered.routes-materialized",
+        "rendered.scenarios-captured",
+        "rendered.exact-matrix",
+        "rendered.pairs-integrity",
+        "rendered.runtime-regressions-zero",
+        "rendered.batch-effects-satisfied",
+        "rendered.image-reviews-complete",
+        "process.accepted-batches-reversible",
+        "process.final-census-fresh",
+        "process.final-matrix-and-gates-fresh",
+        "process.fingerprints-current",
+        "process.final-adversarial-satisfied"
+      ]
+    },
+    "absoluteReportId": {
+      "enum": [
+        "absolute/inventory.exceptions-complete",
+        "absolute/tokens.hardcodes-and-arbitrary-zero",
+        "absolute/tokens.naming-and-application-zero",
+        "absolute/tokens.classes-emitted-live",
+        "absolute/tokens.scale-cardinalities-approved",
+        "absolute/tokens.legacy-vocabulary-zero",
+        "absolute/tokens.dtcg-parity",
+        "absolute/rendered.routes-materialized",
+        "absolute/rendered.exact-matrix",
+        "absolute/rendered.pairs-integrity",
+        "absolute/rendered.runtime-regressions-zero",
+        "absolute/rendered.batch-effects-satisfied",
+        "absolute/rendered.image-reviews-complete",
+        "absolute/process.accepted-batches-reversible"
+      ]
+    },
+    "designOccurrenceSupersession": {
+      "type": "object",
+      "required": ["occurrenceId", "recordSha256", "artifactRef"],
+      "properties": {
+        "occurrenceId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "recordSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "artifactRef": {
+          "$ref": "#/$defs/artifactRef"
+        }
+      },
+      "additionalProperties": false
+    },
     "artifactHeader": {
       "type": "object",
       "required": [
@@ -358,7 +420,12 @@
                     "$ref": "#/$defs/nonEmptyString"
                   },
                   "completionPredicateIds": {
-                    "$ref": "#/$defs/nonEmptyStringSet"
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/absoluteCompletionPredicateId"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
                   }
                 },
                 "additionalProperties": false
@@ -601,6 +668,8 @@
           "type": "object",
           "required": [
             "artifactType",
+            "recordStage",
+            "supersedes",
             "occurrenceId",
             "occurrenceKind",
             "axis",
@@ -615,6 +684,19 @@
           "properties": {
             "artifactType": {
               "const": "design-occurrence"
+            },
+            "recordStage": {
+              "enum": ["raw", "classified"]
+            },
+            "supersedes": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/designOccurrenceSupersession"
+                }
+              ]
             },
             "occurrenceId": {
               "$ref": "#/$defs/nonEmptyString"
@@ -857,6 +939,40 @@
             }
           },
           "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "recordStage": {
+                    "const": "raw"
+                  }
+                },
+                "required": ["recordStage"]
+              },
+              "then": {
+                "properties": {
+                  "supersedes": {
+                    "type": "null"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "recordStage": {
+                    "const": "classified"
+                  }
+                },
+                "required": ["recordStage"]
+              },
+              "then": {
+                "properties": {
+                  "supersedes": {
+                    "$ref": "#/$defs/designOccurrenceSupersession"
+                  }
+                }
+              }
+            },
             {
               "if": {
                 "properties": {
@@ -1577,7 +1693,26 @@
             "reconciled": {
               "type": "boolean"
             }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "reportId": {
+                    "pattern": "^absolute/"
+                  }
+                },
+                "required": ["reportId"]
+              },
+              "then": {
+                "properties": {
+                  "reportId": {
+                    "$ref": "#/$defs/absoluteReportId"
+                  }
+                }
+              }
+            }
+          ]
         }
       ],
       "unevaluatedProperties": false

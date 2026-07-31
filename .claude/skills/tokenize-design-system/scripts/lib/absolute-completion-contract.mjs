@@ -174,3 +174,9 @@ export const ABSOLUTE_REPORT_PREFIX = "absolute/";
 export function absoluteReportId(predicateId) {
   return `${ABSOLUTE_REPORT_PREFIX}${predicateId}`;
 }
+
+export const ABSOLUTE_REPORT_IDS = Object.freeze(
+  ABSOLUTE_REPORT_PREDICATES.map(({ predicateId }) =>
+    absoluteReportId(predicateId)
+  )
+);

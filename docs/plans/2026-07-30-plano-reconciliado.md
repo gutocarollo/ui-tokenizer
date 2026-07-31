@@ -132,8 +132,9 @@ torna auditáveis em vez de convenientes.
 | | escopo | natureza |
 |---|---|---:|
 | **BLOQUEANTE** | disposição terminal de **100%** das ocorrências | predicado |
-| **BLOQUEANTE** | eixo B — famílias tokenizáveis (cor·spacing·radius·tipografia) fora de entidade: **24,1%** | decisão de design incontestável |
-| **alvo** | entidade canônica sob critério defensável: **51,4%** | ver abaixo |
+| **BLOQUEANTE** | eixo B2 — famílias tokenizáveis (cor·spacing·radius·tipografia) fora de entidade **e ainda CRUAS**: **17,3%** | decisão de design incontestável |
+| **já feito** | eixo B1 — as mesmas famílias, mas a classe já cita token nomeado: **7,0%** | nada a fazer |
+| **alvo** | entidade canônica sob critério defensável: **51,6%** | ver abaixo |
 | **fila de exceção** | utility de composição sem padrão | 5 chaves obrigatórias por item |
 
 #### O critério de entidade muda: repetição **e** tamanho
@@ -146,28 +147,62 @@ Repetição sozinha não separa entidade de coincidência. Medido dentro da band
 | 4–6 classes | 139 | 3,9% |
 | ≥7 classes — componentes reais | 77 | 4,9% |
 
-**Critério adotado: repete ≥2× E tem ≥4 classes → 430 entidades, 51,4%.**
+**Critério adotado: repete ≥2× E tem ≥4 classes → 435 entidades, 51,6%.**
 Os bundles curtos de baixa repetição vão para a fila de exceção, não para o
 denominador.
 
+> Eram 430 / 51,4% quando este parágrafo foi escrito. O que mudou não foi o
+> critério: foi o censo passar a resolver `className={NOME}` para o `const` de
+> contrato (F-D), o que trouxe 164 usos que antes eram invisíveis. O critério
+> continua o mesmo e o número sai do mesmo script.
+
 #### A distribuição medida, pelo script versionado
+
+> **ERRATUM 2026-07-31 — os números deste bloco são HISTÓRICOS.** O
+> `lib/bundle-census.mjs` mudou **depois** que esta saída foi colada: a extração
+> de classe passou do regex (que dava `split` no texto cru e fabricava `?`, `:`,
+> `}` como classe) para `lib/classname-extract.mjs`, que extrai os literais de
+> string da expressão. Medido por `audit-extraction-delta.mjs`: **936 usos de
+> ruído** saíram e **609 usos de classe legítima** (as duas pontas do ternário)
+> entraram, com **zero** classe legítima perdida entre os 163 tokens
+> descartados. Saída atual do mesmo comando: **32.114** de denominador,
+> **447** entidades · **53,5%**, **B2 5.677 · 17,7%**, **C 6.968 · 21,7%**,
+> **migrável A+B2 = 22.860 · 71,2%**.
+>
+> **Não reescrevi os números abaixo**: mover a linha de base do documento-mestre
+> é decisão do dono — o mesmo motivo pelo qual a F-D se recusou a corrigir o
+> denominador no meio da própria fase. A comparação balde a balde, a causa
+> medida e a fila de decisão estão em
+> `docs/reports/rodada-grafo.md` **do repo-alvo**, §1.
+
+> **Por que não é link.** Um link relativo daqui para dentro do `makers-ai-hub`
+> assume que os dois repos são irmãos no disco de quem lê — e quebra para
+> qualquer clone. É a mesma classe de acoplamento cross-repo que produziu o fork
+> da skill: caminho relativo entre repositórios é dependência não declarada.
+> Relatório de rodada vive no alvo que ele mede; este plano cita, não linka.
 
 `scripts/measure-coverage.mjs` produz **todos** os números deste plano. Quem
 discordar discorda de uma linha de código que pode apontar, e o número muda junto
-com a regra — nunca em silêncio. Saída de hoje:
+com a regra — nunca em silêncio. Saída **de 2026-07-31 06:19** (ver erratum acima):
 
 ```
-USOS DE CLASSE               32662   <- o denominador
-  ja em contrato nomeado      5847   17,9%
-  entidades (430)            16798   51,4%
-  tokenizavel fora            7877   24,1%
-  sem disposicao -> EXCECAO   7987   24,5%
+USOS DE CLASSE               32826   <- o denominador
+  ja em contrato nomeado      5882   17,9%
+
+  A PARTICAO (A + B + C = 32826, verificada)
+  A. entidade (435 bundles)   16927   51,6%   -> contrato de componente
+  B. tokenizavel fora          7978   24,3%
+     B1. JA em contrato        2295    7,0%   -> NADA A FAZER, ja migrado
+     B2. utility CRU           5683   17,3%   <- TRABALHO BLOQUEANTE
+         sem slot em §4.3      3572   10,9%   (62,9% de B2)
+  C. sem disposicao -> EXCECAO 7921   24,1%
 ```
 
 | disposição | usos | |
 |---|---:|---:|
-| **migrável** — entidade + tokenizável | 24.675 | **75,5%** |
-| **fila de exceção** — 5 chaves por item | 7.987 | **24,5%** |
+| **migrável** — entidade (A) + tokenizável **cru** (B2) | 22.610 | **68,9%** |
+| **já migrado** — tokenizável que já cita token (B1) | 2.295 | 7,0% |
+| **fila de exceção** — 5 chaves por item | 7.921 | **24,1%** |
 
 > **Corrigido na rodada 2.** A primeira versão do oráculo trazia `p` e `m` crus
 > no regex de família tokenizável — `p(?:-|$)` casa `p-2.5` mas **não** casa
@@ -175,6 +210,42 @@ USOS DE CLASSE               32662   <- o denominador
 > de fora, e como spacing é família **bloqueante**, **1.294 usos de trabalho
 > obrigatório eram classificados como exceção aprovável** — falso-verde dentro do
 > próprio oráculo que este plano usa como fonte da verdade.
+
+> **Corrigido depois da F-E — o mesmo defeito na direção oposta.** Este bloco
+> dizia *"migrável — entidade + tokenizável = 24.675, 75,5%"*, somando o balde B
+> **inteiro** como trabalho a fazer. Medido: **2.295 de 7.978 (28,8%)** daquele
+> balde são `placeholder:text-content-tertiary`,
+> `enabled:hover:bg-surface-hover`, `text-theme-settings-input-placeholder` —
+> classes que casam a família tokenizável **e** casam `EM_CONTRATO`. Pela
+> taxonomia do §2.2 deste plano elas **não são utility cru**: já estão migradas.
+> O `emContrato` era impresso como estatística solta e nunca subtraído de balde
+> nenhum, então os três baldes eram apresentados como partição de 100% sem ser.
+> Se lá trabalho obrigatório virava exceção aprovável, aqui trabalho **já feito**
+> virava trabalho obrigatório. `migrável` passa a ser **A + B2 = 68,9%**, a
+> partição virou quatro baldes com a soma **verificada** em
+> `lib/bundle-census.mjs::partition`, e a regra está travada por
+> `scripts/test/bundle-partition.test.mjs` (8/8).
+>
+> Reproduz o tamanho do erro sem confiar neste texto:
+>
+> ```bash
+> cd /home/augusto/code/makers-ai-hub/frontend
+> S=/home/augusto/code/ui-tokenizer-v2/.claude/skills/tokenize-design-system/scripts
+> node "$S/measure-coverage.mjs" --root . --json \
+>   | node -pe 'const j=JSON.parse(require("fs").readFileSync(0));
+>       `B=${j.usosTokenizaveisForaDeEntidade} B1=${j.tokenizavelForaJaEmContrato} B2=${j.tokenizavelForaCru} migravel=${j.migravel}`'
+> # B=7978 B1=2295 B2=5683 migravel=22610
+> ```
+
+> **Segundo eixo do erro, agora quantificado.** Dos 5.683 usos de B2, **3.572
+> (62,9%)** pertencem a propriedades que §4.3 da lei **não sabe nomear** —
+> `padding` 1.085, `border-radius` 585, `font-weight` 576, `margin` 536,
+> `column-gap` 294, `gap` 230, `row-gap` 183, `line-height` 65,
+> `letter-spacing` 18. Elas continuam sendo trabalho, mas trabalho **bloqueado
+> por decisão do dono sobre a lei**, não trabalho executável hoje; ver
+> [`../law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md`](../law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md).
+> O oráculo imprime o veredito por propriedade e **falha fechada (exit 3)** se
+> não conseguir ler §4.3, em vez de imprimir a quebra sem veredito.
 
 O bloqueante é que a soma dê **100%** com toda exceção justificada, não que a
 primeira linha atinja um percentual escolhido por mim.

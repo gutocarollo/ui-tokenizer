@@ -470,6 +470,16 @@ export function primaryAxisFor({
     occurrenceKind === "icon-asset" ||
     occurrenceKind === "svg-presentation"
   ) {
+    if (occurrenceKind === "svg-presentation") {
+      const normalizedProperty = String(property ?? "")
+        .trim()
+        .replace(/[A-Z]/g, (character) => `-${character.toLowerCase()}`)
+        .toLowerCase();
+      if (normalizedProperty === "view-box") return "layout";
+      if (normalizedProperty === "stroke-width") return "border";
+      const propertyAxis = axisForProperty(normalizedProperty);
+      if (propertyAxis !== "unmapped") return propertyAxis;
+    }
     return "iconography";
   }
   if (
@@ -509,6 +519,34 @@ export function primaryAxisFor({
   return axisForProperty(property);
 }
 
+/**
+ * Return the complete axis census contribution for one durable occurrence.
+ *
+ * Class recipes may contribute more than their singular primary axis (for
+ * example `md:px-2 bg-red-500` contributes breakpoint, spacing, and color).
+ * Every consumer, including the invariant engine, must use this projection
+ * rather than recounting only `design-occurrence.axis`.
+ */
+export function axesForOccurrence(occurrence) {
+  const inferred =
+    occurrence.occurrenceKind === "utility-class" ||
+    occurrence.occurrenceKind === "generated-class"
+      ? axesForClassName(occurrence.rawValue)
+      : [];
+  const axes =
+    inferred.length > 0
+      ? inferred
+      : [
+          occurrence.axis ??
+            primaryAxisFor({
+              occurrenceKind: occurrence.occurrenceKind,
+              property: occurrence.property,
+              rawValue: occurrence.rawValue,
+            }),
+        ];
+  return [...new Set(axes.filter(Boolean))].sort();
+}
+
 export function makeAxisDiscovery({
   header,
   discoveryId,
@@ -528,17 +566,7 @@ export function makeAxisDiscovery({
   for (const occurrence of occurrences) {
     byOccurrenceKind[occurrence.occurrenceKind] =
       (byOccurrenceKind[occurrence.occurrenceKind] ?? 0) + 1;
-    const inferredAxes =
-      occurrence.occurrenceKind === "utility-class" ||
-      occurrence.occurrenceKind === "generated-class"
-        ? axesForClassName(occurrence.rawValue)
-        : [occurrence.axis].filter((axis) => axis !== "unmapped");
-    const axes =
-      inferredAxes.length === 0 && occurrence.axis !== "unmapped"
-        ? [occurrence.axis]
-        : inferredAxes;
-    if (occurrence.axis === "unmapped") byAxis.unmapped += 1;
-    for (const axis of axes) {
+    for (const axis of axesForOccurrence(occurrence)) {
       discoveredAxisSet.add(axis);
       byAxis[axis] = (byAxis[axis] ?? 0) + 1;
     }
@@ -572,14 +600,13 @@ export function makeAxisDiscovery({
   const uncoveredAxes = discoveredAxes.filter(
     (axis) => !configuredAxes.includes(axis)
   );
-  if (byAxis.unmapped > 0) uncoveredAxes.push("unmapped");
 
   return {
     ...header,
     artifactType: "axis-discovery",
     discoveryId,
     configuredAxes: [...configuredAxes],
-    discoveredAxes: discoveredAxes.length > 0 ? discoveredAxes : ["unmapped"],
+    discoveredAxes,
     reconciledAxes,
     uncoveredAxes: [...new Set(uncoveredAxes)].sort(),
     registeredOccurrenceKinds: [...OCCURRENCE_KINDS],

@@ -12,6 +12,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { readVocabulary, parseName, PREFIX_PROPERTY } from "./score-naming.mjs";
+import { prefixAlternation } from "./lib/utility-families.mjs";
 import { findUseOwner } from "./find-owner.mjs";
 import { resolveRoot } from "./lib/paths.mjs";
 import { loadColourNames, resolveProjectLayout } from "./lib/project-layout.mjs";
@@ -24,7 +25,8 @@ const structuralDirectories = new Set([
   "src", "pages", "components", "ui", "lib", "hooks", "utils", "models",
   "styles", "assets", "shared", "common", "index", "app", "views",
 ]);
-const utilityPrefix = Object.keys(PREFIX_PROPERTY).join("|");
+// longest-first: unsorted, `rounded` consumes `rounded-t` and `p` consumes `px`.
+const utilityPrefix = prefixAlternation();
 const utilityPattern = new RegExp(
   `(?<![\\w-])((?:[a-z-]+:)*)(${utilityPrefix})-([a-z][a-z0-9-]*)(?![\\w-])`,
   "g"

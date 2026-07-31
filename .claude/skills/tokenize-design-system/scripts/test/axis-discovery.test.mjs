@@ -5,6 +5,7 @@ import {
   OCCURRENCE_KINDS,
   SOURCE_KIND_REGISTRY,
   axesForCandidate,
+  axesForOccurrence,
   axisForProperty,
   makeAxisDiscovery,
   primaryAxisFor,
@@ -47,6 +48,42 @@ test("property and utility evidence discover independent axes", () => {
     }),
     "spacing"
   );
+  assert.equal(
+    primaryAxisFor({
+      occurrenceKind: "svg-presentation",
+      property: "width",
+    }),
+    "sizing"
+  );
+  assert.equal(
+    primaryAxisFor({
+      occurrenceKind: "svg-presentation",
+      property: "height",
+    }),
+    "sizing"
+  );
+  assert.equal(
+    primaryAxisFor({
+      occurrenceKind: "svg-presentation",
+      property: "opacity",
+    }),
+    "opacity"
+  );
+  assert.equal(
+    primaryAxisFor({
+      occurrenceKind: "svg-presentation",
+      property: "viewBox",
+    }),
+    "layout"
+  );
+  assert.deepEqual(
+    axesForOccurrence({
+      occurrenceKind: "utility-class",
+      rawValue: "md:px-2 bg-red-500",
+      axis: "spacing",
+    }),
+    ["breakpoint", "color", "spacing"]
+  );
 });
 
 test("failed scanners and unmapped occurrences prevent exhaustive discovery", () => {
@@ -80,5 +117,20 @@ test("failed scanners and unmapped occurrences prevent exhaustive discovery", ()
   });
   assert.ok(discovery.uncoveredOccurrenceKinds.includes("canvas-draw"));
   assert.ok(discovery.uncoveredAxes.includes("unmapped"));
+  assert.ok(discovery.discoveredAxes.includes("unmapped"));
+  assert.deepEqual(
+    Object.fromEntries(
+      ["breakpoint", "color", "spacing", "unmapped"].map((axis) => [
+        axis,
+        discovery.occurrenceCounts.byAxis[axis],
+      ])
+    ),
+    {
+      breakpoint: 1,
+      color: 1,
+      spacing: 1,
+      unmapped: 1,
+    }
+  );
   assert.equal(discovery.exhaustive, false);
 });

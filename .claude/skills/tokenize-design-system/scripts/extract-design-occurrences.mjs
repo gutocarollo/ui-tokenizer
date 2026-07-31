@@ -210,8 +210,12 @@ function walk(directory, accumulator = []) {
   let entries;
   try {
     entries = readdirSync(directory, { withFileTypes: true });
-  } catch {
-    return accumulator;
+  } catch (error) {
+    throw new Error(
+      `E-EXTRACT: cannot enumerate ${relativeToRoot(directory) || "."}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     if (SKIP_DIRECTORIES.has(entry.name) || entry.name.startsWith("."))
@@ -1417,6 +1421,35 @@ function scanFontAssets() {
     .map((asset) => assetDraft("font-asset", asset));
 }
 
+function indentedSassBlock(source, offset) {
+  const lineStart = source.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
+  const lineEnd = source.indexOf("\n", offset);
+  const headerEnd = lineEnd === -1 ? source.length : lineEnd;
+  const header = source.slice(lineStart, headerEnd);
+  const baseIndent = header.match(/^[ \t]*/)?.[0].length ?? 0;
+  let cursor = lineEnd === -1 ? source.length : lineEnd + 1;
+  let blockEnd = headerEnd;
+  let hasIndentedContent = false;
+
+  while (cursor < source.length) {
+    const nextLineEnd = source.indexOf("\n", cursor);
+    const end = nextLineEnd === -1 ? source.length : nextLineEnd;
+    const line = source.slice(cursor, end);
+    if (line.trim() !== "") {
+      const indent = line.match(/^[ \t]*/)?.[0].length ?? 0;
+      if (indent <= baseIndent) break;
+      hasIndentedContent = true;
+    }
+    blockEnd = end;
+    cursor = nextLineEnd === -1 ? source.length : nextLineEnd + 1;
+  }
+
+  return {
+    rawValue: source.slice(lineStart, blockEnd).trimEnd(),
+    hasIndentedContent,
+  };
+}
+
 function scanMotionKeyframes() {
   const drafts = [];
   for (const file of cssFiles()) {
@@ -1436,6 +1469,26 @@ function scanMotionKeyframes() {
           opaqueReason: block ? null : "unbalanced @keyframes block",
         })
       );
+    }
+    if (file.extension === ".sass") {
+      for (const match of file.source.matchAll(
+        /^([ \t]*)@(?:-\w+-)?keyframes\s+([\w-]+)\s*$/gm
+      )) {
+        const block = indentedSassBlock(file.source, match.index ?? 0);
+        drafts.push(
+          commonDraft({
+            occurrenceKind: "motion-keyframe",
+            file,
+            offset: match.index,
+            rawValue: block.rawValue,
+            property: "keyframes",
+            selectorOrObjectPath: match[2],
+            opaqueReason: block.hasIndentedContent
+              ? null
+              : "empty indented @keyframes block",
+          })
+        );
+      }
     }
   }
   for (const file of textFiles.filter(
@@ -1502,19 +1555,36 @@ function scanMotionTransitions() {
   }
   return [
     ...cssFiles().flatMap((file) =>
-      regexDrafts(
-        file,
-        /\b((?:transition|animation)(?:-[\w-]+)?)\s*:\s*([^;{}]+)(?=;|\})/g,
-        (match) =>
-          commonDraft({
-            occurrenceKind: "motion-transition",
-            file,
-            offset: match.index,
-            rawValue: match[2].trim(),
-            property: match[1],
-          }),
-        maskComments(file.source)
-      )
+      [
+        ...regexDrafts(
+          file,
+          /\b((?:transition|animation)(?:-[\w-]+)?)\s*:\s*([^;{}]+)(?=;|\})/g,
+          (match) =>
+            commonDraft({
+              occurrenceKind: "motion-transition",
+              file,
+              offset: match.index,
+              rawValue: match[2].trim(),
+              property: match[1],
+            }),
+          maskComments(file.source)
+        ),
+        ...(file.extension === ".sass"
+          ? regexDrafts(
+              file,
+              /^[ \t]+((?:transition|animation)(?:-[\w-]+)?)\s*:\s*(\S.*)$/gm,
+              (match) =>
+                commonDraft({
+                  occurrenceKind: "motion-transition",
+                  file,
+                  offset: match.index,
+                  rawValue: match[2].trim(),
+                  property: match[1],
+                }),
+              maskComments(file.source)
+            )
+          : []),
+      ]
     ),
     ...scriptFiles().flatMap((file) =>
       regexDrafts(
@@ -2074,6 +2144,11 @@ const opaqueIds = occurrences
 const failedKinds = scannerResults
   .filter((result) => result.status === "failed")
   .map((result) => result.occurrenceKind);
+const emptyInventoryReasons = [
+  ...(authoredFiles.length === 0 ? ["no authored source files"] : []),
+  ...(allFiles.length === 0 ? ["no files in extraction scope"] : []),
+  ...(occurrences.length === 0 ? ["no design occurrences"] : []),
+];
 const countsByKind = Object.fromEntries(
   OCCURRENCE_KINDS.map((kind) => [
     kind,
@@ -2116,7 +2191,12 @@ const summary = {
   },
   opaqueOccurrenceIds: opaqueIds,
   failedOccurrenceKinds: failedKinds,
-  exhaustive: failedKinds.length === 0 && opaqueIds.length === 0,
+  reentryCode: emptyInventoryReasons.length > 0 ? "E-EXTRACT" : null,
+  failureReasons: emptyInventoryReasons,
+  exhaustive:
+    failedKinds.length === 0 &&
+    opaqueIds.length === 0 &&
+    emptyInventoryReasons.length === 0,
 };
 
 mkdirSync(outDirectory, { recursive: true });
@@ -2129,7 +2209,14 @@ writeFileSync(
   `${JSON.stringify(summary, null, 2)}\n`
 );
 
-if (failedKinds.length > 0) {
+if (emptyInventoryReasons.length > 0) {
+  console.error(
+    `E-EXTRACT: extraction inventory is empty (${emptyInventoryReasons.join(
+      "; "
+    )})`
+  );
+  process.exitCode = 1;
+} else if (failedKinds.length > 0) {
   console.error(
     `Extraction incomplete: failed scanners: ${failedKinds.join(", ")}`
   );

@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -13,6 +14,7 @@ import test from "node:test";
 import {
   makeArtifactRef,
   sha256CanonicalJson,
+  sha256Bytes,
   sha256File,
 } from "../lib/artifact-contract.mjs";
 import {
@@ -28,7 +30,19 @@ const SKILL_ROOT = path.resolve(
   "../.."
 );
 const REPOSITORY_ROOT = path.resolve(SKILL_ROOT, "../../..");
-const TARGET_NODE_MODULES = path.join(REPOSITORY_ROOT, "frontend/node_modules");
+/*
+ * O `node_modules` do ALVO, nao o da skill. As fixtures fazem symlink dele para
+ * resolver o compilador do Tailwind e o Ajv a partir do app analisado.
+ *
+ * Mesmo defeito de portabilidade do `artifact-contract.test.mjs`: assumir um
+ * `frontend/` irmao da skill so vale na copia vendorizada. No repo canonico do
+ * processo nao existe, e o teste morria. `TOKENIZE_TEST_ROOT` e a convencao
+ * local para apontar um alvo real — aqui ela vira o override, com o irmao como
+ * default.
+ */
+const TARGET_NODE_MODULES = process.env.TOKENIZE_TEST_ROOT
+  ? path.join(path.resolve(process.env.TOKENIZE_TEST_ROOT), "node_modules")
+  : path.join(REPOSITORY_ROOT, "frontend/node_modules");
 const RUN_ID = "tokenize-absolute-test";
 const GENERATED = {
   config: "2026-07-30T00:00:00.000Z",
@@ -96,7 +110,12 @@ function artifactRef(filePath, context, artifactType) {
   });
 }
 
-function buildFixture({ falseGreen = false, vacuous = false } = {}) {
+function buildFixture({
+  falseGreen = false,
+  vacuous = false,
+  axisCompletionPredicateIds = ABSOLUTE_COMPLETION_PREDICATE_IDS,
+  firstAbsoluteReportId = null,
+} = {}) {
   const temporary = mkdtempSync(path.join(os.tmpdir(), "absolute-proof-"));
   const applicationRoot = path.join(temporary, "app");
   const runRoot = path.join(temporary, RUN_ID);
@@ -150,7 +169,7 @@ function buildFixture({ falseGreen = false, vacuous = false } = {}) {
         validator: "absolute-color-validator",
         namingContract: "owner.anatomy.property",
         emitter: "fixture-emitter",
-        completionPredicateIds: [...ABSOLUTE_COMPLETION_PREDICATE_IDS],
+        completionPredicateIds: [...axisCompletionPredicateIds],
       },
     ],
     matrix: {
@@ -185,6 +204,11 @@ function buildFixture({ falseGreen = false, vacuous = false } = {}) {
   const designPath = path.join(runRoot, "inventory/design-occurrences.ndjson");
   const design = {
     ...header("design-occurrence", context),
+    // Linhagem: `raw` e a base da cadeia e nao supera ninguem. Ver a nota em
+    // artifact-contract.test.mjs — o refactor de linhagem tornou estes dois
+    // campos obrigatorios no schema e nao atualizou fixture nenhuma.
+    recordStage: "raw",
+    supersedes: null,
     occurrenceId: "occ-1",
     occurrenceKind: "utility-class",
     axis: "color",
@@ -337,9 +361,12 @@ function buildFixture({ falseGreen = false, vacuous = false } = {}) {
   const scenarioRef = artifactRef(scenarioPath, context, "scenario");
 
   const reportPath = path.join(runRoot, "final/completion-reports.ndjson");
-  const reports = ABSOLUTE_REPORT_PREDICATES.map((contract) => ({
+  const reports = ABSOLUTE_REPORT_PREDICATES.map((contract, index) => ({
     ...header("inventory-report", context, GENERATED.reports),
-    reportId: absoluteReportId(contract.predicateId),
+    reportId:
+      index === 0 && firstAbsoluteReportId
+        ? firstAbsoluteReportId
+        : absoluteReportId(contract.predicateId),
     inventoryKind: contract.inventoryKind,
     inputArtifactRefs: [designRef],
     counts: {
@@ -546,6 +573,38 @@ test("ratchet-only green output cannot substitute for absolute residual evidence
   );
 });
 
+test("evaluator rejects a P1 axis completion predicate mutation", () => {
+  const fixture = buildFixture({ axisCompletionPredicateIds: ["P1"] });
+  const result = runFixture(fixture);
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.completed, false);
+  assert.equal(
+    existsSync(path.join(fixture.runRoot, "final-proof.json")),
+    false
+  );
+  const gaps = JSON.parse(readFileSync(result.gapReportPath, "utf8"));
+  assert.match(
+    gaps.contractViolations.join("\n"),
+    /axisRegistry\.color\.completionPredicateIds.*P1/u
+  );
+});
+
+test("evaluator rejects a P1 absolute report mutation instead of ignoring the extra ID", () => {
+  const fixture = buildFixture({ firstAbsoluteReportId: "absolute/P1" });
+  const result = runFixture(fixture);
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.completed, false);
+  assert.equal(
+    existsSync(path.join(fixture.runRoot, "final-proof.json")),
+    false
+  );
+  const gaps = JSON.parse(readFileSync(result.gapReportPath, "utf8"));
+  assert.match(
+    gaps.contractViolations.join("\n"),
+    /must equal exactly the 14 canonical report-backed predicate IDs/u
+  );
+});
+
 test("source changes after final evidence are rejected as stale", () => {
   const fixture = buildFixture();
   writeFileSync(
@@ -567,6 +626,50 @@ test("source changes after final evidence are rejected as stale", () => {
     [...predicate.gaps, ...gaps.contractViolations].join("\n"),
     /fingerprint|current source/iu
   );
+});
+
+test("a failed re-evaluation atomically archives a prior proof and leaves no stale canonical proof", () => {
+  const fixture = buildFixture();
+  const successful = runFixture(fixture);
+  assert.equal(successful.exitCode, 0);
+  const canonicalProofPath = successful.finalProofPath;
+  const proofBytes = readFileSync(canonicalProofPath);
+  const archiveDirectory = path.join(
+    fixture.runRoot,
+    ".final-proof.json.archive"
+  );
+  const expectedArchivePath = path.join(
+    archiveDirectory,
+    `${sha256Bytes(proofBytes)}.invalidated`
+  );
+
+  writeFileSync(
+    fixture.sourcePath,
+    'export const Button = () => <button className="text-danger">Changed</button>;\n'
+  );
+  const failed = runFixture(fixture);
+  assert.equal(failed.exitCode, 1);
+  assert.equal(failed.completed, false);
+  assert.equal(existsSync(canonicalProofPath), false);
+  assert.equal(failed.archivedFinalProofPath, expectedArchivePath);
+  assert.equal(existsSync(expectedArchivePath), true);
+  assert.deepEqual(readFileSync(expectedArchivePath), proofBytes);
+  assert.deepEqual(readdirSync(archiveDirectory), [
+    `${sha256Bytes(proofBytes)}.invalidated`,
+  ]);
+  const gaps = JSON.parse(readFileSync(failed.gapReportPath, "utf8"));
+  assert.equal(
+    gaps.invalidatedFinalProofArchive,
+    `.final-proof.json.archive/${sha256Bytes(proofBytes)}.invalidated`
+  );
+
+  const repeatedFailure = runFixture(fixture);
+  assert.equal(repeatedFailure.exitCode, 1);
+  assert.equal(repeatedFailure.archivedFinalProofPath, null);
+  assert.equal(existsSync(canonicalProofPath), false);
+  assert.deepEqual(readdirSync(archiveDirectory), [
+    `${sha256Bytes(proofBytes)}.invalidated`,
+  ]);
 });
 
 test("an empty design census fails closed instead of proving a vacuous 100 percent", () => {

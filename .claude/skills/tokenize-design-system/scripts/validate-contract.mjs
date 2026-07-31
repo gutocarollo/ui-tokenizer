@@ -7,7 +7,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ABSOLUTE_COMPLETION_PREDICATE_IDS } from "./lib/absolute-completion-contract.mjs";
+import {
+  ABSOLUTE_COMPLETION_PREDICATE_IDS,
+  ABSOLUTE_REPORT_IDS,
+} from "./lib/absolute-completion-contract.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(SCRIPT_DIR, "..");
@@ -222,6 +225,50 @@ if (
 if (runConfig.properties.sourceRoots.$ref !== "#/$defs/nonEmptyStringSet") {
   fail("reference/artifact-schemas.json: sourceRoots may be vacuous");
 }
+if (
+  JSON.stringify(schemas.$defs.absoluteCompletionPredicateId.enum) !==
+  JSON.stringify(ABSOLUTE_COMPLETION_PREDICATE_IDS)
+) {
+  fail(
+    "reference/artifact-schemas.json: absoluteCompletionPredicateId must equal " +
+      "the canonical closed 24-predicate registry"
+  );
+}
+const axisCompletionPredicateIds =
+  runConfig.properties.axisRegistry.items.properties.completionPredicateIds;
+if (
+  axisCompletionPredicateIds.items?.$ref !==
+    "#/$defs/absoluteCompletionPredicateId" ||
+  axisCompletionPredicateIds.minItems !== 1 ||
+  axisCompletionPredicateIds.uniqueItems !== true
+) {
+  fail(
+    "reference/artifact-schemas.json: every axis completionPredicateId must be " +
+      "a unique member of the canonical closed 24-predicate registry"
+  );
+}
+if (
+  JSON.stringify(schemas.$defs.absoluteReportId.enum) !==
+  JSON.stringify(ABSOLUTE_REPORT_IDS)
+) {
+  fail(
+    "reference/artifact-schemas.json: absoluteReportId must equal the canonical " +
+      "closed report-backed predicate registry"
+  );
+}
+const inventoryReport = schemas.$defs.inventoryReport.allOf[1];
+const absoluteReportRule = inventoryReport.allOf?.find(
+  (rule) => rule.if?.properties?.reportId?.pattern === "^absolute/"
+);
+if (
+  absoluteReportRule?.then?.properties?.reportId?.$ref !==
+  "#/$defs/absoluteReportId"
+) {
+  fail(
+    "reference/artifact-schemas.json: absolute/* inventory-report IDs are not " +
+      "restricted to the canonical report-backed predicate registry"
+  );
+}
 for (const dimension of [
   "themes",
   "projects",
@@ -349,6 +396,12 @@ if (ABSOLUTE_COMPLETION_PREDICATE_IDS.length !== 24) {
       "exactly 24 predicates"
   );
 }
+if (ABSOLUTE_REPORT_IDS.length !== 14) {
+  fail(
+    "scripts/lib/absolute-completion-contract.mjs: absolute completion must " +
+      "expose exactly 14 report-backed predicate IDs"
+  );
+}
 
 if (!process.exitCode) {
   console.log(
@@ -356,6 +409,6 @@ if (!process.exitCode) {
       "30+25+15+10+10+10=100; cutoff=70; no positive button.container " +
       "contract; 19 artifact types and 19 design-occurrence kinds are closed; " +
       "matrix/evidence/review artifacts are non-vacuous; the closed 24-predicate " +
-      "absolute completion contract is documented exactly once"
+      "absolute completion contract and 14 report-backed IDs are closed"
   );
 }

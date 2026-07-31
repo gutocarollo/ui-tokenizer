@@ -99,15 +99,40 @@ name applied in the wrong place remains a defect.
 | `border-color` | `border-` | 60 |
 | `background-color` | `text-` | **0** — the name lies |
 
+The table lives in `scripts/lib/utility-families.mjs` and is re-exported by
+`score-naming.mjs` as `PREFIX_PROPERTY`. It holds **53 prefixes in four
+families** since F-E:
+
 ```js
-export const PREFIX_PROPERTY = {
-  "bg": "background-color", "text": "color", "border": "border-color",
-  "outline": "outline-color", "fill": "fill", "stroke": "stroke",
-  "shadow": "box-shadow", "divide": "border-color",
-  "ring": "outline-color", "caret": "color", "placeholder": "color",
-  "accent": "color",
-};
+// paint — §4.3 has a slot for every property below
+bg background-color · text color · border border-color · outline outline-color
+ring outline-color · divide border-color · shadow box-shadow · fill fill
+stroke stroke · caret color · placeholder color · accent color
+
+// radius · spacing · typography — §4.3 has NO slot (see 2.5)
+rounded[-t|-r|-b|-l|-s|-e|-tl|-tr|-br|-bl|-ss|-se|-ee|-es]  border-radius
+p[x|y|t|r|b|l|s|e]  padding      m[x|y|t|r|b|l|s|e]  margin
+gap · gap-x · gap-y · space-x · space-y                     gap/margin
+font  font-weight   leading  line-height   tracking  letter-spacing
 ```
+
+The alternation built from these keys must be **longest-first**
+(`prefixAlternation()`): first-match-wins would hand `t-card` to the token
+capture out of `rounded-t-card`, the same shape as `p` swallowing `px`.
+
+### 2.5 LAW GAP — the oracle sees more than the law can name
+
+§4.3 is a closed vocabulary of **seven properties, all paint**. There is no slot
+for `border-radius`, `padding`, `margin`, `gap`, `line-height` or
+`letter-spacing`. **41 of the 53 prefixes have no slot.**
+
+A use in one of those families is therefore **NOT SCOREABLE**, and it fails
+closed — it is neither awarded the 60 (which would let every spacing use pass
+without a property check) nor failed on it (which would report H-021 against a
+slot that was never available). It is counted in a declared `LAW GAP` bucket,
+and `deriveProperty`/`deriveName` refuse to emit a name whose property segment
+`parseName` could never parse back. Amending §4.3 is a decision about the law;
+the script states the gap instead of taking it.
 
 ### 2.2 Declared state × state prefix — 25 points
 

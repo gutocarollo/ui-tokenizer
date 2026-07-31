@@ -83,7 +83,12 @@ test("closed scanner registry emits evidence for all 19 occurrence kinds", () =>
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = "#f00";
-        return <svg style={{ color: "red" }}><path fill="#fff" /></svg>;
+        return (
+          <svg width="24" height="24" viewBox="0 0 24 24" opacity="0.8"
+            style={{ color: "red" }}>
+            <path fill="#fff" />
+          </svg>
+        );
       }
       const chart = { color: "#f00", fontSize: 12, animate: true };
     `
@@ -113,7 +118,18 @@ test("closed scanner registry emits evidence for all 19 occurrence kinds", () =>
   write(
     fixture,
     "src/indented.sass",
-    ".card\n  color: red\n  --card-color: #f00\n"
+    `@keyframes fade
+  from
+    opacity: 0
+  to
+    opacity: 1
+
+.card
+  color: red
+  --card-color: #f00
+  transition: color 100ms ease
+  animation: fade 200ms linear
+`
   );
   const minerRow = {
     id: "occ:unstable-first",
@@ -214,6 +230,52 @@ test("closed scanner registry emits evidence for all 19 occurrence kinds", () =>
     ),
     false
   );
+  assert.ok(
+    occurrences.some(
+      (occurrence) =>
+        occurrence.occurrenceKind === "motion-keyframe" &&
+        occurrence.location.file === "src/indented.sass" &&
+        occurrence.selectorOrObjectPath === undefined &&
+        occurrence.sourcePayload.selectorOrObjectPath === "fade" &&
+        occurrence.rawValue.includes("opacity: 1")
+    )
+  );
+  assert.ok(
+    occurrences.some(
+      (occurrence) =>
+        occurrence.occurrenceKind === "motion-transition" &&
+        occurrence.location.file === "src/indented.sass" &&
+        occurrence.property === "transition" &&
+        occurrence.rawValue === "color 100ms ease"
+    )
+  );
+  assert.ok(
+    occurrences.some(
+      (occurrence) =>
+        occurrence.occurrenceKind === "motion-transition" &&
+        occurrence.location.file === "src/indented.sass" &&
+        occurrence.property === "animation" &&
+        occurrence.rawValue === "fade 200ms linear"
+    )
+  );
+  assert.deepEqual(
+    Object.fromEntries(
+      ["width", "height", "opacity", "viewBox"].map((property) => [
+        property,
+        occurrences.find(
+          (occurrence) =>
+            occurrence.occurrenceKind === "svg-presentation" &&
+            occurrence.property === property
+        )?.axis,
+      ])
+    ),
+    {
+      width: "sizing",
+      height: "sizing",
+      opacity: "opacity",
+      viewBox: "layout",
+    }
+  );
 
   const secondOutput = path.join(fixture, "out-second");
   write(
@@ -313,6 +375,54 @@ test("closed scanner registry emits evidence for all 19 occurrence kinds", () =>
       item.rawValue === "p-2 px-1"
   );
   assert.equal(originalAfter.occurrenceId, originalBefore.occurrenceId);
+});
+
+test("empty source inventory fails closed with E-EXTRACT evidence", () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), "tokenize-empty-test-"));
+  const output = path.join(fixture, "out");
+  mkdirSync(path.join(fixture, "src"), { recursive: true });
+  write(
+    fixture,
+    "tokens/tokenization.config.json",
+    JSON.stringify({ sourceRoots: ["src"] })
+  );
+  write(fixture, "miner.ndjson", "");
+  const script = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "extract-design-occurrences.mjs"
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      script,
+      "--root",
+      fixture,
+      "--out",
+      output,
+      "--run-id",
+      "tokenize-empty",
+      "--miner-occurrences",
+      path.join(fixture, "miner.ndjson"),
+      "--generated-at",
+      "2026-01-01T00:00:00.000Z",
+    ],
+    { encoding: "utf8" }
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /E-EXTRACT/);
+  const summary = JSON.parse(
+    readFileSync(path.join(output, "extraction-summary.json"), "utf8")
+  );
+  assert.equal(summary.exhaustive, false);
+  assert.equal(summary.reentryCode, "E-EXTRACT");
+  assert.equal(summary.counts.files, 0);
+  assert.equal(summary.counts.occurrences, 0);
+  assert.ok(summary.failureReasons.includes("no authored source files"));
+  assert.ok(summary.failureReasons.includes("no design occurrences"));
+  assert.ok(
+    summary.scannerResults.every((resultItem) => resultItem.status === "executed")
+  );
 });
 
 test(

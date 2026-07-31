@@ -1,10 +1,26 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-export const NORMALIZER_VERSION = "tailwind-normalizer.v2";
+export const NORMALIZER_VERSION = "tailwind-normalizer.v3";
+
+export const NORMALIZER_PROVENANCE_FIELDS = Object.freeze([
+  "normalizerVersion",
+  "tailwindVersion",
+  "tailwindEntryCssFingerprint",
+  "tailwindConfigFingerprint",
+  "tokenSourceFingerprint",
+  "twMergeVersion",
+  "twMergeConfigFingerprint",
+]);
 
 const OPEN_TO_CLOSE = new Map([
   ["[", "]"],
@@ -171,6 +187,67 @@ export function stableStringify(value) {
       .join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+export function assertNormalizerProvenance(provenance) {
+  if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) {
+    throw new TypeError("Normalizer provenance must be a complete object");
+  }
+  const actualFields = Object.keys(provenance).sort();
+  const expectedFields = [...NORMALIZER_PROVENANCE_FIELDS].sort();
+  if (stableStringify(actualFields) !== stableStringify(expectedFields)) {
+    const missing = expectedFields.filter((field) => !actualFields.includes(field));
+    const extra = actualFields.filter((field) => !expectedFields.includes(field));
+    throw new TypeError(
+      `Normalizer provenance fields are incomplete: missing=[${
+        missing.join(", ")
+      }], extra=[${extra.join(", ")}]`
+    );
+  }
+  for (const field of ["normalizerVersion", "tailwindVersion"]) {
+    if (typeof provenance[field] !== "string" || provenance[field].length === 0) {
+      throw new TypeError(`Normalizer provenance ${field} must be non-empty`);
+    }
+  }
+  for (const field of [
+    "tailwindEntryCssFingerprint",
+    "tailwindConfigFingerprint",
+    "tokenSourceFingerprint",
+  ]) {
+    if (!/^[a-f0-9]{64}$/.test(provenance[field] ?? "")) {
+      throw new TypeError(`Normalizer provenance ${field} must be a SHA-256`);
+    }
+  }
+  if (
+    provenance.twMergeVersion !== null &&
+    (typeof provenance.twMergeVersion !== "string" ||
+      provenance.twMergeVersion.length === 0)
+  ) {
+    throw new TypeError(
+      "Normalizer provenance twMergeVersion must be non-empty or null"
+    );
+  }
+  if (
+    provenance.twMergeConfigFingerprint !== null &&
+    !/^[a-f0-9]{64}$/.test(provenance.twMergeConfigFingerprint ?? "")
+  ) {
+    throw new TypeError(
+      "Normalizer provenance twMergeConfigFingerprint must be a SHA-256 or null"
+    );
+  }
+  if (
+    (provenance.twMergeVersion === null) !==
+    (provenance.twMergeConfigFingerprint === null)
+  ) {
+    throw new TypeError(
+      "Normalizer provenance must bind twMergeVersion and twMergeConfigFingerprint together"
+    );
+  }
+  return provenance;
+}
+
+function fingerprintProjection(provenance, projection, payload) {
+  return sha256(stableStringify({ provenance, projection, ...payload }));
 }
 
 function scanTopLevel(input, delimiter) {
@@ -701,6 +778,92 @@ function hashFilesOrMarker(files, marker, base = null) {
   );
 }
 
+function configDirectivesFromEntry(entryCssSource, entryCssPath) {
+  const directives = [
+    ...String(entryCssSource).matchAll(
+      /@config\s+(["'])([^"']+)\1\s*;/g
+    ),
+  ].map((match) => ({
+    authoredPath: match[2],
+    absolutePath: path.resolve(path.dirname(entryCssPath), match[2]),
+  }));
+  const directiveCount = [
+    ...String(entryCssSource).matchAll(/@config\b/g),
+  ].length;
+  if (directiveCount !== directives.length) {
+    throw new Error(
+      `Tailwind entry contains an unsupported @config directive: ${entryCssPath}`
+    );
+  }
+  if (directives.length > 1) {
+    throw new Error(
+      `Tailwind entry must load exactly one configuration; found ${directives.length} @config directives in ${entryCssPath}`
+    );
+  }
+  return directives;
+}
+
+/**
+ * Bind the provenance config to the exact CSS passed to Tailwind's compiler.
+ *
+ * Tailwind v4 does not auto-detect JavaScript config files. A requested
+ * `--tailwind-config` is therefore either verified against the entry's
+ * `@config` directive or injected into the in-memory compiler input. A
+ * conflicting entry is rejected instead of hashing a config the compiler did
+ * not use.
+ */
+export function resolveTailwindConfigBinding({
+  entryCssPath,
+  entryCssSource,
+  requestedConfigPath = null,
+}) {
+  const directives = configDirectivesFromEntry(entryCssSource, entryCssPath);
+  const requested = requestedConfigPath
+    ? path.resolve(requestedConfigPath)
+    : null;
+  if (requested && !existsSync(requested)) {
+    throw new Error(`Requested Tailwind config does not exist: ${requested}`);
+  }
+  const authored = directives[0]?.absolutePath ?? null;
+  if (authored && !existsSync(authored)) {
+    throw new Error(`Tailwind @config target does not exist: ${authored}`);
+  }
+  if (
+    requested &&
+    authored &&
+    realpathSync(requested) !== realpathSync(authored)
+  ) {
+    throw new Error(
+      `Tailwind config mismatch: compiler entry loads ${authored}, but the requested config is ${requested}`
+    );
+  }
+  if (authored) {
+    return {
+      compilerInputCss: entryCssSource,
+      tailwindConfigPath: realpathSync(authored),
+      injected: false,
+    };
+  }
+  if (!requested) {
+    return {
+      compilerInputCss: entryCssSource,
+      tailwindConfigPath: null,
+      injected: false,
+    };
+  }
+
+  let relativeConfig = path
+    .relative(path.dirname(entryCssPath), requested)
+    .split(path.sep)
+    .join("/");
+  if (!relativeConfig.startsWith(".")) relativeConfig = `./${relativeConfig}`;
+  return {
+    compilerInputCss: `@config ${JSON.stringify(relativeConfig)};\n${entryCssSource}`,
+    tailwindConfigPath: realpathSync(requested),
+    injected: true,
+  };
+}
+
 /**
  * Load compiler and merge evidence from the target project, never from the
  * skill's dependency tree. Internal Tailwind APIs are feature-detected and the
@@ -723,9 +886,10 @@ export async function createTargetNormalizer({
       discoverTailwindEntryCss(absoluteRoot) ??
       "__missing-tailwind-entry.css"
   );
-  const tailwindConfigPath = resolveFromTarget(
-    tailwindConfig ?? configured.tailwindConfigPath ?? "tailwind.config.js"
-  );
+  const requestedTailwindConfigPath =
+    tailwindConfig ?? configured.tailwindConfigPath
+      ? resolveFromTarget(tailwindConfig ?? configured.tailwindConfigPath)
+      : null;
   const tokenSourcePaths = tokenSource
     ? [resolveFromTarget(tokenSource)]
     : configured.tokenSourcePaths;
@@ -737,10 +901,21 @@ export async function createTargetNormalizer({
   let designSystem = null;
   let tailwindVersion = "unavailable";
   let unavailableReason = null;
+  let compilerInputCss = null;
+  let tailwindConfigPath = null;
+  let tailwindConfigInjected = false;
   try {
     if (!existsSync(entryCssPath)) {
       throw new Error(`Tailwind entry CSS not found: ${entryCssPath}`);
     }
+    const configBinding = resolveTailwindConfigBinding({
+      entryCssPath,
+      entryCssSource: readFileSync(entryCssPath, "utf8"),
+      requestedConfigPath: requestedTailwindConfigPath,
+    });
+    compilerInputCss = configBinding.compilerInputCss;
+    tailwindConfigPath = configBinding.tailwindConfigPath;
+    tailwindConfigInjected = configBinding.injected;
     const resolved = requireFromRoot.resolve("@tailwindcss/node");
     const tailwindNode = await import(pathToFileURL(resolved).href);
     if (typeof tailwindNode.__unstable__loadDesignSystem !== "function") {
@@ -761,7 +936,7 @@ export async function createTargetNormalizer({
       tailwindEntry
     );
     designSystem = await tailwindNode.__unstable__loadDesignSystem(
-      readFileSync(entryCssPath, "utf8"),
+      compilerInputCss,
       { base: path.dirname(entryCssPath) }
     );
     if (
@@ -796,10 +971,9 @@ export async function createTargetNormalizer({
   const provenance = {
     normalizerVersion: NORMALIZER_VERSION,
     tailwindVersion,
-    tailwindEntryCssFingerprint: hashFileOrMarker(
-      entryCssPath,
-      "tailwind-entry-css"
-    ),
+    tailwindEntryCssFingerprint: compilerInputCss
+      ? sha256(compilerInputCss)
+      : hashFileOrMarker(entryCssPath, "tailwind-entry-css"),
     tailwindConfigFingerprint: hashFileOrMarker(
       tailwindConfigPath,
       "tailwind-config"
@@ -937,9 +1111,8 @@ export async function createTargetNormalizer({
     available: Boolean(designSystem),
     unavailableReason,
     entryCssPath: existsSync(entryCssPath) ? entryCssPath : null,
-    tailwindConfigPath: existsSync(tailwindConfigPath)
-      ? tailwindConfigPath
-      : null,
+    tailwindConfigPath,
+    tailwindConfigInjected,
     tokenSourcePaths: tokenSourcePaths.filter(existsSync),
     provenance,
     compilerEvidence,
