@@ -44,7 +44,7 @@ medição desta sessão, não estimativa.
 |---|---:|---|
 | `className` | 6.412 atributos → **32.662 usos de classe** | 98,9% da superfície |
 | `style={{ }}` inline | **158** | `calc()`, `maxHeight`, `objectFit`, alturas condicionais |
-| `src/index.css` à mão | **1.695 linhas** | 283 `var(--token)` · **28 cores cravadas** · **172 px** (31 distintos) |
+| `src/index.css` à mão | **1.695 linhas** | 286 `var(--token)` · **28 ocorrências** de cor cravada (9 hex + 19 rgb/rgba, **16 valores distintos**) · **172 px** (31 distintos) |
 | CSS gerado de token | 1.348 linhas | saída, não entrada |
 | `styled-components`·`cva`·`clsx`·`twMerge`·`sx`·CSS modules | **0** | não usados |
 
@@ -92,17 +92,85 @@ anti-padrão (composição, não decisão de design) e sem repetição não há 
 de padrão. Forçar esses 18,6% para bater 90% seria **inventar contrato onde não
 há padrão** — o defeito oposto ao que corrigimos.
 
-### 2.4 Contrato de metas
+### 2.4 Contrato de metas — ancorado nos predicados, não num percentual meu
 
-| | valor | natureza |
-|---|---:|---|
-| meta **bloqueante** | **68,9%** | medido (entidades ≥2×). Não atingir = falha |
-| **teto** declarado | **81,4%** | alvo, não promessa |
-| fora de escopo declarado | 18,6% | utility de composição sem padrão |
+> **Corrigido na rodada 1 do Planning Adversarial Loop.** A versão anterior fixava
+> *"meta bloqueante 68,9%"*. Três defeitos, todos confirmados por medição:
+>
+> 1. **Media o que o contrato diz que não conta.** O pedido arquivado fecha com
+>    *"completion means the entire frontend design-system scope is tokenized,
+>    **not merely repeated class strings**"* — e 68,9% era exatamente a porção
+>    "repeated class strings".
+> 2. **O portão ficava antes do `APPLY`.** Cobertura medida em F-D é cobertura de
+>    contratos **definidos**, não aplicados — literalmente o *"completed control
+>    plane alone is insufficient"* que o §1 jura corrigir.
+> 3. **A banda 2× é majoritariamente ruído.** Sem ela: 58,6%. Dentro dela,
+>    99 entidades de ≤3 classes (`flex items-start gap-3`, `cursor-pointer h-fit`)
+>    são coocorrência incidental, não entidade de design.
 
-> **>90% não é atingível sob definição honesta.** O caminho existiria — refatorar
-> o app para reduzir bundles únicos — mas isso é mudar o código-fonte além de
-> nomear, escopo diferente e muito maior, fora deste plano.
+**O critério bloqueante é o predicado, não o percentual:**
+
+> **100% das ocorrências de design em disposição terminal** — migrada **ou**
+> exceção aprovada, e toda exceção carrega `owner`, `reason`, `scope`, `evidence`,
+> `review policy` (§14 de `reference/end-to-end-workflow.md`).
+
+Sob esse critério, os **18,6%** de utility de composição não são "fora de escopo"
+por decreto: são **fila de exceções**, cada uma com as cinco chaves. É o que os
+torna auditáveis em vez de convenientes.
+
+#### O que passa a ser bloqueante, e o que é alvo
+
+| | escopo | natureza |
+|---|---|---:|
+| **BLOQUEANTE** | disposição terminal de **100%** das ocorrências | predicado |
+| **BLOQUEANTE** | eixo B — famílias tokenizáveis (cor·spacing·radius·tipografia) em bundle único: **12,5%** | decisão de design incontestável |
+| **alvo** | entidade canônica sob critério defensável: **51,4%** | ver abaixo |
+| **fila de exceção** | utility de composição sem padrão | 5 chaves obrigatórias por item |
+
+#### O critério de entidade muda: repetição **e** tamanho
+
+Repetição sozinha não separa entidade de coincidência. Medido dentro da banda 2×:
+
+| bundles de 2× com | entidades | cobre |
+|---|---:|---:|
+| ≤3 classes — `flex items-start gap-3`, `cursor-pointer h-fit` | 99 | 1,4% ← **ruído** |
+| 4–6 classes | 139 | 3,9% |
+| ≥7 classes — componentes reais | 77 | 4,9% |
+
+**Critério adotado: repete ≥2× E tem ≥4 classes → 430 entidades, 51,4%.**
+Os bundles curtos de baixa repetição vão para a fila de exceção, não para o
+denominador.
+
+#### A distribuição medida, pelo script versionado
+
+`scripts/measure-coverage.mjs` produz **todos** os números deste plano. Quem
+discordar discorda de uma linha de código que pode apontar, e o número muda junto
+com a regra — nunca em silêncio. Saída de hoje:
+
+```
+USOS DE CLASSE               32662   <- o denominador
+  ja em contrato nomeado      5847   17,9%
+  entidades (430)            16798   51,4%
+  tokenizavel fora            6583   20,2%
+  sem disposicao -> EXCECAO   9281   28,4%
+```
+
+| disposição | usos | |
+|---|---:|---:|
+| **migrável** — entidade + tokenizável | 23.381 | **71,6%** |
+| **fila de exceção** — 5 chaves por item | 9.281 | **28,4%** |
+
+O bloqueante é que a soma dê **100%** com toda exceção justificada, não que a
+primeira linha atinja um percentual escolhido por mim.
+
+#### Onde o portão é medido
+
+**Depois** do codemod, **no frontend real** — nunca na definição do contrato.
+Um contrato escrito e não aplicado conta **zero**.
+
+> **>90% continua não sendo atingível** sob definição honesta, e agora nem é a
+> métrica: a métrica é disposição terminal de 100%, com a distribuição entre
+> migrado e exceção sendo o resultado, não a meta.
 
 ---
 
@@ -165,8 +233,8 @@ NORMALIZE → MINE → EXTRACT → CLUSTER → CONVERGE → REPORT → DECIDE �
 | px em `index.css` | → escala de spacing (oráculo do eixo B) |
 | `className` | normalização de ordem/equivalência/sobreposição |
 
-**Verificação cruzada obrigatória.** Hoje lemos `className` por regex e **1.077
-`className={...}` dinâmicos são invisíveis**. `NORMALIZE` tem duas fontes —
+**Verificação cruzada obrigatória.** Hoje lemos `className` por regex e **269
+atributos `className={...}` dinâmicos** ficam parcialmente invisíveis. `NORMALIZE` tem duas fontes —
 estática (AST) e renderizada (computed style via Playwright, que já temos na fase
 de evidência). Se a contagem por fonte divergir da contagem por DOM, **há
 vazamento e o loop para**.
@@ -193,16 +261,41 @@ app e reportou sucesso**. Requisitos da fase:
 
 | # | fase | entrega | prova |
 |---|---|---|---|
-| **F-A** | validar libs (LEI ZERO) | **✔ concluída — ver §5.1** | 3 subagents, código clonado e executado |
-| **F-B** | `NORMALIZE` | 158 `style={{}}` + 28 cores + 172 px normalizados | contagem antes/depois + cruzamento DOM |
-| **F-C** | `MINE` no loop | miner com `--ext` derivado + guard | o bug de 2% vira erro num teste |
-| **F-D** | entidade canônica | bundles ≥2× viram contrato de componente | cobertura medida ≥ 68,9% |
-| **F-E** | ampliar oráculo | radius/spacing/tipografia além de cor | famílias novas no `PREFIX_PROPERTY` |
+| **F-A** | validar libs (LEI ZERO) | **✔ concluída — §5.1** | 3 subagents, código clonado e executado |
+| **F-A2** | LEI ZERO do **veículo de entidade** | `cva` · `tailwind-variants` · `@apply` v4 · componente puro | doc oficial + teste em `.jsx` sem TS |
+| **F-B** | `NORMALIZE` | 158 `style={{}}` + 28 ocorrências de cor + 172 px | `measure-coverage.mjs`, antes/depois |
+| **F-B2** | HTML semântico (spec nº 3 do dono) | `<div onClick>` → `<button>`, landmarks | os 59 clusters sem owner recontados — §7.1 |
+| **F-C** | `MINE` no loop | **✔ concluída** — ext derivada + guard | regressão 3/3, 722/723 arquivos |
+| **F-D0** | **validar os pesos** | conjunto rotulado, amostra e limiar | ver §5.2 — **bloqueia F-F** |
+| **F-D** | entidade canônica, **estagiada por banda** | ≥20× (41 ent.) → ≥5× (249) → ≥2×∧≥4cls (430) | cobertura por lote, medida pós-codemod |
+| **F-E** | ampliar oráculo | radius·spacing·tipografia além de cor | famílias novas no `PREFIX_PROPERTY` |
 | **F-F** | `APPLY` | tokens escritos + `tokens:build` | **grep no CSS BUILDADO** |
 | **F-G** | codemod | call sites migrados via `ts-morph` | build + typecheck verdes |
-| **F-H** | `EVIDENCE` | pixel antes/depois por estado | PNG + manifest + review adversarial |
+| **F-H** | `EVIDENCE` | pixel antes/depois **por estado e por viewport** | PNG + manifest + review adversarial |
+| **F-I** | **disposição terminal** | toda ocorrência migrada ou exceção com as 5 chaves | `evaluate-absolute-completion.mjs` |
+
+**O portão de cobertura fica em F-I, não em F-D.** Contrato definido e não
+aplicado conta zero.
 
 **Sequencial, uma por vez, verificada antes de seguir** (LEI ZERO §6).
+
+### 5.2 F-D0 — validar os pesos, com amostra e limiar
+
+Os pesos `cor 40 · contrato 25 · componente 15 · owner 10 · função 10` são meus,
+nunca foram medidos, e sustentam **211 fusões**. A versão anterior deste plano
+prometia *"validar antes de `APPLY`"* sem fase, sem amostra e sem gatilho — que é
+intenção, não mitigação.
+
+| | |
+|---|---|
+| **amostra** | 40 pares estratificados: 10 de confiança ≥85, 10 de 70–85, 10 na faixa de corte 60–70, 10 da fila humana |
+| **rótulo** | o dono responde apenas *"mesmo contrato?"* sim/não, sem ver a nota |
+| **limiar de aceite** | concordância ≥ 85% (34/40). O par da fila humana conta como acerto se o processo **não** fundiu |
+| **se reprovar** | as 211 fusões são invalidadas, os pesos são reajustados por regressão sobre os 40 rótulos, e a convergência roda de novo. **Não** se aplica nada com pesos reprovados |
+| **bloqueia** | F-F (`APPLY`) |
+
+O custo para o dono é 40 respostas binárias. É o menor preço para não aplicar 211
+decisões sustentadas por números que inventei.
 
 ### 5.1 F-A concluída — as três candidatas caíram, e uma delas por sorte
 
@@ -325,6 +418,31 @@ fato tem duas partes.
 | redireções do dono nesta sessão | contexto por token, iteração até ponto fixo, sinais ponderados, corte de incerteza |
 | pergunta do dono sobre `rounded-lg` | entidade canônica (**maior alavanca: 68,9%**) |
 | pergunta do dono sobre vetores | `NORMALIZE` como passo inicial |
+| **spec nº 3 do pedido original** | HTML semântico — ver §7.1 |
 
 As três últimas linhas **não existiam em plano nenhum** — vieram da conversa e
 agora estão escritas.
+
+### 7.1 A spec nº 3 do dono, que eu havia deixado cair
+
+O pedido original numera três especificações. A nº 3 é **"enriquecer com HTML
+semântico para ajudar a atribuição de owner"** — e o `docs/ESTADO.md` §1 a lista
+como governante. A primeira versão deste plano não a mencionava em fase alguma,
+nem como exclusão justificada. Um plano que existe para reconciliar
+documento × realidade não pode derrubar uma spec numerada em silêncio.
+
+**Ela não é decorativa — é o insumo do eixo A.** `find-owner` deriva o owner da
+tag nativa e do `role`; um app com `<div>` genérico onde deveria haver `<nav>`,
+`<button>`, `<article>` degrada a atribuição, e é exatamente de onde vêm os **59
+clusters sem owner (87 ocorrências)** hoje na fila de IA.
+
+Entra como **F-B2**, dentro do `NORMALIZE`, com escopo contido e critério de
+parada explícito:
+
+| | |
+|---|---|
+| **escopo** | apenas os elementos que hoje falham a atribuição de owner — não uma varredura de acessibilidade do app |
+| **entrada** | os 59 clusters sem owner do relatório da rodada |
+| **regra** | `<div onClick>` → `<button>`; landmark implícito → `<nav>`/`<header>`/`<aside>`; nada de trocar tag por gosto |
+| **prova** | os 59 clusters recontados após a mudança; queda no número é o resultado esperado |
+| **limite** | mudança de tag altera semântica e foco de teclado. Toda troca passa por F-H (pixel **e** navegação por teclado) |
