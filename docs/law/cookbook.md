@@ -914,100 +914,110 @@ descreve um produto: descreve a própria gramática, um caso por regra.
 
 </details>
 
+
+## 10. Promovidas na revalidação
+
+69 linhas que os agentes marcaram como exceção mas que pontuam **100** quando
+julgadas contra o universo real do cookbook — o `state-with-base` disparava porque cada agente
+via só os próprios nomes. Re-pontuadas aqui, com o cookbook inteiro como universo.
+
+| capítulo de origem | situação | token pela lei |
+|---|---|---|
+| Capítulo especial | spinner de loading do ReportPreviewModal (rotulado erroneamente 'audio-player' na extracao | `progress.border-color` |
+| Capítulo especial | caixa de erro 3-tons (bg/border/texto) do ReportPreviewModal | `banner.destructive.background-color` |
+| Capítulo especial | caixa informativa 3-tons (bg/border/texto) do ReportPreviewModal | `banner.info.background-color` |
+| Capítulo especial | swatch de cor do seletor do post-it, nao selecionado (base do par) | `radio.outline-color` |
+| Capítulo especial | swatch de cor selecionado no seletor do post-it | `radio.outline-color.selected` |
+| Capítulo especial | bloco de sticker (emoji) com anel de selecao via wrapper compartilhado (BoardBlockWrapper) | `focus-ring.outline-color` |
+| Capítulo especial | trilho (rail) da TabsList | `toolbar.background-color` |
+| Capítulo especial | aba, estado base/inativo (par do estado active) | `nav-item.background-color` |
+| Capítulo especial | aba ativa | `nav-item.background-color.active` |
+| Capítulo especial | aba desabilitada, texto | `nav-item.foreground-color.disabled` |
+| Capítulo especial | sublinhado animado da DashTabBar, base (nao-ativo) | `nav-item.indicator.background-color` |
+| Capítulo especial | sublinhado animado da DashTabBar, aba ativa | `nav-item.indicator.background-color.active` |
+| Capítulo especial | aba inativa da DashTabBar, base | `nav-item.foreground-color` |
+| Capítulo especial | aba inativa da DashTabBar, hover | `nav-item.foreground-color.hover` |
+| Capítulo especial | borda da aba desabilitada da DashTabBar — TOKEN COM PALAVRA BANIDA 'surface' | `nav-item.border-color.disabled` |
+| Capítulo especial | borda da aba, base (par do estado disabled acima) | `nav-item.border-color` |
+| Capítulo especial | gradiente de fade esquerdo indicando scroll da DashTabBar | `toolbar.prefix.background-color` |
+| Capítulo especial | gradiente de fade direito indicando scroll da DashTabBar | `toolbar.suffix.background-color` |
+| Capítulo especial | pilula minimizada do OnboardingBar, base | `pill.background-color` |
+| Capítulo especial | pilula minimizada do OnboardingBar, hover | `pill.background-color.hover` |
+| Capítulo especial | painel expandido do OnboardingBar | `card.background-color` |
+| Capítulo especial | icone de etapa, base/pendente (par dos estados checked/disabled abaixo) | `card.icon.foreground-color` |
+| Capítulo especial | icone de etapa concluida | `card.icon.foreground-color.checked` |
+| Capítulo especial | icone de etapa bloqueada por plano | `card.icon.foreground-color.disabled` |
+| Capítulo especial | badge numerico de sub-passo (1/2/3) — TOKEN COM PALAVRA BANIDA 'surface' | `badge.background-color` |
+| Capítulo especial | conteudo do tooltip Radix canonico (ui/tooltip.tsx) | `tooltip.background-color` |
+| Capítulo especial | painel do HoverCard Radix | `popover.background-color` |
+| Capítulo especial | chip de anexo, base (par do estado loading) | `attachment.background-color` |
+| Capítulo especial | anexo embutido com sucesso (sem preview) — fundo do chip | `attachment.background-color` |
+| Capítulo especial | botao 'X' de remover anexo, base (par do estado hover) | `attachment.suffix.background-color` |
+| Capítulo especial | botao 'X' de remover anexo, hover vira vermelho de erro | `attachment.suffix.background-color.hover` |
+| Capítulo especial | alerta 'entre na organizacao para continuar' | `banner.warning.background-color` |
+| Capítulo especial | alerta 'voce ja possui este curso' | `banner.success.background-color` |
+| Capítulo especial | badge de contagem nao-lida do sino (pill vermelho flutuante) | `badge.destructive.background-color` |
+| Capítulo especial | dot de tipo de notificacao 'success' | `list-row.success.indicator.background-color` |
+| Capítulo especial | dot de tipo de notificacao 'warning'/'alert' (2 tons de amarelo colapsam em 1 variant — ve | `list-row.warning.indicator.background-color` |
+| Capítulo especial | dot de tipo de notificacao 'error' | `list-row.destructive.indicator.background-color` |
+| Capítulo especial | dot de tipo de notificacao 'default' | `list-row.info.indicator.background-color` |
+| Capítulo especial | linha de notificacao lida (base/default, par do estado 'on' abaixo) | `list-row.background-color` |
+| Capítulo especial | linha de notificacao nao-lida (tint azul de fundo) — 'unread' sem slot proprio em §4.5, us | `list-row.background-color.on` |
+| Capítulo especial | sino, base (par do estado hover) | `button.ghost.background-color` |
+| Capítulo especial | sino em hover troca de fundo | `button.ghost.background-color.hover` |
+| Capítulo especial | segmento icone do filtro (icone rosa) | `pill.icon.foreground-color` |
+| Capítulo especial | segmento label do filtro (texto) | `pill.label` |
+| Capítulo especial | botao remover filtro (X), base (par do estado hover) | `pill.suffix.background-color` |
+| Capítulo especial | botao remover filtro (X) em hover vira tint vermelho | `pill.suffix.background-color.hover` |
+| Capítulo especial | botao confirmar do popover de valores, habilitado | `button.primary.background-color` |
+| Capítulo especial | botao confirmar do popover de valores, desabilitado | `button.primary.background-color.disabled` |
+| Capítulo especial | status 'completed' na celula da tabela de execucoes agendadas | `badge.success.foreground-color` |
+| Capítulo especial | status 'failed'/'timed_out' | `badge.destructive.foreground-color` |
+| Capítulo especial | status default/desconhecido ('—') (base, par dos estados abaixo) | `badge.foreground-color` |
+| Capítulo especial | status 'running'/'queued' (nao-terminal, italico) | `badge.foreground-color.loading` |
+| Capítulo especial | anel giratorio do spinner de marca | `progress.border-color` |
+| Capítulo especial | icone giratorio de carregamento de pagina inteira | `progress.foreground-color` |
+| Capítulo especial | bolha de icone do cabecalho de titulo por tipo | `badge.background-color` |
+| Capítulo especial | cor do icone (uniforme entre os 6 tipos) | `badge.icon.foreground-color` |
+| Capítulo especial | setas de navegacao do carousel (3o mecanismo de tema Tailwind dark: nativo) | `button.ghost.background-color` |
+| Capítulo especial | dots de paginacao, inativo (base) | `progress.indicator.background-color` |
+| Capítulo especial | dots de paginacao, ativo | `progress.indicator.background-color.active` |
+| Capítulo especial | botao 'marcar como lido', base/default | `button.primary.background-color` |
+| Capítulo especial | botao 'marcar como lido' quando ha erro de leitura | `button.destructive.background-color` |
+| Capítulo especial | titulo e descricao dentro do overlay de drop | `overlay.label` |
+| Capítulo especial | texto do pensamento atual/anterior (mesmo valor em collapsed/expanded — sem delta real de | `card.label` |
+| Capítulo especial | estilos injetados via <style> !important sobre HTML de terceiros — fundo | `modal.background-color` |
+| Capítulo especial | estilos injetados via <style> !important sobre HTML de terceiros — texto | `modal.foreground-color` |
+| Capítulo especial | botoes fechar/anterior/proximo do lightbox, base | `button.ghost.foreground-color` |
+| Capítulo especial | botoes fechar/anterior/proximo do lightbox, hover | `button.ghost.foreground-color.hover` |
+| Capítulo especial | botoes cancelar/salvar da ContextualSaveBar, base | `button.foreground-color` |
+| Capítulo especial | botoes cancelar/salvar da ContextualSaveBar, hover | `button.foreground-color.hover` |
+
 ## Exceções
 
-As 85 linhas abaixo NÃO entraram nas tabelas: ou o oráculo deu menos de 100, ou o
-nome veio anotado com uma pendência em vez de um token limpo. Cada uma fica aqui com o motivo,
-porque exceção sem justificativa escrita é **falha**, não licença.
+As 16 linhas abaixo continuam pendentes depois da revalidação. Exceção sem
+justificativa escrita é **falha**, não licença.
 
-| capítulo | situação | nome proposto | nota | por que não entrou |
-|---|---|---|---|---|
-| Capítulo especial | spinner de loading do ReportPreviewModal (rotulado erroneamente 'audio-player' na extracao | `progress.border-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | caixa de erro 3-tons (bg/border/texto) do ReportPreviewModal | `banner.destructive.background-color` | 95 | reprovado pelo oráculo |
-| Capítulo especial | caixa informativa 3-tons (bg/border/texto) do ReportPreviewModal | `banner.info.background-color` | 95 | reprovado pelo oráculo |
-| Capítulo especial | post-it cor amarela (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | post-it cor rosa (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | post-it cor azul (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | post-it cor verde (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | post-it cor laranja (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | post-it cor roxa (unica parcialmente tokenizada) | `card.foreground-color (variant PENDENTE — aciona tambem LG2 'premium')` | 50 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | swatch de cor do seletor do post-it, nao selecionado (base do par) | `radio.outline-color` | 80 | reprovado pelo oráculo |
-| Capítulo especial | swatch de cor selecionado no seletor do post-it | `radio.outline-color.selected` | 90 | reprovado pelo oráculo |
-| Capítulo especial | bloco de sticker (emoji) com anel de selecao via wrapper compartilhado (BoardBlockWrapper) | `focus-ring.outline-color` | 95 | reprovado pelo oráculo |
-| Capítulo especial | trilho (rail) da TabsList | `toolbar.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | aba, estado base/inativo (par do estado active) | `nav-item.background-color` | 80 | reprovado pelo oráculo |
-| Capítulo especial | aba ativa | `nav-item.background-color.active` | 95 | reprovado pelo oráculo |
-| Capítulo especial | aba desabilitada, texto | `nav-item.foreground-color.disabled` | 85 | reprovado pelo oráculo |
-| Capítulo especial | sublinhado animado da DashTabBar, base (nao-ativo) | `nav-item.indicator.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | sublinhado animado da DashTabBar, aba ativa | `nav-item.indicator.background-color.active` | 90 | reprovado pelo oráculo |
-| Capítulo especial | aba inativa da DashTabBar, base | `nav-item.foreground-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | aba inativa da DashTabBar, hover | `nav-item.foreground-color.hover` | 90 | reprovado pelo oráculo |
-| Capítulo especial | borda da aba desabilitada da DashTabBar — TOKEN COM PALAVRA BANIDA 'surface' | `nav-item.border-color.disabled` | 85 | reprovado pelo oráculo |
-| Capítulo especial | borda da aba, base (par do estado disabled acima) | `nav-item.border-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | gradiente de fade esquerdo indicando scroll da DashTabBar | `toolbar.prefix.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | gradiente de fade direito indicando scroll da DashTabBar | `toolbar.suffix.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | pilula minimizada do OnboardingBar, base | `pill.background-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | pilula minimizada do OnboardingBar, hover | `pill.background-color.hover` | 90 | reprovado pelo oráculo |
-| Capítulo especial | painel expandido do OnboardingBar | `card.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | icone de etapa, base/pendente (par dos estados checked/disabled abaixo) | `card.icon.foreground-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | icone de etapa concluida | `card.icon.foreground-color.checked` | 85 | reprovado pelo oráculo |
-| Capítulo especial | icone de etapa bloqueada por plano | `card.icon.foreground-color.disabled` | 75 | reprovado pelo oráculo |
-| Capítulo especial | badge numerico de sub-passo (1/2/3) — TOKEN COM PALAVRA BANIDA 'surface' | `badge.background-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | cores dos icones de tipo de atividade (Page/Video/Document/Assignment/Markdown/Embed) | `badge.icon.foreground-color (variantes info/success/warning/destructive OK; 'premium' PENDENTE — ver LG2)` | 50 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | botao 'Got it' do guia do editor — VARIANTE COM PALAVRA BANIDA 'surface' | `button.secondary.background-color (destino provisorio — ver LG5, decisao do dono pendente)` | 40 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | fundo/texto do tooltip 'slateBlack' — NOME/TOKEN E A PALAVRA BANIDA 'surface' | `tooltip.background-color (skin 'slateBlack' sem variant valido — ver LG1)` | 50 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | conteudo do tooltip Radix canonico (ui/tooltip.tsx) | `tooltip.background-color` | 95 | reprovado pelo oráculo |
-| Capítulo especial | painel do HoverCard Radix | `popover.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | chip de anexo, base (par do estado loading) | `attachment.container.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | anexo em upload (spinner) — fundo do chip | `attachment.container.background-color.loading` | 90 | reprovado pelo oráculo |
-| Capítulo especial | anexo em FALHA — fundo do chip em tom de erro | `attachment.container.background-color.invalid` | 85 | reprovado pelo oráculo |
-| Capítulo especial | anexo com sucesso (preview real) — icone colorido por extensao de arquivo | `attachment.icon.background-color (variante por tipo de arquivo PENDENTE — ver LG1)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | anexo embutido com sucesso (sem preview) — fundo do chip | `attachment.container.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | botao 'X' de remover anexo, base (par do estado hover) | `attachment.suffix.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | botao 'X' de remover anexo, hover vira vermelho de erro | `attachment.suffix.background-color.hover` | 95 | reprovado pelo oráculo |
-| Capítulo especial | alerta 'entre na organizacao para continuar' | `banner.warning.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | alerta 'voce ja possui este curso' | `banner.success.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | botao 'candidatar-se a colaborador' — VARIANTE COM PALAVRA BANIDA 'surface' | `button.secondary.background-color (destino provisorio — ver LG5, decisao do dono pendente)` | 40 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | badge de contagem nao-lida do sino (pill vermelho flutuante) | `badge.destructive.background-color` | 95 | reprovado pelo oráculo |
-| Capítulo especial | dot de tipo de notificacao 'success' | `list-row.success.indicator.background-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | dot de tipo de notificacao 'warning'/'alert' (2 tons de amarelo colapsam em 1 variant — ve | `list-row.warning.indicator.background-color` | 70 | reprovado pelo oráculo |
-| Capítulo especial | dot de tipo de notificacao 'error' | `list-row.destructive.indicator.background-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | dot de tipo de notificacao 'default' | `list-row.info.indicator.background-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | linha de notificacao lida (base/default, par do estado 'on' abaixo) | `list-row.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | linha de notificacao nao-lida (tint azul de fundo) — 'unread' sem slot proprio em §4.5, us | `list-row.background-color.on` | 65 | reprovado pelo oráculo |
-| Capítulo especial | sino, base (par do estado hover) | `button.ghost.background-color` | 70 | reprovado pelo oráculo |
-| Capítulo especial | sino em hover troca de fundo | `button.ghost.background-color.hover` | 90 | reprovado pelo oráculo |
-| Capítulo especial | segmento icone do filtro (icone rosa) | `pill.icon.foreground-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | segmento label do filtro (texto) | `pill.label` | 90 | reprovado pelo oráculo |
-| Capítulo especial | botao remover filtro (X), base (par do estado hover) | `pill.suffix.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | botao remover filtro (X) em hover vira tint vermelho | `pill.suffix.background-color.hover` | 90 | reprovado pelo oráculo |
-| Capítulo especial | botao confirmar do popover de valores, habilitado | `button.primary.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | botao confirmar do popover de valores, desabilitado | `button.primary.background-color.disabled` | 85 | reprovado pelo oráculo |
-| Capítulo especial | status 'completed' na celula da tabela de execucoes agendadas | `badge.success.foreground-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | status 'failed'/'timed_out' | `badge.destructive.foreground-color` | 95 | reprovado pelo oráculo |
-| Capítulo especial | status default/desconhecido ('—') (base, par dos estados abaixo) | `badge.foreground-color` | 80 | reprovado pelo oráculo |
-| Capítulo especial | status 'running'/'queued' (nao-terminal, italico) | `badge.foreground-color.loading` | 90 | reprovado pelo oráculo |
-| Capítulo especial | anel giratorio do spinner de marca | `progress.border-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | icone giratorio de carregamento de pagina inteira | `progress.foreground-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | bolha de icone do cabecalho de titulo por tipo | `badge.background-color` | 95 | reprovado pelo oráculo |
-| Capítulo especial | cor do icone (uniforme entre os 6 tipos) | `badge.icon.foreground-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | setas de navegacao do carousel (3o mecanismo de tema Tailwind dark: nativo) | `button.ghost.background-color` | 70 | reprovado pelo oráculo |
-| Capítulo especial | dots de paginacao, inativo (base) | `progress.indicator.background-color` | 75 | reprovado pelo oráculo |
-| Capítulo especial | dots de paginacao, ativo | `progress.indicator.background-color.active` | 85 | reprovado pelo oráculo |
-| Capítulo especial | 5 niveis de prioridade mapeados para 5 layers de fundo (variant collapse PENDENTE — ver LG | `banner.background-color (variante PENDENTE, 5 tiers vs 4 slots)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | botao 'marcar como lido', base/default | `button.primary.background-color` | 85 | reprovado pelo oráculo |
-| Capítulo especial | botao 'marcar como lido' quando ha erro de leitura | `button.destructive.background-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | titulo e descricao dentro do overlay de drop | `overlay.label` | 95 | reprovado pelo oráculo |
-| Capítulo especial | botao de expandir/colapsar cadeia de pensamento — cor do icone (chevron) | `card.caret.foreground-color` | 90 | reprovado pelo oráculo |
-| Capítulo especial | texto do pensamento atual/anterior (mesmo valor em collapsed/expanded — sem delta real de  | `card.label` | 90 | reprovado pelo oráculo |
-| Capítulo especial | painel inteiro do ImpersonationSelector usa scheme.dark.* direto, ignorando useTheme() (ba | `menu.background-color (DECISAO DO DONO: confirmar se e menu, card ou modal)` | 55 | nome anotado com pendência, não é token limpo |
-| Capítulo especial | estilos injetados via <style> !important sobre HTML de terceiros — fundo | `modal.background-color` | 80 | reprovado pelo oráculo |
-| Capítulo especial | estilos injetados via <style> !important sobre HTML de terceiros — texto | `modal.foreground-color` | 80 | reprovado pelo oráculo |
-| Capítulo especial | botoes fechar/anterior/proximo do lightbox, base | `button.ghost.foreground-color` | 70 | reprovado pelo oráculo |
-| Capítulo especial | botoes fechar/anterior/proximo do lightbox, hover | `button.ghost.foreground-color.hover` | 85 | reprovado pelo oráculo |
-| Capítulo especial | botoes cancelar/salvar da ContextualSaveBar, base | `button.foreground-color` | 65 | reprovado pelo oráculo |
-| Capítulo especial | botoes cancelar/salvar da ContextualSaveBar, hover | `button.foreground-color.hover` | 80 | reprovado pelo oráculo |
+| capítulo | situação | nome proposto | por que não entrou |
+|---|---|---|---|
+| Capítulo especial | post-it cor amarela (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | post-it cor rosa (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | post-it cor azul (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | post-it cor verde (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | post-it cor laranja (bg/borda/texto hardcoded no board) | `card.background-color (variant de cor PENDENTE — ver LG1)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | post-it cor roxa (unica parcialmente tokenizada) | `card.foreground-color (variant PENDENTE — aciona tambem LG2 'premium')` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | cores dos icones de tipo de atividade (Page/Video/Document/Assignment/Markdown/Embed) | `badge.icon.foreground-color (variantes info/success/warning/destructive OK; 'premium' PENDENTE — ver LG2)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | botao 'Got it' do guia do editor — VARIANTE COM PALAVRA BANIDA 'surface' | `button.secondary.background-color (destino provisorio — ver LG5, decisao do dono pendente)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | fundo/texto do tooltip 'slateBlack' — NOME/TOKEN E A PALAVRA BANIDA 'surface' | `tooltip.background-color (skin 'slateBlack' sem variant valido — ver LG1)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | anexo em upload (spinner) — fundo do chip | `attachment.container.background-color.loading` | nota 85 |
+| Capítulo especial | anexo em FALHA — fundo do chip em tom de erro | `attachment.container.background-color.invalid` | nota 85 |
+| Capítulo especial | anexo com sucesso (preview real) — icone colorido por extensao de arquivo | `attachment.icon.background-color (variante por tipo de arquivo PENDENTE — ver LG1)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | botao 'candidatar-se a colaborador' — VARIANTE COM PALAVRA BANIDA 'surface' | `button.secondary.background-color (destino provisorio — ver LG5, decisao do dono pendente)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | 5 niveis de prioridade mapeados para 5 layers de fundo (variant collapse PENDENTE — ver LG | `banner.background-color (variante PENDENTE, 5 tiers vs 4 slots)` | nome anotado com pendência — precisa de decisão |
+| Capítulo especial | botao de expandir/colapsar cadeia de pensamento — cor do icone (chevron) | `card.caret.foreground-color` | nota 85 |
+| Capítulo especial | painel inteiro do ImpersonationSelector usa scheme.dark.* direto, ignorando useTheme() (ba | `menu.background-color (DECISAO DO DONO: confirmar se e menu, card ou modal)` | nome anotado com pendência — precisa de decisão |
 
-Categorias, como o Capítulo 0 previu: **LAW GAP** (a situação é real e a lei não tem slot)
-e **DECISÃO DO DONO** (pede entidade nova no §4.1, ou colide com paridade entre produtos).
-Os detalhes por capítulo estão nos blocos recolhíveis acima.
+**A pergunta única que destrava quase todas:** os post-its do board do makershub têm cor
+como identidade (amarelo, rosa, azul, verde). A lei só tem variantes de PAPEL
+(`primary`/`secondary`/`destructive`/`success`/`warning`/`info`) — cor-como-identidade não tem
+slot. Ou o §4.4 ganha variantes de cor, ou esses post-its usam outro eixo. **Decisão do dono.**
