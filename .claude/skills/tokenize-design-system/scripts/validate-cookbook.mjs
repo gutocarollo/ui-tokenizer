@@ -131,9 +131,21 @@ export function paraFormaConsumida(nomeDaLei) {
   return nomeDaLei.replace(/\./g, "-");
 }
 
-export function validarCookbook(markdown, vocabulario, universo = new Set()) {
+export function validarCookbook(markdown, vocabulario, universoExtra = new Set()) {
   const exemplos = extrairExemplos(markdown);
   const excecoes = extrairExcecoes(markdown);
+  /*
+   * O UNIVERSO DO COOKBOOK E O PROPRIO COOKBOOK. O criterio `state-with-base`
+   * (§5.4) exige que um token de ESTADO tenha o par default ao lado — e num
+   * cookbook isso e literal: se a tabela ensina `button.primary.background-color.hover`
+   * sem ensinar `button.primary.background-color`, a tabela esta incompleta, e o
+   * leitor nao tem para onde ir no estado default. Passar um universo vazio
+   * silenciaria exatamente a incompletude que este validador existe para achar.
+   */
+  const universo = new Set([
+    ...universoExtra,
+    ...exemplos.map((e) => paraFormaConsumida(e.token)),
+  ]);
   const resultados = exemplos.map((ex) => {
     const consumido = paraFormaConsumida(ex.token);
     const r = scoreName(consumido, vocabulario, universo);

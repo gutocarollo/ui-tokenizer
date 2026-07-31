@@ -46,7 +46,25 @@ import {
 
 /* Portable copy: ROOT comes from --root / TOKENIZE_ROOT / cwd, never this file's location. */
 const ROOT = resolveRoot();
-const PROJECT = resolveProjectLayout(ROOT);
+
+/*
+ * PREGUICOSO DESDE 2026-08-01 — resolver o app-alvo era EFEITO DE MODULO, e o
+ * efeito quebrava todo importador que nao precisa de app nenhum. Quem so quer
+ * julgar um NOME precisa da LEI, nao de um projeto: `scoreName`, `parseName` e
+ * `readVocabulary` nunca tocam `PROJECT`. Ele so e usado por `collectUses`
+ * (Linha ~391) e pelo CLI (Linha ~412), que de fato varrem o codigo do alvo.
+ *
+ * O que o efeito eager quebrava, medido: `validate-cookbook.mjs` (valida nome
+ * contra a lei, sem alvo) morria com "No source root found"; e
+ * `test/lei-x-familias.test.mjs` e `test/utility-families.test.mjs` crashavam
+ * no proprio import, fora de um alvo — o invariante lei x codigo nao rodava em
+ * lugar nenhum. Fase A4 do plano de lacunas.
+ */
+let _project = null;
+function project() {
+  if (_project === null) _project = resolveProjectLayout(ROOT);
+  return _project;
+}
 export const CUTOFF = 70;
 
 /* --------------------------------------------------------- law vocabulary --- */
@@ -388,7 +406,7 @@ export function scoreApplication({ token, prefix, statePrefix, file, line }, voc
 export function collectUses(universe) {
   const rx = new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${prefixAlternation()})-([a-z][a-z0-9-]*)(?![\\w-])`, "g");
   const uses = [];
-  for (const sourceRoot of PROJECT.sourceRoots) {
+  for (const sourceRoot of project().sourceRoots) {
     for (const f of files(sourceRoot)) {
       const t = stripComments(readFileSync(f, "utf8"));
       t.split("\n").forEach((l, i) => {
@@ -409,7 +427,7 @@ const isMain = process.argv[1] &&
 
 if (isMain) {
   const vocabulary = readVocabulary();
-  const universe = await loadColourNames(PROJECT);
+  const universe = await loadColourNames(project());
   const uses = collectUses(universe);
   const consumed = [...new Set(uses.map((u) => u.token))];
 

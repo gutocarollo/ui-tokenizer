@@ -71,6 +71,8 @@ são insuficientes. Exemplo real deste projeto:
 Entidade, fluxo, tabela, coluna, comando, **arquivo:linha**, token, rota, tela ou
 cenário **real do contexto analisado**. Analogia genérica **não vale**.
 
+> ⛔ **VOCABULARIO SUPERADO.** `content`/`surface`/`semantic` sao palavras BANIDAS desde 2026-07-31. Os nomes abaixo sao MEDICAO da epoca, nunca alvo.
+
 | ✅ vale | ❌ não vale |
 |---|---|
 | "em `src/components/Modals/ManageWorkspace/Documents/Directory/index.jsx:289`, o `hover:bg-surface-hover` vira `button-background-color-hover`" | "o token ficaria mais semântico" |

@@ -7,6 +7,23 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-08-01] cookbook · lei
+
+- [`law/cookbook.md`](law/cookbook.md) — nasce o cookbook: a terceira peça que faltava entre a
+  LEI (a regra) e `examples.md` (a regra por contra-exemplo). Capítulo 0 traz os casos canônicos,
+  um por regra, e cada um é submetido ao mesmo oráculo que julga token de produção
+  (`validate-cookbook.mjs`). **10 exemplos, 10 com nota 100.**
+- [`scripts/test/cookbook.test.mjs`](../.claude/skills/tokenize-design-system/scripts/test/cookbook.test.mjs)
+  — a bateria que o dono pediu o path e não tinha: era heredoc inline, descartado ao terminar.
+  Agora são 9 testes em 3 camadas (gramática caso a caso · auto-teste do validador com cookbook
+  falso · o cookbook real), e roda **sem app-alvo**.
+- Efeito colateral medido: `score-naming.mjs` resolvia o app-alvo no IMPORT, e o efeito quebrava
+  todo importador que só queria a lei. Agora é preguiçoso — `PROJECT` só é resolvido por
+  `collectUses` e pelo CLI, que de fato varrem código. Sem env de alvo a suíte foi de
+  **166 testes / 132 pass / 31 fail** para **287 / 255 / 29**: os 2 que crashavam no próprio
+  import (`lei-x-familias`, `utility-families`) voltaram a rodar, 114/114. É a Fase A4 do plano
+  de lacunas, fechada por necessidade do cookbook.
+
 ## [2026-07-31] correção · lei
 
 - Retratações pós-varredura: `case-study/2026-07-26-tokenization.md` (tier 2 sem

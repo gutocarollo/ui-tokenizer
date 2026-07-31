@@ -120,6 +120,8 @@ bug.
 
 ---
 
+> ⛔ **VOCABULARIO SUPERADO.** `content`/`surface`/`semantic` sao palavras BANIDAS desde 2026-07-31. Os nomes abaixo sao MEDICAO da epoca, nunca alvo.
+
 ## 7. Writing the token in the wrong tier
 
 **Symptom:** a **silent no-op.** The emitter does not complain and the class does

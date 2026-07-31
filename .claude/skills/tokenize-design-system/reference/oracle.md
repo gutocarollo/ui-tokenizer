@@ -47,7 +47,7 @@ export const NO_SLOT = {
                  "canvas","panel","background","foreground","front","back"],
   pigment:      ["pink","grey","gray","green","red","blue","yellow","purple",
                  "cyan","orange","white","black","static"],
-  generic:      ["ui","misc","other","default","generic","base","main","alt","custom"],
+  generic:      ["ui","misc","other","default","generic","base","main","alt","custom","content"],
 };
 ```
 

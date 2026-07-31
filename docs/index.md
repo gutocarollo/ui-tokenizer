@@ -23,6 +23,7 @@ Catálogo por categoria, orientado a conteúdo. Para ordem cronológica, ver
 | doc | o que é | status |
 |---|---|---|
 | [`law/GRAMMAR.md`](law/GRAMMAR.md) | a gramática de naming: vocabulário fechado de owners, anatomias, propriedades, variantes e estados. Três palavras banidas — `surface`, `semantic`, `content` (§3.1); §4.3 nomeia `foreground-color`, não `color` | living |
+| [`law/cookbook.md`](law/cookbook.md) | a situação real → o nome que a lei dá a ela. A lei diz a REGRA, `examples.md` ensina por contra-exemplo, o cookbook responde "estou pintando o fundo do botão secundário em hover, como se chama?". Todo exemplo é submetido ao oráculo por `validate-cookbook.mjs`; exceção sem justificativa escrita é falha | living |
 | [`law/2026-07-31-ordem-do-nome-evidencias.md`](law/2026-07-31-ordem-do-nome-evidencias.md) | por que `button.text.color` e não `text.button.color`: citação literal do DTCG (que **não** decide naming), Material 3, Primer e shadcn/ui. §8 mede e rejeita abreviar `foreground` para `fg` | event |
 | [`law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md`](law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md) | §4.3 tem 7 propriedades e as 7 são pintura: radius, spacing e tipografia não têm slot. Achado de F-E, emenda proposta e NÃO aplicada | event |
 
