@@ -39,7 +39,9 @@
 ## 1. The law in one sentence
 
 The identifier consumed by code is
-**`owner.anatomy.property[.variant][.state]`**. Nothing else belongs in it.
+**`entity[.variant][.anatomy][.property][.state]`**. Nothing else belongs in
+it. (`entity` is the slot §4.1 still calls `owner` in code and baselines — the
+same slot, named for what it is: see the note in §4.1.)
 Tier, domain, and architectural layer are **metadata**: they live in one place,
 and no human types them.
 
@@ -158,6 +160,11 @@ Data: `data-table` · `list-row` · `card` · `badge` · `pill` · `progress` ·
 
 Identity and feedback: `avatar` · `banner` · `toast` · `skeleton` · `empty-state`
 
+Global (no parent — a cross-cutting decision is an entity of its own):
+`divider` · `focus-ring`
+
+See §5.5 — the head is an entity, and a cross-cutting decision is one.
+
 ### 4.2 Anatomy
 
 `container` · `label` · `icon` · `track` · `thumb` · `indicator` · `header` ·
@@ -199,6 +206,36 @@ An omitted state means `default`. Do **not** write `.default`.
 
 ## 5. Decision rules
 
+### 5.5 The head of the name is an ENTITY, and globals qualify
+
+> **OPENED 2026-08-01 — the head of the name is an ENTITY, not a possession.**
+> The owner said it plainly: *"componentes globais não necessariamente têm dono.
+> A especificidade do componente é que prova o owner."* He is right, and the word
+> "owner" was carrying a false implication. None of the 40 entries above belongs
+> to anybody — `button` **is** the head; it has no parent. Read this section as
+> **the entity that owns the visual decision**, which is usually the component
+> itself and sometimes a cross-cutting decision that lives in no component.
+>
+> What that fixes, measured: a hairline used by menu, table and modal had to be
+> written three times (`menu.divider`, `data-table.divider`, `modal.divider`) —
+> three tokens for ONE decision, and the ⚠ pending question "is `divider` a legal
+> owner?" was the symptom. Same for the focus ring: the law forced
+> `button.outline-color.focus` + `field.outline-color.focus` + … , N copies of a
+> single global decision, which is why the 91 `<select>` elements missing a focus
+> ring had no token to migrate to.
+>
+> **What stays mandatory is the head, not the list.** Removing the head outright
+> would bring back exactly what §3.1 banned: `primary`, `content-primary`,
+> `surface-canvas` — names that say neither what they paint nor where. The head
+> must be a REAL entity you can point at on screen. Still forbidden as a head:
+> a rank (`primary`), a whitelabel (`content`/`surface`/`semantic`), an
+> architectural tier, a raw pigment (`pink`).
+>
+> A new entity is added here when a component genuinely exists and no listed
+> entity is it — with the evidence (path:line of its call sites) in the same
+> change. `divider` and `focus-ring` are the first two admitted under this rule.
+
+
 1. **The owner comes from RENDERED CONTEXT, not from the value.** A
    `bg-surface-canvas` inside a `role="progressbar"` is
    `progress.track.background-color`, even when the hex is identical to the
@@ -237,7 +274,7 @@ Tailwind          bg-page
 > That is a different token: `page.foreground-color`.
 >
 > This is now executable —
-> [`ds-naming-law.py::violations_prefix_property()`](../../../../tools/gates/ds-naming-law.py)
+> [`ds-naming-law.py::violations_prefix_property()`](../../tools/gates/ds-naming-law.py)
 > (Linhas 312-365) reprova the prefix that contradicts the property spelled in
 > the name, with **baseline 0**: there is no debt to tolerate, so the first
 > contradiction anyone writes fails immediately. Measured when the check landed:
@@ -253,13 +290,57 @@ Tailwind          bg-page
 > already enforces **under either spelling** is the invariant above: the prefix
 > may not contradict the property.
 
-With anatomy, variant, and state:
+With variant, anatomy, and state:
 
 ```
-DTCG   button.background-color.primary.hover
-CSS    --mh-button-background-color-primary-hover
-TW     hover:bg-button-primary
+DTCG   button.primary.background-color.hover
+CSS    --mh-button-primary-background-color-hover
+TW     hover:bg-button-primary-background-color
 ```
+
+> **ORDER CORRECTED 2026-08-01 — the variant sits next to what it qualifies.**
+> This block used to read `button.background-color.primary.hover`. The owner
+> caught it: *"o button é secondary, e não a borda é secondary. Existirá uma
+> borda específica para o button secondary, e não diversas bordas possíveis para
+> todos os botões."* He is right, and three of our own lines already said so —
+> §7.3 ("variant: **the owner** has real variants"), §4.4's title ("only where
+> the **owner** genuinely has them") and the slot table (`variant` = "WHICH
+> VERSION **of the owner**?"). Only §1 disagreed, and it was a transcription
+> error: `2026-07-31-ordem-do-nome-evidencias.md` Linha 163 translated Primer's
+> `--button-primary-bgColor-rest` into `button.container.background-color.primary`
+> — moving the variant out of the very evidence it cited — and Linha 169 then
+> declared "note what does **not** change: the order".
+>
+> Industry survey, 7 systems, literal tokens from the official repositories:
+> **among systems that carry BOTH an owner and a property in the name, not one
+> ships `owner → property → variant`. Zero out of seven.** Primer declares
+> "Pattern → Variant → Property → Scale"; Material 3 writes
+> `md.comp.fab.primary.container.color`; Salesforce ships
+> `--sds-c-button-brand-color-background`; Fluent's rule is "Name of control (or
+> control **variant**) → Element → Part → Property → State"; Spectrum's taxonomy
+> starts at `{variant}`; the DTCG's own Example 13 produces the group
+> `button-primary` with leaf `background`. Carbon is mixed, and its settled
+> convention glues the role to the owner: `$button-primary-hover`.
+>
+> Every system cited for the opposite order — Polaris, Atlassian, shadcn (which
+> **we** cited in the evidence dossier, Linha 141) — has **no owner in the name**,
+> so there is no owner for the variant to qualify. The citation was invalid for
+> this question.
+>
+> Two mechanical reasons, not taste:
+> 1. **No lying prefix.** In `button.secondary.border-color` every prefix is a
+>    thing that exists: `button`, `button.secondary` (a renderable component,
+>    the value of `variant="secondary"` in JSX, what the designer draws). In
+>    `button.border-color.secondary` the middle prefix `button.border-color`
+>    looks like a finished token, is a plausible stopping point for autocomplete
+>    and for token-by-token generation by an LLM, and often does not exist. A
+>    prefix that promises a value it does not deliver is the operational
+>    definition of a hallucinated token name.
+> 2. **Locality of change.** The unit of design change is the variant, never the
+>    property — nobody ever asked to "change every border colour of the button";
+>    they ask that "the secondary button be softer". Variant-first makes that set
+>    a contiguous prefix (`button.secondary.*`): one node, one diff, one review
+>    unit, and the exact place where DTCG `$extends` works.
 
 ## 7. Deterministic semantic-quality score
 

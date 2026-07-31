@@ -127,10 +127,20 @@ export function parseName(name, vocabulary) {
     }
     return null;
   };
+  /*
+   * ORDEM CORRIGIDA 2026-08-01 — a variante e consumida logo apos o dono, e
+   * ANTES da anatomia e da propriedade. Antes desta linha o parser lia
+   * owner -> anatomy -> property -> variant, premiando com 100 o nome
+   * `button-border-color-secondary` e reprovando `button-secondary-border-color`
+   * em `no-remainder`. Era a lei que estava errada, nao o nome: a variante
+   * qualifica o DONO ("qual botao"), nao a propriedade — nenhum dos 7 sistemas
+   * de referencia com dono E propriedade no nome escreve a variante na cauda.
+   * Ver GRAMMAR.md §6, bloco "ORDER CORRECTED 2026-08-01".
+   */
   const owner = take(vocabulary.owners);
+  const variant = take(vocabulary.variants);
   const anatomy = take(vocabulary.anatomy);
   const property = take(vocabulary.properties);
-  const variant = take(vocabulary.variants);
   const state = take(vocabulary.states);
   return { owner, anatomy, property, variant, state, remainder: remaining || null };
 }

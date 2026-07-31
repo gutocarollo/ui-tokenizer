@@ -157,17 +157,28 @@ ao trazer para cá, e as duas já estão decididas:
 
 | referência (como ELES escrevem) | nossa convenção (por extenso) |
 |---|---|
-| `--md-filled-button-label-text-color` | `button.label.foreground-color` |
-| `--md-filled-button-container-color` | `button.container.background-color` |
-| `--md-filled-button-hover-label-text-color` | `button.label.foreground-color.hover` |
-| `--button-primary-bgColor-rest` (Primer) | `button.container.background-color.primary` |
-| `--button-danger-fgColor-active` (Primer) | `button.label.foreground-color.danger.active` |
-| `--primary-foreground` (shadcn) | `button.label.foreground-color.primary` |
+| `--md-filled-button-label-text-color` | `button.filled.label` |
+| `--md-filled-button-container-color` | `button.filled.container.background-color` |
+| `--md-filled-button-hover-label-text-color` | `button.filled.label.hover` |
+| `--button-primary-bgColor-rest` (Primer) | `button.primary.container.background-color` |
+| `--button-danger-fgColor-active` (Primer) | `button.destructive.label.active` |
+| `--primary-foreground` (shadcn) ⚠ sem dono | `button.primary.label` |
 | `--card-foreground` (shadcn) | `card.foreground-color` |
 | `--sidebar-foreground` (shadcn) | `sidebar.foreground-color` |
 
-Note o que **não** muda: a ordem. Dono, parte, propriedade, variante, estado —
-nessa sequência, nas três referências e na nossa.
+> ⛔ **RETRATADO EM 2026-08-01.** Esta frase dizia: *"Note o que **não** muda: a
+> ordem. Dono, parte, propriedade, variante, estado — nessa sequência, nas três
+> referências e na nossa."* Era **falsa**, e a tabela 29 linhas acima já dizia o
+> contrário: o Primer é "dono → **variante** → propriedade → estado". A tradução
+> da linha logo acima (`--button-primary-bgColor-rest` →
+> `button.container.background-color.primary`) moveu a variante para fora da
+> posição que a própria evidência mostrava. Levantamento de 7 sistemas em
+> 2026-08-01: entre os que têm dono E propriedade no nome, **nenhum** escreve
+> `dono → propriedade → variante`. A ordem correta, agora na lei, é
+> **`owner[.variant][.anatomy][.property][.state]`**.
+
+A ordem que **não** muda é a cabeça: o DONO abre o nome nas três referências e
+na nossa. O que estava errado aqui era a posição da VARIANTE.
 
 E note o ganho de `foreground-color` sobre `color`: `card.color` não diz se é a
 cor do texto ou do fundo do card; `card.foreground-color` diz. É a mesma razão
