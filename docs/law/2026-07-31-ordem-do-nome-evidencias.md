@@ -173,6 +173,82 @@ E note o ganho de `foreground-color` sobre `color`: `card.color` não diz se é 
 cor do texto ou do fundo do card; `card.foreground-color` diz. É a mesma razão
 que fez o Primer inventar `fgColor` — nós só escrevemos por extenso.
 
+## 5.2 `--color-` é namespace, não redundância — mas a redundância existe
+
+Pergunta do dono: *"em `--color-button-container-background-color`, `color` é
+namespace? Porque se não for, é simplesmente redundante."*
+
+**É namespace, e é funcional.** Verbatim:
+
+> "Theme variables are defined in _namespaces_ and each namespace corresponds to
+> one or more utility class or variant APIs. Defining new theme variables in
+> these namespaces will make new corresponding utilities and variants available
+> in your project"
+>
+> — [Tailwind CSS · Theme variables](https://tailwindcss.com/docs/theme)
+
+| namespace | utilities que ele gera (citação da tabela oficial) |
+|---|---|
+| `--color-*` | "Color utilities like `bg-red-500`, `text-sky-300`, and many more" |
+| `--spacing-*` | "Spacing and sizing utilities like `px-4`, `max-h-16`" |
+| `--radius-*` | "Border radius utilities like `rounded-sm`" |
+| `--ease-*` | "Transition timing function utilities like `ease-out`" |
+
+O prefixo é **obrigatório** e decide quais utilities nascem: definir
+`--color-mint-500` cria `bg-mint-500`, `text-mint-500`, `fill-mint-500`.
+
+Decomposição completa:
+
+| segmento | o que é | quem define |
+|---|---|---|
+| `--color-` | namespace do motor | Tailwind |
+| `button` | dono | nossa lei |
+| `container` | anatomia | nossa lei |
+| `background-color` | propriedade | nossa lei |
+
+### Onde a redundância REALMENTE está
+
+A classe emitida é `bg-button-container-background-color`. Aqui `bg-` é a
+utility que significa `background-color`, e o nome repete `background-color`.
+**Duas vezes a mesma informação** — e essa parte o dono leu certo.
+
+As referências se dividem exatamente neste ponto, e cada uma tem razão dentro do
+seu contexto:
+
+| sistema | escreve a propriedade no nome? | por quê |
+|---|---|---|
+| Material Design 3 | **sim** — `--md-filled-button-container-color` | não é acoplado a framework de utility; o nome precisa se bastar |
+| GitHub Primer | **sim** — `--button-primary-bgColor-rest` | idem; consumido por CSS e por JS |
+| shadcn/ui | **não** — `--card`, `--card-foreground` | é acoplado ao Tailwind; a utility (`bg-card`) já carrega a propriedade |
+
+A citação do shadcn é explícita sobre a omissão:
+
+> "**The background suffix is omitted for the surface token.** For example,
+> `primary` pairs with `primary-foreground`."
+>
+> — [shadcn/ui · Theming](https://ui.shadcn.com/docs/theming)
+
+### A decisão que isto força
+
+Duas saídas coerentes, e não dá para ter as duas:
+
+**(A) Manter a propriedade no nome** (M3/Primer). O token se basta fora do
+Tailwind: `--color-button-container-background-color` é inequívoco em CSS cru,
+num relatório, num Figma. Preço: `bg-button-container-background-color` diz
+"background" duas vezes.
+
+**(B) Omitir a propriedade quando a utility a carrega** (shadcn). A classe fica
+`bg-button-container` — limpa e sem repetição. Preço: `--color-button-container`
+sozinho não diz se é fundo, borda ou texto, e o par
+`--color-button-container` / `--color-button-container-foreground` passa a
+depender de convenção de sufixo em vez de nome explícito.
+
+Não há terceira via: ou a propriedade está no nome, ou está só na utility.
+
+**Isto NÃO é decisão de lint — é de arquitetura, e está aberta.** O que o guard
+já garante hoje, em qualquer das duas: prefixo e propriedade não podem se
+CONTRADIZER (`text-*-background-color` reprova, baseline 0).
+
 ## 6. O que isso revela sobre o estado real do alvo
 
 Medido em `makers-ai-hub/frontend`:

@@ -70,7 +70,36 @@ def _achar_gramatica():
         + " caminhos, a partir de "
         + str(ROOT)
     )
-BASELINE = ROOT / "scripts" / "ds-naming-law-baseline.json"
+def _achar_baseline():
+    """
+    O baseline e estado DO APP MEDIDO, nao do guard.
+
+    Duas tentativas erradas antes desta, e as duas quebraram de formas opostas:
+    `ROOT/"scripts"` cravado estourava FileNotFoundError no repo canonico (que
+    usa `tools/gates/`); e mover para o lado do guard fez o ALVO ser comparado
+    contra o baseline do CANONICO — dois apps diferentes dividindo um numero so.
+
+    Regra: procura um baseline existente sob o alvo; se nao houver, grava no
+    layout que o alvo ja usa.
+    """
+    nome = "ds-naming-law-baseline.json"
+    candidatos = [
+        ROOT / "scripts" / nome,
+        ROOT / "tools" / "gates" / nome,
+        ROOT / "gates" / nome,
+        pathlib.Path(__file__).resolve().parent / nome,
+    ]
+    for c in candidatos:
+        if c.exists():
+            return c
+    # nenhum existe ainda: grava onde o alvo tem estrutura
+    for c in candidatos:
+        if c.parent.is_dir():
+            return c
+    return candidatos[-1]
+
+
+BASELINE = _achar_baseline()
 
 # As palavras proibidas NO NOME PUBLICO. Continuam validas como metadado e como
 # nome de conceito na documentacao — o que a lei proibe e DIGITA-LAS no consumo.
@@ -363,10 +392,14 @@ def main():
         return 0
 
     if not BASELINE.exists():
-        print("sem baseline — rode com --record. Estado:")
+        # FALHA FECHADA. Um guard que passa quando o proprio baseline sumiu
+        # nao e guard: apagar o arquivo viraria a forma mais facil de silenciar
+        # a lei, e o silencio pareceria aprovacao.
+        print("sem baseline — rode com --record. Estado atual:")
         for k, v in sorted(current.items()):
             print(f"  {k:20} {v}")
-        return 0
+        print(f"baseline esperado em: {BASELINE}")
+        return 1
 
     baseline_data = json.loads(BASELINE.read_text())
     print(f"{'TIPO':22}{'ATUAL':>7}{'BASE':>7}  STATUS")
