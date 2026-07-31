@@ -179,6 +179,54 @@ USOS DE CLASSE               32662   <- o denominador
 O bloqueante é que a soma dê **100%** com toda exceção justificada, não que a
 primeira linha atinja um percentual escolhido por mim.
 
+#### O caminho para 100% — os 7 instrumentos (achado de 2026-07-31)
+
+O dono perguntou onde estava o gargalo para 100%. A resposta veio de **olhar a
+estatística do resto** em vez de aceitar o rótulo "sem padrão":
+
+- **Zipf brutal**: 11 classes cobrem 50% do resíduo; ~192 cobrem 95%. Mediana
+  de usos por classe = 1, desvio 59,7. Isso não é caos — é **vocabulário
+  fechado pequeno** com cauda longa.
+- `flex`/`items-center`/`w-full` não são violação: são o uso **canônico** de
+  utility-first. Tokenizá-las é anti-padrão, mas rotulá-las de "exceção" era
+  fraco. A disposição certa é um **contrato de vocabulário** — allowlist
+  versionada, auditada em bloco, enforceável por lint com ratchet.
+- Parte do resíduo **já era contrato**: `.tooltip`, `.input-label`,
+  `.popover-ring` estão definidas no CSS próprio. O censo contava o contrato
+  existente como violação.
+- Bundles únicos frequentemente **contêm uma entidade inteira** como
+  subconjunto (drift aditivo) → composição `cn(NUCLEO, extras)` os resgata.
+- Arbitrary values (`h-[34px]`) são decisão de design cravada → token de
+  dimensão, cauda curta.
+
+**O gargalo era um instrumento faltante, não os dados.** Partição completa,
+medida por `scripts/measure-disposition.mjs` (fail-closed — a soma tem que
+bater o universo exato ou o script sai com erro):
+
+```
+universo (ruido de ternario removido): 31.726 usos
+
+  1 entidade exata (435)          16.842   53,1%   const exportado
+  2 entidade por composicao        1.297    4,1%   cn(NUCLEO, extras)
+  3 tokenizavel por familia        7.063   22,3%   token cor/spacing/radius/tipo
+  4 contrato custom EXISTENTE        181    0,6%   .tooltip, .input-label...
+  5 arbitrary -> token dimensao      293    0,9%   h-[34px], w-[300px]...
+  6 vocabulario layout (192)       5.749   18,1%   allowlist 1 doc, ratchet
+  7 EXCECAO item-a-item              301    0,9%   listavel um a um
+  ────────────────────────────────────────────────
+  SOMA                            31.726  100,0%
+```
+
+Três notas de honestidade: (a) o universo caiu de 32.662 para 31.726 porque
+**936 usos eram ruído do meu parser** — fragmentos de ternário (`?`, `:`, `}`)
+contados como classe; correção pendente também no `bundle-census`; (b) o
+estrato 6 ainda está **superestimado**: `duration-fast` (79×) e
+`duration-surface` (66×) são utilities geradas de motion tokens via `@theme` —
+já são consumo de token, e meu detector de contrato existente só vê seletores
+`.classe`, não utilities geradas; refinamento = grep no CSS buildado; (c) os
+instrumentos 4–6 **reconhecem e governam**, não migram — o trabalho de migração
+real continua nos instrumentos 1–3.
+
 #### Onde o portão é medido
 
 **Depois** do codemod, **no frontend real** — nunca na definição do contrato.

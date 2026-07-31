@@ -7,6 +7,32 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-07-31] achado · lei
+
+**F-E ampliou o oráculo de propriedades e bateu no teto da própria lei.**
+`PREFIX_PROPERTY` saiu de 12 prefixos, todos de cor, para **53 em quatro
+famílias** (pintura, radius, spacing, tipografia) — e a tabela passou a viver em
+`scripts/lib/utility-families.mjs`, importada tanto pelo oráculo de naming
+quanto pelo oráculo do denominador, que até então mantinham **duas cópias
+escritas à mão** da mesma regra.
+
+O achado: **§4.3 da lei tem sete propriedades e as sete são pintura.** 41 dos 53
+prefixos não têm slot. Nada foi forçado — as famílias sem slot falham fechadas
+num balde `LAW GAP` declarado, e a emenda está proposta, não aplicada.
+
+Medido no alvo (`measure-coverage.mjs`): tokenizável fora de entidade
+**7.877 → 7.948** (24,1% → 24,3%), exceção **7.987 → 7.916** (24,5% → 24,2%).
+Os 71 usos vêm da cadeia de variante genérica — a allowlist fixa não enxergava
+`placeholder:` (339 usos), `peer-checked/public:`, `group-disabled:`,
+`enabled:`, `after:`, `[&_p]:`. Mesmo defeito do `p`/`px`.
+
+Convergência **não quebra**: no alvo real tudo idêntico (504 ocorrências, 211
+fusões, 41 contratos); em fixture que exercita as famílias novas, clusters
+22 → 48 e fusões/contratos/iterações **inalterados** (9 / 10 / 3), porque o
+cluster sem slot falha fechado antes de derivar nome.
+
+- [`law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md`](law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md)
+
 ## [2026-07-30] plano · planos
 
 **Reconciliação.** O plano vigente descrevia "compilador do Tailwind como

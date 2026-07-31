@@ -22,6 +22,7 @@ Catálogo por categoria, orientado a conteúdo. Para ordem cronológica, ver
 | doc | o que é | status |
 |---|---|---|
 | [`law/GRAMMAR.md`](law/GRAMMAR.md) | a gramática de naming: vocabulário fechado de owners, anatomias, propriedades, variantes e estados | living |
+| [`law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md`](law/2026-07-31-achado-4-3-sem-slot-nao-pintura.md) | §4.3 tem 7 propriedades e as 7 são pintura: radius, spacing e tipografia não têm slot. Achado de F-E, emenda proposta e NÃO aplicada | event |
 
 ## Planos
 
