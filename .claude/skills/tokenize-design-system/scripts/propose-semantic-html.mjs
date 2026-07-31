@@ -74,7 +74,7 @@
  *   cd <alvo> && node <skill>/scripts/propose-semantic-html.mjs --root . --baseline head --out <path.md>
  */
 import {
-  readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync, statSync, readdirSync,
+  readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, statSync, readdirSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -181,14 +181,23 @@ if (GIT_TOP && dirtyEntries.length && !BASELINE) {
       `(mede a arvore suja, e o relatorio sai carimbado como nao reproduzivel).`);
 }
 
-/** Materializa `src/` + `tokens/` de HEAD num diretorio temporario auditavel. */
+/**
+ * Materializa `src/` + `tokens/` de HEAD num diretorio auditavel.
+ *
+ * O caminho e DERIVADO do commit (`fb2-baseline-<sha12>`), nao aleatorio: duas
+ * corridas do mesmo commit reusam a mesma arvore, o path citado no relatorio
+ * continua valido, e nao se acumula uma copia de `src/` por execucao. O marcador
+ * `.complete` evita reusar extracao interrompida pela metade.
+ */
 function materializeHead() {
   if (!GIT_TOP || !HEAD_SHA) die("--baseline head exige repositorio git com HEAD no alvo");
   const specs = ["src", "tokens"].map(spec).filter((s) => git(["cat-file", "-e", `HEAD:${s}`]) !== null);
   if (!specs.some((s) => s.endsWith("src"))) die(`\`${spec("src")}\` nao existe em HEAD (${HEAD_SHA})`);
-  const tmp = mkdtempSync(path.join(tmpdir(), "fb2-head-"));
+  const tmp = path.join(tmpdir(), `fb2-baseline-${HEAD_SHA.slice(0, 12)}`);
   const dest = path.join(tmp, "tree");
   const tar = path.join(tmp, "head.tar");
+  const marker = path.join(tmp, ".complete");
+  if (existsSync(marker) && readFileSync(marker, "utf8").trim() === HEAD_SHA) return dest;
   mkdirSync(dest, { recursive: true });
   try {
     execFileSync("git", ["-C", GIT_TOP, "archive", "-o", tar, HEAD_SHA, "--", ...specs], { stdio: ["ignore", "ignore", "pipe"] });
@@ -198,6 +207,8 @@ function materializeHead() {
     die(`nao consegui materializar HEAD: ${e.message}`);
   }
   if (!existsSync(path.join(dest, "src"))) die(`arvore de HEAD materializada sem \`src/\` em ${dest}`);
+  rmSync(tar, { force: true }); // o tar ja cumpriu o papel; a arvore extraida e a evidencia
+  writeFileSync(marker, HEAD_SHA);
   return dest;
 }
 
