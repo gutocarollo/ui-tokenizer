@@ -9,6 +9,23 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ## [2026-08-01] cookbook · lei
 
+**O cookbook completo: 643 exemplos, 643 com nota 100.** 9 capítulos gerados por 10 agentes a
+partir de 598 situações medidas nos três produtos (learnhouse, makershub, makers-ai-hub) e da
+extração Figma do makershub (`DESIGN_TOKENS/10-buttons.json`, 27 variantes com node id). Cada
+nome foi submetido ao oráculo antes de entrar; 85 linhas que não passaram estão na seção
+**Exceções** com o motivo escrito, e as lacunas de lei e decisões do dono ficam em blocos
+recolhíveis por capítulo.
+
+Dois defeitos que o validador pegou na montagem, ambos reais: o capítulo de entidades ausentes
+misturou nomes anotados com pendência entre os tokens limpos (foram para Exceções), e o cookbook
+ensinava `menu.row.background-color.hover`/`.focus` e `prompt.row.background-color.selected`
+**sem o par base** — tabela com estado e sem repouso é tabela incompleta (§5.4).
+
+Achado que a §5.5 previu: **91 situações não casaram com nenhuma das 42 entidades**. A triagem
+mapeou a maioria para entidade existente e isolou 3 pedidos de entidade nova com evidência —
+`audio-player`, `podium` e `scrollbar`.
+
+
 - [`law/cookbook.md`](law/cookbook.md) — nasce o cookbook: a terceira peça que faltava entre a
   LEI (a regra) e `examples.md` (a regra por contra-exemplo). Capítulo 0 traz os casos canônicos,
   um por regra, e cada um é submetido ao mesmo oráculo que julga token de produção
