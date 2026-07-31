@@ -38,6 +38,12 @@ type VisualScenario = {
   assertReady: ScenarioStep | null;
   captureRegion: string | null;
   expectedVisualEffect: "preserve" | "change" | "mixed";
+  expectedRenderedErrorSelector: string | null;
+  semanticReadTransports: Array<{
+    method: string;
+    path: string;
+    contractSources: string[];
+  }>;
   readOnly: boolean;
 };
 
@@ -96,6 +102,17 @@ function stableUrl(url: string) {
 
 function stableSignals(values: string[]) {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function matchesSemanticReadTransport(
+  scenario: VisualScenario,
+  method: string,
+  requestUrl: string
+) {
+  const pathname = new URL(requestUrl).pathname;
+  return (scenario.semanticReadTransports || []).some(
+    (transport) => transport.method === method && transport.path === pathname
+  );
 }
 
 async function authenticate(context: BrowserContext, authRole: string) {
@@ -249,11 +266,6 @@ async function waitForDomAndAssets(page: Page) {
   await page.evaluate(
     () => (document as Document & { fonts?: FontFaceSet }).fonts?.ready
   );
-  await page
-    .waitForFunction(() => !document.querySelector(".animate-pulse"), {
-      timeout: 10_000,
-    })
-    .catch(() => {});
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {
@@ -376,6 +388,7 @@ for (const scenario of selection.scenarios) {
           const networkFailures: string[] = [];
           const abortedRequests: string[] = [];
           const mutatingRequests: string[] = [];
+          const semanticReadRequests: string[] = [];
           page.on("console", (message) => {
             if (message.type() === "error") {
               consoleErrors.push(message.text().slice(0, 1_000));
@@ -392,9 +405,18 @@ for (const scenario of selection.scenarios) {
           });
           page.on("request", (request) => {
             if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) {
-              mutatingRequests.push(
-                `${request.method()} ${stableUrl(request.url())}`
-              );
+              const signal = `${request.method()} ${stableUrl(request.url())}`;
+              if (
+                matchesSemanticReadTransport(
+                  scenario,
+                  request.method(),
+                  request.url()
+                )
+              ) {
+                semanticReadRequests.push(signal);
+              } else {
+                mutatingRequests.push(signal);
+              }
             }
           });
           page.on("response", (response) => {
@@ -462,10 +484,24 @@ for (const scenario of selection.scenarios) {
           const errorSelector =
             process.env.HARNESS_UI_EVIDENCE_ERROR_SELECTOR || "";
           if (errorSelector) {
-            await expect(
-              page.locator(errorSelector),
-              `${scenario.scenarioId}: the configured rendered-error selector is present`
-            ).toHaveCount(0);
+            if (scenario.expectedRenderedErrorSelector) {
+              const expectedError = page.locator(
+                scenario.expectedRenderedErrorSelector
+              );
+              await expect(
+                expectedError,
+                `${scenario.scenarioId}: the declared rendered error is absent`
+              ).toBeVisible();
+              expect(
+                await page.locator(errorSelector).count(),
+                `${scenario.scenarioId}: an undeclared rendered error is present`
+              ).toBe(await expectedError.count());
+            } else {
+              await expect(
+                page.locator(errorSelector),
+                `${scenario.scenarioId}: the configured rendered-error selector is present`
+              ).toHaveCount(0);
+            }
           }
           for (const assertion of scenario.assertions) {
             await applyAssertion(page, assertion);
@@ -548,6 +584,9 @@ for (const scenario of selection.scenarios) {
                 networkFailures: stableSignals(networkFailures),
                 abortedRequests: stableSignals(abortedRequests),
                 mutatingRequests: stableSignals(mutatingRequests),
+                semanticReadRequests: stableSignals(semanticReadRequests),
+                expectedRenderedErrorSelector:
+                  scenario.expectedRenderedErrorSelector,
                 axeViolationIds,
                 overflow,
                 capturedAt: new Date().toISOString(),

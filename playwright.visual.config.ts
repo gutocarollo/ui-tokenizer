@@ -23,11 +23,30 @@ export default defineConfig({
     // Reduced motion makes animated scenes deterministic.
     reducedMotion: "reduce",
     // Chromium on this VPS requires no-sandbox flags.
+    //
+    // As flags de DETERMINISMO abaixo nao sao cosmeticas: sem elas a esteira
+    // tem piso de ruido proprio. Medido com execucoes NULAS (duas capturas,
+    // zero mudanca de codigo entre elas): TODAS acusaram par divergente, de 1 a
+    // 5 pixels, sempre na coluna x=293, sempre com delta so no canal AZUL
+    // (43 -> 49 -> 55) e com o vizinho x=294 sendo rgb(79,148,208). Ou seja:
+    // antialiasing da borda esquerda de um elemento azul sangrando para a
+    // coluna anterior, em quantidade que varia entre renders.
+    //
+    // Enquanto o piso de ruido for maior que zero, uma politica `preserve`
+    // (que exige 0 pixel exato alterado) e INSATISFAZIVEL ate por um no-op, e
+    // aprovar um lote passa a depender de sorte de render. Raster por software
+    // e posicionamento de fonte fixo tiram a GPU da equacao.
     launchOptions: {
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--disable-partial-raster",
+        "--disable-skia-runtime-opts",
+        "--disable-lcd-text",
+        "--disable-font-subpixel-positioning",
+        "--force-color-profile=srgb",
       ],
     },
   },

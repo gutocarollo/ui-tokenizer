@@ -1,0 +1,21 @@
+{
+  "name": "ui-tokenizer",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Processo de tokenizacao de design system: censo, entidades, evidencia de pixel e guards.",
+  "scripts": {
+    "test": "node --test scripts/lib/*.test.mjs tests/visual/*.test.mjs .claude/skills/tokenize-design-system/scripts/test/*.test.mjs",
+    "evidence": "bash scripts/ui-evidence.sh",
+    "guard:contrast": "python3 scripts/ds-contrast-pairs.py"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.24.8",
+    "@playwright/test": "^1.61.1",
+    "ajv": "8.20.0",
+    "axe-core": "4.10.3",
+    "pixelmatch": "7.2.0",
+    "pngjs": "7.0.0",
+    "typescript": "5"
+  }
+}

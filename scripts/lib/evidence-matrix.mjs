@@ -54,10 +54,16 @@ export function fixtureRegistryBindingFingerprint({
   contexts,
   scenarios,
   networkFixtureFileFingerprint,
+  contractSourceFingerprint,
 }) {
   if (!isFullSha256(networkFixtureFileFingerprint)) {
     throw new VisualContractError(
       "Network fixture file fingerprint must be a full SHA-256"
+    );
+  }
+  if (!isFullSha256(contractSourceFingerprint)) {
+    throw new VisualContractError(
+      "Fixture contract-source fingerprint must be a full SHA-256"
     );
   }
   return sha256Value({
@@ -65,6 +71,7 @@ export function fixtureRegistryBindingFingerprint({
       ? contexts.fixtureRegistryFingerprint
       : null,
     networkFixtureFileFingerprint,
+    contractSourceFingerprint,
     contexts: contexts?.contexts?.map((context) => ({
       pattern: context.pattern,
       path: context.path,
@@ -79,6 +86,50 @@ export function fixtureRegistryBindingFingerprint({
       preconditions: scenario.preconditions,
     })),
   });
+}
+
+export function fixtureContractSourceFingerprint({
+  repoRoot,
+  networkFixtures,
+  scenarios,
+}) {
+  const declaredSources = [
+    ...(networkFixtures?.fixtures ?? []).flatMap(
+      (fixture) => fixture.contractSources ?? []
+    ),
+    ...(scenarios?.scenarios ?? []).flatMap((scenario) =>
+      (scenario.semanticReadTransports ?? []).flatMap(
+        (transport) => transport.contractSources ?? []
+      )
+    ),
+  ];
+  const uniqueSources = [...new Set(declaredSources)].sort((left, right) =>
+    left.localeCompare(right)
+  );
+  if (uniqueSources.length === 0) {
+    throw new VisualContractError(
+      "Fixture and semantic-read contracts must declare source files"
+    );
+  }
+  for (const source of uniqueSources) {
+    if (
+      typeof source !== "string" ||
+      !source ||
+      path.isAbsolute(source) ||
+      source.split(/[\\/]/u).includes("..")
+    ) {
+      throw new VisualContractError(
+        `Invalid fixture contract-source path: ${String(source)}`
+      );
+    }
+    const absolute = path.resolve(repoRoot, source);
+    if (!existsSync(absolute) || !statSync(absolute).isFile()) {
+      throw new VisualContractError(
+        `Fixture contract-source file is missing: ${source}`
+      );
+    }
+  }
+  return fingerprintPaths(repoRoot, uniqueSources);
 }
 
 export function matrixScenarioId({
@@ -293,7 +344,13 @@ export function buildEvidenceBindings({
 }) {
   const contexts = readJson(contextPath);
   const scenarios = readJson(scenarioPath);
+  const networkFixtures = readJson(networkFixturePath);
   const networkFixtureFileFingerprint = sha256File(networkFixturePath);
+  const contractSourceFingerprint = fixtureContractSourceFingerprint({
+    repoRoot,
+    networkFixtures,
+    scenarios,
+  });
   for (const [registryName, registry] of [
     ["contexts", contexts],
     ["scenarios", scenarios],
@@ -348,6 +405,14 @@ export function buildEvidenceBindings({
     ),
     path.relative(
       repoRoot,
+      path.join(frontendRoot, "scripts/lib/evidence-composer.mjs")
+    ),
+    path.relative(
+      repoRoot,
+      path.join(frontendRoot, "scripts/compose-evidence-manifests.mjs")
+    ),
+    path.relative(
+      repoRoot,
       path.join(frontendRoot, "tests/visual/network-fixtures.mjs")
     ),
   ]);
@@ -360,6 +425,7 @@ export function buildEvidenceBindings({
     contexts,
     scenarios,
     networkFixtureFileFingerprint,
+    contractSourceFingerprint,
   });
   const head = gitText(repoRoot, ["rev-parse", "HEAD"]).trim();
   const status = gitText(repoRoot, [

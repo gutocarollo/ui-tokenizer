@@ -959,6 +959,128 @@ export function calculateErrorDelta(before, after) {
   };
 }
 
+/**
+ * Campos de bind que PODEM ser dispensados, e apenas com prova mecanica.
+ *
+ * `runId`, `batchId`, `matrixFingerprint`, `toolchainFingerprint` e
+ * `routeRegistryFingerprint` NAO entram aqui de proposito: divergencia neles
+ * significa que as duas capturas sao de execucoes, matrizes ou toolchains
+ * diferentes, e nenhuma prova de codigo conserta isso.
+ *
+ * `fixtureRegistryFingerprint` e o unico caso em que a divergencia pode ser
+ * legitima: ele inclui o sha256 dos `contractSources`, entao um codemod de
+ * apresentacao numa pagina que e contractSource move o hash sem mudar uma
+ * requisicao sequer.
+ */
+const WAIVABLE_BINDINGS = new Set(["fixtureRegistryFingerprint"]);
+
+/**
+ * Dispensa um mismatch de bind SOMENTE com prova mecanica fixada ao par
+ * observado.
+ *
+ * A dispensa nao e uma promessa de quem executou: ela aponta para o veredito
+ * de `verify-contract-source-delta`, que so devolve PASS quando o delta dos
+ * contractSources esta confinado a valor de `className` e import de entidade
+ * de design — verificado por AST, exigindo identidade byte a byte no que
+ * sobra.
+ *
+ * Fixada ao PAR: a excecao declara `before` e `after` e eles tem que bater
+ * exatamente com o que os manifests trazem. Sem isso uma dispensa aprovada uma
+ * vez viraria passe permanente para qualquer drift futuro.
+ *
+ * Falha fechada: campo nao dispensavel, prova ausente, prova de outro par ou
+ * veredito != PASS mantem o mismatch e o comparador continua estourando.
+ */
+export function applyBindingWaivers(mismatches, policy) {
+  const declared = policy?.approvedBindingExceptions ?? [];
+  if (!Array.isArray(declared)) {
+    throw new VisualContractError(
+      "approvedBindingExceptions must be an array",
+      { approvedBindingExceptions: declared }
+    );
+  }
+  const waived = [];
+  const unwaived = [];
+
+  for (const mismatch of mismatches) {
+    const exception = declared.find(
+      (candidate) =>
+        candidate?.field === mismatch.field &&
+        candidate?.before === mismatch.before &&
+        candidate?.after === mismatch.after
+    );
+    if (!exception) {
+      unwaived.push(mismatch);
+      continue;
+    }
+    if (!WAIVABLE_BINDINGS.has(mismatch.field)) {
+      throw new VisualContractError(
+        `Binding field ${mismatch.field} can never be waived`,
+        { field: mismatch.field }
+      );
+    }
+    for (const required of ["owner", "reason", "scope", "evidence", "review"]) {
+      if (typeof exception[required] !== "string" || !exception[required].trim()) {
+        throw new VisualContractError(
+          `Binding exception requires a non-empty ${required}`,
+          { field: mismatch.field, missing: required }
+        );
+      }
+    }
+    const evidencePath = path.resolve(exception.evidence);
+    if (!existsSync(evidencePath)) {
+      throw new VisualContractError(
+        "Binding exception evidence file does not exist",
+        { field: mismatch.field, evidence: evidencePath }
+      );
+    }
+    let proof;
+    try {
+      proof = JSON.parse(readFileSync(evidencePath, "utf8"));
+    } catch (error) {
+      throw new VisualContractError(
+        "Binding exception evidence is not readable JSON",
+        { field: mismatch.field, evidence: evidencePath, error: error.message }
+      );
+    }
+    if (
+      proof?.tool !== "verify-contract-source-delta" ||
+      proof?.verdict !== "PASS" ||
+      proof?.field !== mismatch.field ||
+      proof?.fieldBefore !== mismatch.before ||
+      proof?.fieldAfter !== mismatch.after
+    ) {
+      throw new VisualContractError(
+        "Binding exception evidence does not prove this exact mismatch",
+        {
+          field: mismatch.field,
+          expected: { before: mismatch.before, after: mismatch.after },
+          proof: {
+            tool: proof?.tool,
+            verdict: proof?.verdict,
+            field: proof?.field,
+            fieldBefore: proof?.fieldBefore,
+            fieldAfter: proof?.fieldAfter,
+          },
+        }
+      );
+    }
+    waived.push({
+      field: mismatch.field,
+      before: mismatch.before,
+      after: mismatch.after,
+      owner: exception.owner,
+      reason: exception.reason,
+      scope: exception.scope,
+      review: exception.review,
+      evidence: evidencePath,
+      changedContractSources: proof.changedContractSources ?? [],
+      permittedCategories: proof.permittedCategories ?? [],
+    });
+  }
+  return { waived, unwaived };
+}
+
 function normalizePolicy(policy, scenarioIds) {
   const expectedVisualEffect = policy?.expectedVisualEffect;
   if (!["preserve", "change", "mixed"].includes(expectedVisualEffect)) {
@@ -1145,10 +1267,12 @@ export function compareEvidenceManifests({
     expectedIds: beforeManifest.requestedScenarioIds,
     producedIds: afterManifest.requestedScenarioIds,
   });
-  if (bindingMismatches.length || !matrixCoverage.exact) {
+  const { unwaived: unwaivedMismatches, waived: waivedBindings } =
+    applyBindingWaivers(bindingMismatches, policy);
+  if (unwaivedMismatches.length || !matrixCoverage.exact) {
     throw new VisualContractError(
       "Before and after evidence do not bind the exact same matrix",
-      { bindingMismatches, matrixCoverage }
+      { bindingMismatches: unwaivedMismatches, waivedBindings, matrixCoverage }
     );
   }
   const normalizedPolicy = normalizePolicy(
@@ -1240,6 +1364,7 @@ export function compareEvidenceManifests({
     deterministicVerdict,
     requiredReviewScenarioIds: [...beforeManifest.requestedScenarioIds],
     visualReviewVerdict: "pending",
+    waivedBindings,
     verdict: deterministicVerdict === "fail" ? "fail" : "review",
   };
   return comparison;

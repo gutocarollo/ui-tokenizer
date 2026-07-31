@@ -95,12 +95,10 @@ export const CHECKED_IN_ROUTE_FIXTURES = frozen({
     ),
   ],
   "/onboarding/:step": [
-    {
-      fixtureId: "onboarding-llm-preference-v1",
-      name: "onboarding_llm_preference",
-      params: { step: "llm-preference" },
-      source: "checked-in-read-only",
-    },
+    versionedNetworkRouteFixture(
+      "/onboarding/:step",
+      "onboarding_llm_preference"
+    ),
   ],
   "/workspace/:slug": [
     {
@@ -208,6 +206,80 @@ export const ROUTE_READINESS_WITNESSES = frozen({
       value: "visible",
     },
   },
+  "/settings/community-hub/import-item": {
+    witness: {
+      type: "visible-text",
+      value: "Import a Community Item",
+    },
+    assertReady: {
+      type: "assert",
+      target: "h1",
+      value: "visible",
+    },
+  },
+});
+
+/**
+ * A few legacy endpoints use POST as a transport for a read query. They are
+ * not mutations: the linked server handlers perform only lookups. Keeping an
+ * exact route/method allow-list preserves the global mutation gate while
+ * making this transport debt explicit and reviewable.
+ */
+export const SEMANTIC_READ_TRANSPORTS = frozen({
+  "/onboarding/:step": [
+    {
+      method: "POST",
+      path: "/api/system/custom-models",
+      contractSources: [
+        "frontend/src/models/system.js",
+        "server/endpoints/system.js",
+      ],
+    },
+  ],
+  "/settings/embedding-preference": [
+    {
+      method: "POST",
+      path: "/api/system/custom-models",
+      contractSources: [
+        "frontend/src/models/system.js",
+        "server/endpoints/system.js",
+      ],
+    },
+  ],
+  "/settings/event-logs": [
+    {
+      method: "POST",
+      path: "/api/system/event-logs",
+      contractSources: [
+        "frontend/src/models/system.js",
+        "server/endpoints/system.js",
+      ],
+    },
+  ],
+  "/settings/llm-preference": [
+    {
+      method: "POST",
+      path: "/api/system/custom-models",
+      contractSources: [
+        "frontend/src/models/system.js",
+        "server/endpoints/system.js",
+      ],
+    },
+  ],
+  "/settings/workspace-chats": [
+    {
+      method: "POST",
+      path: "/api/system/workspace-chats",
+      contractSources: [
+        "frontend/src/models/system.js",
+        "server/endpoints/system.js",
+      ],
+    },
+  ],
+});
+
+export const EXPECTED_RENDERED_ERRORS = frozen({
+  "*": 'h1:has-text("404 - Page Not Found")',
 });
 
 function stableJson(value) {
@@ -299,6 +371,8 @@ function validateFixture(route, fixture) {
 function scenarioForContext(context) {
   const action = READ_ONLY_SCENARIO_ACTIONS["load-ready"];
   const readiness = ROUTE_READINESS_WITNESSES[context.pattern] ?? null;
+  const semanticReadTransports =
+    SEMANTIC_READ_TRANSPORTS[context.pattern] ?? [];
   return {
     scenarioId: `${context.name}/default`,
     route: context.path,
@@ -320,6 +394,9 @@ function scenarioForContext(context) {
     assertReady: readiness?.assertReady ?? null,
     captureRegion: null,
     expectedVisualEffect: "preserve",
+    expectedRenderedErrorSelector:
+      EXPECTED_RENDERED_ERRORS[context.pattern] ?? null,
+    semanticReadTransports,
     readOnly: true,
   };
 }
@@ -380,17 +457,21 @@ export function materializeVisualRegistry({
       const name =
         COMPATIBLE_ROUTE_NAMES[route.pathPattern] ??
         routeNameFromPath(route.pathPattern);
+      const networkFixtureId = NETWORK_FIXTURE_IDS[route.pathPattern] ?? null;
       contexts.push({
         name,
         pattern: route.pathPattern,
         path: route.pathPattern,
         params: {},
         fixtureId:
-          authRole === "anonymous"
+          networkFixtureId ??
+          (authRole === "anonymous"
             ? "anonymous-static-v1"
-            : `${authRole}-session-v1`,
-        networkFixtureId: null,
-        fixtureSource: "route-declaration",
+            : `${authRole}-session-v1`),
+        networkFixtureId,
+        fixtureSource: networkFixtureId
+          ? "versioned-network-read-only"
+          : "route-declaration",
         authRole,
         routeKind: route.routeKind,
         componentModule: relativeModule(route.componentModule),
@@ -492,6 +573,8 @@ export function materializeVisualRegistry({
     scenarioRegistryFingerprint: sha256({
       actions: READ_ONLY_SCENARIO_ACTIONS,
       readiness: ROUTE_READINESS_WITNESSES,
+      semanticReadTransports: SEMANTIC_READ_TRANSPORTS,
+      expectedRenderedErrors: EXPECTED_RENDERED_ERRORS,
     }),
     exactDeclarationCoverage:
       declaredPatterns.length === coveredPatterns.length &&
