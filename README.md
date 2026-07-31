@@ -320,7 +320,8 @@ medição correta é com `extract-design-occurrences.mjs`.
 
 ### Padrões de Design Tokens
 
-- **[W3C Design Tokens Community Group (DTCG)](https://designtokens.org/)** — especificação oficial de formato e semântica de tokens vendor-neutral. Este projeto adota o DTCG como autoridade de estrutura de 3 tiers (primitivo → semântico → componente).
+- **[W3C Design Tokens Community Group (DTCG)](https://designtokens.org/)** — especificação oficial de **formato** de tokens, vendor-neutral. Este projeto adota o DTCG como autoridade de formato (`$type`, `$value`, referências `{...}`, estrutura de arquivo).
+  > **Ressalva medida (2026-07-31):** o DTCG **não** decide convenção de nome. A spec diz, verbatim: *"Groups are arbitrary and tools SHOULD NOT use them to infer the type or purpose of design tokens."* As únicas regras de nome são técnicas — não começar com `$`, não usar `{`, `}` ou `.`. A ordem `owner.anatomia.propriedade` deste projeto vem de Material Design 3, GitHub Primer e shadcn/ui, que a declaram e praticam. Evidência com citação literal em [`docs/law/2026-07-31-ordem-do-nome-evidencias.md`](docs/law/2026-07-31-ordem-do-nome-evidencias.md).
 - **[Design Tokens Format Module](https://tr.designtokens.org/format/)** — W3C spec de formato (`designtokens.org`); integrado em `docs/law/GRAMMAR.md`.
 
 ### Implementação de Nomes e Semântica
