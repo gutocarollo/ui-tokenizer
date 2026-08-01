@@ -2059,6 +2059,27 @@ function occurrenceFromDraft(draft) {
   return {
     ...header,
     artifactType: "design-occurrence",
+    /*
+     * LINHAGEM (corrigido 2026-08-01). O schema exige `recordStage` e
+     * `supersedes` em todo `design-occurrence`
+     * (`reference/artifact-schemas.json`, `$defs.designOccurrence.required`), e
+     * o extrator nao emitia nenhum dos dois — entao os 13.869 registros desta
+     * corrida eram REPROVADOS na transicao para INVENTORIED, um a um, com
+     * `E-EXTRACT`. O loop nao podia sair do PREFLIGHTED por causa disto.
+     *
+     * O drift ja era CONHECIDO e estava escrito num comentario de teste
+     * (`tokenization-runner.test.mjs:155-158`): "o refactor de linhagem tornou
+     * recordStage e supersedes obrigatorios no schema e nao atualizou fixture
+     * nenhuma". A fixture foi consertada na epoca; o PRODUTOR nao. Contrato
+     * corrigido so no consumidor e drift adiado, nao resolvido.
+     *
+     * Os valores nao sao escolha: este script e o CENSO, a base da cadeia. Ele
+     * observa o codigo-fonte e nao substitui registro de ninguem — `raw` e
+     * `null` sao o que "base da linhagem" significa. Quem promove para
+     * `classified` e supera um registro anterior e a fase CLASSIFIED.
+     */
+    recordStage: "raw",
+    supersedes: null,
     occurrenceId,
     occurrenceKind: draft.occurrenceKind,
     axis:
