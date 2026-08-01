@@ -279,7 +279,13 @@ function importadoNoTexto(id, texto) {
  */
 export { TOKENIZABLE_UTILITY_RX as TOKENIZAVEL } from "./utility-families.mjs";
 
-/** Uso que ja passa por contrato: a classe cita um token nomeado do DS. */
+/**
+ * Uso que ja cita um token NOMEADO do DS — inclusive nomes LEGADOS com as palavras
+ * banidas (`surface`, `content`). "Em contrato" aqui significa "nao e utility
+ * cru", NUNCA "nome canonicamente valido": esses dois prefixos sao ORIGEM de
+ * migracao, jamais DESTINO (GRAMMAR.md §3.1). `text-content-tertiary` e
+ * `bg-surface-hover` sao divida ja consolidada no alvo, nao alvo.
+ */
 export const EM_CONTRATO =
   /-(?:theme|surface|content|primary-button|secondary|menu-item|modal|sidebar|chat|checklist-item|search-input|file-row|workspace-item)(?:-|$)/;
 

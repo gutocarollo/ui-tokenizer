@@ -11,6 +11,10 @@ A fonte do rótulo é o **`className`** do elemento, não a cor do pixel. Se a
 classe não nomeia o token, o elemento não aparece.
 
 - 🟥 rótulo vermelho — token que viola `tokens/GRAMMAR.md`: `surface-`,
+
+> ⚠ **Retrofit 2026-08-01: `content-` também viola a lei** (banida em 2026-07-31,
+> depois destes PNGs). Os **832** rótulos `content-*` do `labels.json` desta coleção
+> aparecem em azul e deveriam ser vermelhos.
   `semantic-`, `ui-`, ou nome de cor (`pink-`, `grey-`, `static-`)
 - 🟦 rótulo azul — os demais
 

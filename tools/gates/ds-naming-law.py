@@ -4,7 +4,7 @@ GUARD DA LEI DE NAMING.
 
 LEI (ordem direta do owner, 28/07): `semantic` e `surface` sao CONTEXTO do token,
 nao NOME. O identificador que o codigo consome e
-`owner.anatomia.propriedade[.variante][.estado]`. Tier, dominio e conceito ficam
+`entidade[.variante][.anatomia][.propriedade][.estado]`. Tier, dominio e conceito ficam
 em metadado, centralizados, e ninguem os digita.
 
 Fonte: review adversarial do owner no PR #193 / FBI-2708.
@@ -443,7 +443,7 @@ def main():
     if regressed:
         print(f"LEI DE NAMING VIOLADA em: {', '.join(regressed)}")
         print("`surface`, `semantic` e `content` sao contexto, nao nome. O identificador")
-        print("consumido e owner.anatomia.propriedade[.variante][.estado].")
+        print("consumido e entidade[.variante][.anatomia][.propriedade][.estado].")
         print(f"Veja {_achar_gramatica()}; liste com --listar.")
         return 1
     print("LEI DE NAMING OK — nenhuma violacao nova.")

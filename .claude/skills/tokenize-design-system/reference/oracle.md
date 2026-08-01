@@ -69,15 +69,15 @@ for (const w of words) {
 
 ```js
 export const IMPLIED_PROPERTY = {
-  label: "color", placeholder: "color", helper: "color",
-  caret: "color", backdrop: "background-color", divider: "border-color",
+  label: "foreground-color", placeholder: "foreground-color", helper: "foreground-color",
+  caret: "foreground-color", backdrop: "background-color", divider: "border-color",
 };
 ```
 
 ### 1.4 Coherent anatomy × property pair — 10 points
 
 See `anatomy-property.md` for the complete matrix. It fails on internal
-contradictions: `label` + `background-color`, `track` + `color`, or `divider` +
+contradictions: `label` + `background-color`, `track` + `foreground-color`, or `divider` +
 `background-color`.
 
 ### 1.5 State with a default pair — 10 points

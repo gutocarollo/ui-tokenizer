@@ -117,20 +117,28 @@ adapters or hands them off to the skill that owns them.
 The code-facing identifier is:
 
 ```
-owner . anatomy . property [ . variant ] [ . state ]
+entity [ . variant ] [ . anatomy ] [ . property ] [ . state ]
 ```
 
 Only those slots belong in the identifier. Tier, architecture, visual depth, and
 location are metadata. `surface`, `semantic`, `content`, pigment names, and
 generic layer names are therefore forbidden in a new identifier.
 
-| Slot | Question answered |
-|---|---|
-| `owner` | Whose colour is this? |
-| `anatomy` | Which addressable part of that owner? |
-| `property` | Which CSS property does it paint? |
-| `variant` | Which genuine version of that owner? |
-| `state` | When does it apply? |
+| Slot | Question answered | When to write it |
+|---|---|---|
+| `entity` | **Whose** visual decision is this? | **always** — §4.1, includes parentless globals (`divider`, `focus-ring`) |
+| `variant` | **Which version** of that entity? | only where the entity genuinely has variants — §4.4 |
+| `anatomy` | **Which addressable part** of that entity? | only where the entity has more than one — §4.2 |
+| `property` | **What** does it paint, size or set? | only where the anatomy permits more than one — §4.3, §7.2 |
+| `state` | **When** does it apply? | only when it is not `default` — §4.5 |
+
+> **ORDER — the variant sits next to what it qualifies.** `button.secondary.border-color`,
+> never `button.border-color.secondary`: the *button* is secondary, the border is not.
+> This block taught the opposite until 2026-08-01 — it was written on 07-30 and the
+> correction of the following day did not sweep it, so the first file every agent reads
+> was the last one still teaching the old order. Seven reference systems were surveyed
+> and, among those carrying both an entity and a property in the name, not one writes
+> the variant last. Full record in `reference/law.md` §6.
 
 The complete closed vocabulary and property matrix are in
 `reference/law.md` and `reference/anatomy-property.md`.

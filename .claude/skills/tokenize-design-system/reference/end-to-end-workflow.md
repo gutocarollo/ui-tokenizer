@@ -43,7 +43,7 @@ Three corrections govern the design:
 The process may report `DONE` only when every in-scope design occurrence is in
 one of two explicit terminal states:
 
-- migrated to an approved primitive, semantic, or component contract; or
+- migrated to an approved primitive, role, or component contract; or
 - retained as an approved, documented exception with an owner, reason, scope,
   evidence, and expiry/review policy.
 
@@ -675,7 +675,7 @@ remains authoritative.
 Produce at least:
 
 - hardcoded values by property and source;
-- primitives, semantic tokens, component tokens, aliases, and consumers;
+- primitives, role tokens, component tokens, aliases, and consumers;
 - missing emitted classes and dead classes;
 - arbitrary values and custom CSS escapes;
 - raw-order permutations, duplicates, and exact-set groups;
@@ -696,7 +696,7 @@ Give the LLM bounded cluster packets and require one of:
 
 ```text
 primitive
-semantic token
+role token
 component token
 component contract
 component variant
@@ -709,7 +709,7 @@ requires human decision
 For token proposals, require:
 
 ```text
-owner.anatomy.property[.variant][.state]
+entity[.variant][.anatomy][.property][.state]
 ```
 
 for colour tokens, and apply the colour naming and call-site oracles. Other
@@ -840,7 +840,7 @@ Set inclusion is insufficient.
 
 For pixel-preserving tokenization:
 
-1. Add the semantic/component token as an alias of the current primitive.
+1. Add the role/component token as an alias of the current primitive.
 2. Build generated artifacts.
 3. Assert that every new class or variable exists in emitted output.
 4. Migrate the bounded call sites.

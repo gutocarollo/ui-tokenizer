@@ -184,8 +184,33 @@ owner with no parts writes `owner.property` — the empty slot already means
 
 ### 4.3 Properties
 
-`background-color` · `foreground-color` · `border-color` · `outline-color` ·
-`box-shadow` · `fill` · `stroke`
+Paint — `background-color` · `foreground-color` · `border-color` ·
+`outline-color` · `box-shadow` · `fill` · `stroke`
+
+Geometry — `border-radius` · `padding` · `margin` · `gap` · `row-gap` ·
+`column-gap`
+
+Type — `font-weight` · `line-height` · `letter-spacing`
+
+> **EXTENDED 2026-08-01 — spacing and typography are IN SCOPE, by the owner's
+> explicit decision.** §4.3 used to have seven properties and all seven were
+> paint. Everything else fell into a bucket the engine labelled LAW GAP, and that
+> bucket was **3.546 uses — 12,1% of the target**: padding (1.062), font-weight
+> (571), border-radius (567), margin (536), column-gap (295), gap (222), row-gap
+> (185), line-height (90), letter-spacing (18). Measured with
+> `measure-coverage.mjs` on 2026-08-01. The owner's ruling was one line:
+> *"espaçamento/tipografia ESTÃO ABSOLUTAMENTE DENTRO DO ESCOPO."*
+>
+> This is phase **F-E** of the master plan (*"ampliar oráculo — radius · spacing
+> · tipografia além de cor"*), which had been planned and never executed. The
+> nine properties added here are not invented: they are exactly the ones
+> `UTILITY_FAMILIES` already projects from the radius, spacing and typography
+> families — the engine could always read them; the law could not name them.
+>
+> The three groups above are labels for humans. The parser takes every backticked
+> word between the §4.3 and §4.4 headings, so all sixteen are equally valid — and
+> that is also why this note may not contain a lowercase backticked word that is
+> not a property.
 
 > **CHANGED 2026-07-31.** The bare CSS property name for text was replaced by
 > `foreground-color`. Rationale, references, and the rejected abbreviation are in
@@ -378,7 +403,19 @@ That is why it fails in every slot it occupies. `container` answers *"which
 part?"* with "the part that is the whole," which is the **absence** of a part —
 and the empty slot already conveys that.
 
-**Derivability — anatomy that permits only one property:**
+**Derivability — anatomy that permits only one property, WITHIN THE PAINT DOMAIN:**
+
+> **SCOPED 2026-08-01.** This table used to say "only possible property", full
+> stop — true only while §4.3 knew nothing but paint. Since spacing and typography
+> entered the law by the owner's ruling, a `label` still has exactly one COLOUR,
+> but it also has weight, line height and letter spacing. So the derivation is
+> **per domain**: the paint property is implied and therefore omitted
+> (`button.label`); a geometry or type property is **not** implied and therefore
+> must be written (`button.label.font-weight`, `field.placeholder.line-height`).
+> The oracle enforces the same cut — `dominioDaPropriedade()` in
+> `scripts/score-naming.mjs`. Before the cut it scored the correct name 90/100,
+> the same class of false red that the 2026-07-31 note further up records.
+
 
 | anatomy | only possible property | therefore, writing the property is noise |
 |---|---|---|

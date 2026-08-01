@@ -192,7 +192,7 @@ existir.
 ## A lei de naming
 
 ```
-owner . anatomia . propriedade [ . variante ] [ . estado ]
+entidade [ . variante ] [ . anatomia ] [ . propriedade ] [ . estado ]
 ```
 
 `tier`, `domain` e `layer` são **metadados centralizados** — nunca aparecem no
@@ -390,5 +390,5 @@ Este projeto exige evidência visual (PNG renderizado) para validar mudanças de
 
 ### Governança de Repositório
 
-- **[docs/law/GRAMMAR.md](docs/law/GRAMMAR.md)** — a lei de naming: `owner . anatomia . propriedade [ . variante ] [ . estado ]`. Teste mecânico de semântica por remoção de palavra (colisão, dedutibilidade, pergunta do slot).
+- **[docs/law/GRAMMAR.md](docs/law/GRAMMAR.md)** — a lei de naming: `entidade [ . variante ] [ . anatomia ] [ . propriedade ] [ . estado ]`. Teste mecânico de semântica por remoção de palavra (colisão, dedutibilidade, pergunta do slot).
 - **[docs/SCHEMA.md](docs/SCHEMA.md)** — constituição da wiki: padrão de naming de doc (kebab-case + classe temporal: living/event/sequenced), status, indexação, política "git é o arquivo".

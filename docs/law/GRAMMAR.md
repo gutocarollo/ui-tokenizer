@@ -128,7 +128,7 @@ requires an explicit justification in the decision’s `justification` field.
 > ⚠ **§4.1 is MACHINE-READ. Do not copy this list into another document.**
 > `ds-naming-law.py::vocabulario_do_doc()` (Linhas 216-232) slices this file
 > between the §4.1 and §4.2 headings and takes every backticked term as an
-> owner — 40 owners today, verified. `score-naming.mjs::readVocabulary()` slices
+> owner — 42 owners today, verified (40 + the two parentless globals opened in §5.5). `score-naming.mjs::readVocabulary()` slices
 > §4.1 through §4.5 the same way. A second copy of the list diverges, and when it
 > diverges the code wins in silence while the copy becomes a lie. Cite this
 > section; do not restate it.
@@ -184,8 +184,33 @@ owner with no parts writes `owner.property` — the empty slot already means
 
 ### 4.3 Properties
 
-`background-color` · `foreground-color` · `border-color` · `outline-color` ·
-`box-shadow` · `fill` · `stroke`
+Paint — `background-color` · `foreground-color` · `border-color` ·
+`outline-color` · `box-shadow` · `fill` · `stroke`
+
+Geometry — `border-radius` · `padding` · `margin` · `gap` · `row-gap` ·
+`column-gap`
+
+Type — `font-weight` · `line-height` · `letter-spacing`
+
+> **EXTENDED 2026-08-01 — spacing and typography are IN SCOPE, by the owner's
+> explicit decision.** §4.3 used to have seven properties and all seven were
+> paint. Everything else fell into a bucket the engine labelled LAW GAP, and that
+> bucket was **3.546 uses — 12,1% of the target**: padding (1.062), font-weight
+> (571), border-radius (567), margin (536), column-gap (295), gap (222), row-gap
+> (185), line-height (90), letter-spacing (18). Measured with
+> `measure-coverage.mjs` on 2026-08-01. The owner's ruling was one line:
+> *"espaçamento/tipografia ESTÃO ABSOLUTAMENTE DENTRO DO ESCOPO."*
+>
+> This is phase **F-E** of the master plan (*"ampliar oráculo — radius · spacing
+> · tipografia além de cor"*), which had been planned and never executed. The
+> nine properties added here are not invented: they are exactly the ones
+> `UTILITY_FAMILIES` already projects from the radius, spacing and typography
+> families — the engine could always read them; the law could not name them.
+>
+> The three groups above are labels for humans. The parser takes every backticked
+> word between the §4.3 and §4.4 headings, so all sixteen are equally valid — and
+> that is also why this note may not contain a lowercase backticked word that is
+> not a property.
 
 > **CHANGED 2026-07-31.** The bare CSS property name for text was replaced by
 > `foreground-color`. Rationale, references, and the rejected abbreviation are in
@@ -211,7 +236,7 @@ An omitted state means `default`. Do **not** write `.default`.
 > **OPENED 2026-08-01 — the head of the name is an ENTITY, not a possession.**
 > The owner said it plainly: *"componentes globais não necessariamente têm dono.
 > A especificidade do componente é que prova o owner."* He is right, and the word
-> "owner" was carrying a false implication. None of the 40 entries above belongs
+> "owner" was carrying a false implication. None of the 42 entries above belongs
 > to anybody — `button` **is** the head; it has no parent. Read this section as
 > **the entity that owns the visual decision**, which is usually the component
 > itself and sometimes a cross-cutting decision that lives in no component.
@@ -378,7 +403,19 @@ That is why it fails in every slot it occupies. `container` answers *"which
 part?"* with "the part that is the whole," which is the **absence** of a part —
 and the empty slot already conveys that.
 
-**Derivability — anatomy that permits only one property:**
+**Derivability — anatomy that permits only one property, WITHIN THE PAINT DOMAIN:**
+
+> **SCOPED 2026-08-01.** This table used to say "only possible property", full
+> stop — true only while §4.3 knew nothing but paint. Since spacing and typography
+> entered the law by the owner's ruling, a `label` still has exactly one COLOUR,
+> but it also has weight, line height and letter spacing. So the derivation is
+> **per domain**: the paint property is implied and therefore omitted
+> (`button.label`); a geometry or type property is **not** implied and therefore
+> must be written (`button.label.font-weight`, `field.placeholder.line-height`).
+> The oracle enforces the same cut — `dominioDaPropriedade()` in
+> `scripts/score-naming.mjs`. Before the cut it scored the correct name 90/100,
+> the same class of false red that the 2026-07-31 note further up records.
+
 
 | anatomy | only possible property | therefore, writing the property is noise |
 |---|---|---|
@@ -482,7 +519,7 @@ with nobody having to foresee them. Tailwind's own vocabulary and raw pigments
 (`transparent`, `white`, `slate`, …) are exempted by `_IGNORAR_DONO`
 (Linhas 291-296) — failing those would be noise, not signal.
 
-Reproduced against a fixture on 2026-07-31, with §4.1 yielding 40 owners:
+Reproduced against a fixture on 2026-07-31, with §4.1 yielding 40 owners (42 since the Global category opened on 2026-08-01):
 
 ```
 consumed-class      text-content-primary          src/A.tsx:2

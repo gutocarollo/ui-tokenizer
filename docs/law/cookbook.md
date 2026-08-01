@@ -1014,7 +1014,7 @@ justificativa escrita é **falha**, não licença.
 | Capítulo especial | anexo com sucesso (preview real) — icone colorido por extensao de arquivo | `attachment.icon.background-color (variante por tipo de arquivo PENDENTE — ver LG1)` | nome anotado com pendência — precisa de decisão |
 | Capítulo especial | botao 'candidatar-se a colaborador' — VARIANTE COM PALAVRA BANIDA 'surface' | `button.secondary.background-color (destino provisorio — ver LG5, decisao do dono pendente)` | nome anotado com pendência — precisa de decisão |
 | Capítulo especial | 5 niveis de prioridade mapeados para 5 layers de fundo (variant collapse PENDENTE — ver LG | `banner.background-color (variante PENDENTE, 5 tiers vs 4 slots)` | nome anotado com pendência — precisa de decisão |
-| Capítulo especial | botao de expandir/colapsar cadeia de pensamento — cor do icone (chevron) | `card.caret.foreground-color` | nota 85 |
+| Capítulo especial | botao de expandir/colapsar cadeia de pensamento — cor do icone (chevron) | `card.caret` | nota 85 |
 | Capítulo especial | painel inteiro do ImpersonationSelector usa scheme.dark.* direto, ignorando useTheme() (ba | `menu.background-color (DECISAO DO DONO: confirmar se e menu, card ou modal)` | nome anotado com pendência — precisa de decisão |
 
 **A pergunta única que destrava quase todas:** os post-its do board do makershub têm cor

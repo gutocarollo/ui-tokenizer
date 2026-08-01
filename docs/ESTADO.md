@@ -113,7 +113,7 @@ testar primeiro a correção da chamada no v1.
 
 | artefato | estado |
 |---|---|
-`ui-tokenizer-v2` | **`v2.0.0` publicada** em `cabf1df`. `origin/main` = `origin/v2` = tag = mesmo commit; **49 commits** desde o v1 `1dcaf16`, que é ancestral (fast-forward real, sem merge commit); **229 arquivos** versionados. Árvore de trabalho **não limpa**: 18 entradas em `git status --porcelain`, trabalho em curso |
+`v2.0.0` aponta para `cabf1df`; HEAD hoje é `c3f00bf`, **18 commits à frente da tag** (`git describe` = `v2.0.0-18-gc3f00bf`). Árvore de trabalho: **28 entradas** em `git status --porcelain` — medido em 2026-08-01.
 plano | rev 2, 467 linhas, 2 rodadas adversariais concluídas, status **PENDENTE** |
 cobaia `main` | `949ba9ae`, `node_modules` instalado (1,6G), **não mutada** |
 cobaia `pr193` | `4afa7899`, `node_modules` **ausente** |

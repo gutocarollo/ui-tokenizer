@@ -102,7 +102,14 @@ function deriveVariantState(legacyToken, statePrefix, vocabulary) {
 
 /** Builds the DTCG ID and emitted class from the full path. */
 export function buildName({ owner, anatomy, property, variant, state }) {
-  const parts = [owner, anatomy, property, variant, state].filter(Boolean);
+  /*
+   * ORDEM CORRIGIDA 2026-08-01. Este gerador produzia
+   * `button.background-color.primary.hover` — a grafia que a §6 do GRAMMAR cita
+   * como ERRO corrigido — enquanto o parser irmao (`score-naming.mjs::parseName`)
+   * ja lia na ordem nova. Gerador e parser desalinhados, sem teste cobrindo o
+   * round-trip. Achado pela varredura de contradicoes de 2026-08-01.
+   */
+  const parts = [owner, variant, anatomy, property, state].filter(Boolean);
   return { dtcg: parts.join("."), className: parts.join("-") };
 }
 

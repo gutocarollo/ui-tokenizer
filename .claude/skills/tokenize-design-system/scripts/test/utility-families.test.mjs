@@ -152,28 +152,57 @@ test("the whole delta is the variant chain the old allowlist could not see", () 
 
 /* -------------------------------------------------------------- the law --- */
 
-test("the law has a §4.3 slot for every paint prefix and for none of the rest", () => {
+/*
+ * ATUALIZADO 2026-08-01 — E ESTE TESTE FEZ O TRABALHO DELE.
+ *
+ * A versao anterior afirmava "§4.3 must not silently gain <property>" para toda
+ * familia nao-paint, e a ultima linha dizia: "if this ever becomes 0 the law was
+ * amended: re-run F-E and re-measure". A lei FOI emendada — o dono decidiu que
+ * espacamento e tipografia estao no escopo (F-E do plano mestre), e a §4.3 foi
+ * de 7 para 16 propriedades. Os dois testes quebraram na hora, que e exatamente
+ * o contrato: emenda de lei nao passa em silencio, passa por aqui.
+ *
+ * O invariante NAO muda de natureza, so de alcance: toda propriedade que uma
+ * familia governada projeta TEM que existir na §4.3. O que mudou e quais
+ * familias sao governadas — agora paint, radius, spacing e typography, ou seja,
+ * todas as quatro. LAW GAP vazio deixou de ser sinal de defeito e passou a ser
+ * o estado esperado; se ele voltar a crescer, e porque uma familia NOVA entrou
+ * no motor sem a lei saber, e o teste reprova de novo.
+ */
+test("§4.3 tem slot para TODA propriedade que uma familia governada projeta", () => {
   const vocabulary = readVocabulary();
+  const semSlot = [];
   for (const [prefix, row] of Object.entries(UTILITY_FAMILIES)) {
     const slot = lawSlotFor(prefix, vocabulary);
-    if (row.family === "paint") {
-      assert.equal(slot, row.property, `§4.3 must still hold ${row.property} for ${prefix}-`);
-    } else {
-      assert.equal(slot, null, `§4.3 must not silently gain ${row.property} for ${prefix}-`);
-    }
+    if (slot === null) semSlot.push(`${prefix}- (${row.family}/${row.property})`);
+    else assert.equal(slot, row.property, `§4.3 deve manter ${row.property} para ${prefix}-`);
   }
+  assert.deepEqual(
+    semSlot,
+    [],
+    "familia projeta propriedade que a lei nao nomeia — ou a lei perdeu um slot, " +
+      "ou o motor ganhou uma familia sem emenda: " + semSlot.join(", ")
+  );
 });
 
-test("the law gap is declared, counted, and matches the table", () => {
+test("o LAW GAP esta vazio, e volta a reprovar se uma familia nova entrar sem lei", () => {
   const vocabulary = readVocabulary();
   const gap = unlawedPrefixes(vocabulary);
-  const nonPaint = Object.entries(UTILITY_FAMILIES)
-    .filter(([, row]) => row.family !== "paint")
-    .map(([prefix]) => prefix);
-  assert.deepEqual(gap.sort(), nonPaint.sort());
-  assert.equal(
-    gap.length > 0,
-    true,
-    "if this ever becomes 0 the law was amended: re-run F-E and re-measure the scoring reach"
+  assert.deepEqual(
+    gap,
+    [],
+    "prefixos sem slot na lei: " + gap.join(", ") +
+      " — emende a §4.3 ou remova a familia do motor, nao deixe divergir"
   );
+});
+
+test("os tres dominios da §4.3 cobrem as quatro familias do motor", () => {
+  const vocabulary = readVocabulary();
+  const familias = new Set(Object.values(UTILITY_FAMILIES).map((r) => r.family));
+  assert.deepEqual(
+    [...familias].sort(),
+    ["paint", "radius", "spacing", "typography"],
+    "familia nova no motor exige decisao de lei — nao adicione sem emendar a §4.3"
+  );
+  assert.equal(vocabulary.properties.length, 16, "§4.3 tem 16 propriedades desde a emenda de 2026-08-01");
 });

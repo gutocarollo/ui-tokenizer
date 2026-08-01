@@ -99,7 +99,7 @@ A pergunta certa é feita por contexto.
 ### Contrato = o nome derivado da lei
 
 Do contexto sai um nome mecânico, pela lei
-`owner . anatomia . propriedade . variante . estado`:
+`entidade . variante . anatomia . propriedade . estado`:
 
 ```
 owner=button + propriedade=background-color + estado=hover

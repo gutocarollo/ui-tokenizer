@@ -3,7 +3,8 @@
 
 PORTED from apps/web/scripts/ds-pairs-check.py (reference donor harness) —
 rescue plan §R1a. Structural rule (shadcn-style design-system contract):
-  - Action/status colored pairs (primary, destructive, success, info, premium):
+  - Action/status colored pairs (primary, destructive, success, info, and `premium`
+#   — este ultimo e uma var CSS do APP-ALVO, nao uma variante do §4.4; decisao do dono pendente):
     `X-foreground` MUST be white (#fff family) and contrast >= 4.5:1 with `X`.
     The label contrasts with its PARENT (container), never with the page.
   - Exception:

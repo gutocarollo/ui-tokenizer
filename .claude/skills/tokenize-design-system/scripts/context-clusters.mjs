@@ -132,10 +132,11 @@ function divergenceOf(variantPrefix, oldToken) {
  */
 function deriveName({ owner, property, variant, state, anatomy }) {
   if (!owner) return null;
+  /* ORDEM CORRIGIDA 2026-08-01: variante logo apos a entidade (GRAMMAR §6). */
   const parts = [owner];
+  if (variant) parts.push(variant);
   if (anatomy) parts.push(anatomy);
   parts.push(property);
-  if (variant) parts.push(variant);
   if (state) parts.push(state);
   return parts.join("-");
 }

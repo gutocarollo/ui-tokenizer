@@ -11,16 +11,18 @@ Antes de tratar qualquer questão de nome de token como aberta, grep NESTA
 ordem. Se a lei decide, a decisão está tomada — cite path + Linha e siga.
 
 1. **[docs/law/GRAMMAR.md](docs/law/GRAMMAR.md)** — A LEI. Gramática
-   `owner.anatomy.property[.variant][.state]` (Linha 31); propriedade é slot
-   obrigatório; exemplo canônico `page.background-color` (Linha 75);
-   derivabilidade §7.2 (Linhas 289-307): anatomia de propriedade única OMITE
+   `entity[.variant][.anatomy][.property][.state]` (Linha 42) — a variante vem
+   colada à ENTIDADE, antes da anatomia e da propriedade (corrigido 2026-08-01);
+   propriedade é slot obrigatório salvo quando a anatomia a implica (§7.2); exemplo canônico `page.background-color` (Linha 50);
+   derivabilidade §7.2 (Linha 406): anatomia de propriedade única OMITE
    a propriedade (`field.placeholder`, `menu.divider`, `modal.backdrop`).
 2. **`.claude/skills/tokenize-design-system/reference/law.md`** — espelho que
    os MOTORES leem (`paths.mjs` o prefere). Divergência espelho×lei é bug:
    invariante em `scripts/test/lei-x-familias.test.mjs`.
 3. **`.claude/skills/tokenize-design-system/reference/anatomy-property.md`** —
-   matriz anatomia×propriedade; fonte do `IMPLIED_PROPERTY`
-   (`scripts/score-naming.mjs` Linhas 105-112).
+   matriz anatomia×propriedade; fonte do `IMPLIED_PROPERTY` (`scripts/score-naming.mjs` Linha 169).
+   ATENÇÃO: derivabilidade (ruído) e coerência (impossibilidade) são regras
+   SEPARADAS desde 2026-08-01 — a segunda vive em `PARES_IMPOSSIVEIS` (Linha 183).
 4. **[docs/law/2026-07-31-ordem-do-nome-evidencias.md](docs/law/2026-07-31-ordem-do-nome-evidencias.md)**
    — dossiê de evidências externas (DTCG/M3/Primer/shadcn) da ordem
    owner-primeiro e do namespace `--color-*`.

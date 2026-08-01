@@ -32,7 +32,16 @@ import { loadColourNames, resolveProjectLayout } from "./lib/project-layout.mjs"
 
 /* Portable copy: ROOT comes from --root / TOKENIZE_ROOT / cwd, never this file's location. */
 const ROOT = resolveRoot();
-const PROJECT = resolveProjectLayout(ROOT);
+/*
+ * PREGUICOSO 2026-08-01 — mesmo recorte ja aplicado em `score-naming.mjs`.
+ * Resolver o app-alvo no IMPORT quebra todo importador que so quer a LOGICA:
+ * `globalEntityFor` e `findUseOwner` decidem por regra, nao por projeto.
+ */
+let _project = null;
+function project() {
+  if (_project === null) _project = resolveProjectLayout(ROOT);
+  return _project;
+}
 
 /* ------------------------------------------------------------ signal 1: JSX tag --- */
 
@@ -165,8 +174,40 @@ function carryingTag(text, offset) {
   return { tag: "?", role: null, type: null };
 }
 
-/** Owner for one use and the signal that determined it. */
-export function findUseOwner({ file, tag, role, type }, owners) {
+/**
+ * Entidades GLOBAIS (§4.1 "Global", §5.5): componente global nao tem pai, e por
+ * isso nenhum sinal de tag/role as alcanca. So respondem quando a lei do alvo de
+ * fato as admite — `owners` vem da §4.1 lida do GRAMMAR, entao um alvo com lei
+ * antiga simplesmente nao ativa este caminho.
+ */
+export function globalEntityFor(cls, statePrefix, owners = []) {
+  const tem = (e) => owners.includes(e);
+  const c = String(cls ?? "");
+  const st = String(statePrefix ?? "");
+  if (tem("focus-ring") && /(?:^|:)focus(?:-visible)?:/.test(st + c) && /^(?:ring|outline)-/.test(c)) {
+    return { owner: "focus-ring", signal: "anel de foco — decisao global", strength: "high" };
+  }
+  if (tem("divider") && /^divide-/.test(c)) {
+    return { owner: "divider", signal: "separador — decisao global", strength: "high" };
+  }
+  return null;
+}
+
+/**
+ * Owner for one use and the signal that determined it.
+ *
+ * `cls` e `statePrefix` sao OPCIONAIS e servem ao passo 0: as entidades GLOBAIS
+ * do §4.1/§5.5 nao pertencem a componente nenhum, entao nenhum sinal de tag ou
+ * role pode acha-las. Sem este passo, `focus-visible:ring-2` dentro de um
+ * <button> derivava `button.outline-color.focus` — exatamente as N copias de UMA
+ * decisao global que a §5.5 foi criada para matar, e que o cookbook nomeia
+ * `focus-ring.outline-color` em 21 linhas. Achado pela varredura de 2026-08-01.
+ */
+export function findUseOwner({ file, tag, role, type, cls, statePrefix }, owners) {
+  // 0. ENTIDADE GLOBAL — a decisao nao e de componente nenhum (§5.5).
+  const global = globalEntityFor(cls, statePrefix, owners);
+  if (global) return global;
+
   // 1. role/type — more specific than the tag.
   if (role && ROLE_OWNER[role]) return { owner: ROLE_OWNER[role], signal: `role="${role}"`, strength: "high" };
   if (type && TYPE_OWNER[type]) return { owner: TYPE_OWNER[type], signal: `type="${type}"`, strength: "high" };
@@ -217,14 +258,14 @@ const isMain = process.argv[1] &&
 
 if (isMain) {
   const vocabulary = readVocabulary();
-  const universe = await loadColourNames(PROJECT);
+  const universe = await loadColourNames(project());
 
   // longest-first: unsorted, `rounded` consumes `rounded-t` and `p` consumes `px`.
   const PRE = prefixAlternation();
   const rx = new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${PRE})-([a-z][a-z0-9-]*)(?![\\w-])`, "g");
   const byToken = new Map();
 
-  for (const sourceRoot of PROJECT.sourceRoots) {
+  for (const sourceRoot of project().sourceRoots) {
   for (const f of files(sourceRoot)) {
     const text = stripComments(readFileSync(f, "utf8"));
     for (const m of text.matchAll(rx)) {

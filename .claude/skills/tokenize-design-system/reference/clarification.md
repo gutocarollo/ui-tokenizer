@@ -90,29 +90,34 @@ de escrever o número no bloco `D[n]`.
 `tools/hooks/clarification-gate.py`, registrado como **Stop hook** em
 `.claude/settings.json`.
 
-Mede duas coisas no texto final do turno:
+Mede **três** coisas no texto final do turno:
 
-1. **há pergunta de escolha?** — um dos **oito** padrões de `CHOICE_PATTERNS`
-   (Linhas 30-43): verbo de 1ª pessoa do presente (`sigo`, `crio`, `implemento`,
+1. **há pergunta de escolha?** — um dos **13** padrões de `CHOICE_PATTERNS` (8 em pt, 4 em en)
+   (Linhas 42-58): verbo de 1ª pessoa do presente (`sigo`, `crio`, `implemento`,
    `executo`, `rodo`, `aplico`, `migro`, `comeco`, `avanco`, `prossigo`, `gero`,
    `escrevo`, `renomeio`, `removo`, `adiciono`, `instalo`, `commito`, `pusho`),
    `quer que eu`, `prefere`, `qual (voce|vc|deles|delas|opcao|caminho|dos)`,
    `(posso|devo|faco)`, `autoriza`, `confirma`, `A ou B` — **e** um `?` fora de
    bloco de código
 2. **se há, o bloco `### D[n]` está presente e completo?** — `D_BLOCK`
-   (`^#{2,4}\s*D\d+\s*[—\-:]`) mais os cinco `REQUIRED_ELEMENTS`: os quatro itens
-   por opção **e** a `**Minha recomendação**` (o padrão aceita
-   `Recomendação`/`Recomendacao` como alternativa)
+   (`^#{2,4}\s*D[-\d]`) mais os **seis** `REQUIRED_ELEMENTS`: a linha `**Canon:**`,
+   os quatro itens por opção **e** a `**Minha recomendação**` (o padrão aceita
+   `Recomendação`/`Recomendacao`, e os rótulos valem em pt E en)
+3. **o turno devolve a bola ao dono SEM interrogação?** — `HANDOFF_PATTERNS`
+   (*"aguardando sua decisão"*, *"decisões que continuam suas"*, *"cabe a você"*)
+   cruzado com `DECISION_SIGNALS` (`D1`, `D-a`, `opção A`, `decisão`, `escolha`).
+   Só bloqueia quando os DOIS aparecem — parada legítima sem decisão aberta não
+   vira ruído. Esta via nasceu do incidente de 2026-07-31: um turno terminou com
+   *"Decisões que continuam suas: [4 bullets]... Aguardando sua avaliação"* e
+   nenhum gate disparou, porque não havia pergunta.
 
-⚠ **Os padrões são escritos sem acento e sem cedilha, e `re.IGNORECASE` não
-normaliza diacrítico.** `comeco`, `avanco`, `faco`, `voce`, `opcao` casam a forma
-ASCII. Medido contra os padrões reais: *"Começo pelo A?"* **passa** — nenhum dos
-oito casa. *"Qual opção você prefere?"* bloqueia, mas por `\bprefere\b`, não pelo
-ramo de `opcao`, que também não casa. A cobertura vem dos ramos sem diacrítico
-(`sigo`, `crio`, `posso`, `devo`, `prefere`, `autoriza`, `confirma`); os ramos
-com `c`-cedilha perdido não valem nada em texto acentuado. Isso é defeito do
-gate, não do documento; está declarado aqui para que ninguém conclua que "o gate
-não bloqueou, logo a pergunta era legítima".
+✅ **CORRIGIDO no hook v3 (`72f1639`) — o defeito abaixo fica como história.**
+O corpo passa por `fold()` (normalização NFD + remoção de combining marks) ANTES
+do match, então *"Começo pelo A?"* hoje **bloqueia** e o ramo `opcao` casa
+`opção`. O defeito era real e viveu porque os padrões eram ASCII, `re.IGNORECASE`
+não normaliza diacrítico, e ninguém testou com acento — a cobertura vinha só dos
+ramos sem cedilha (`sigo`, `crio`, `posso`, `devo`, `prefere`). Registrado aqui
+para que ninguém conclua que "o gate não bloqueou, logo a pergunta era legítima".
 
 Bloqueia com `exit 2` e devolve o formato; bloco incompleto tem mensagem própria,
 listando os elementos que faltam. Não dispara em: pergunta retórica dentro de

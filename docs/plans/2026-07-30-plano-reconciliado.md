@@ -436,7 +436,7 @@ app e reportou sucesso**. Requisitos da fase:
 | **F-B** | `NORMALIZE` | **224** decl. inline cravadas + **11** cores + 172 px | `measure-vectors.mjs` — medidor próprio, classifica app/tema/vendor |
 | **F-B2** | HTML semântico (spec nº 3 do dono) | `<div onClick>` → `<button>`, landmarks | os 59 clusters sem owner recontados — §7.1 |
 | **F-C** | `MINE` no loop | **✔ concluída** — ext derivada + guard | regressão 3/3, 722/723 arquivos |
-| **F-D0** | **validar os pesos** | conjunto rotulado, amostra e limiar | ver §5.2 — **bloqueia F-F** |
+| **F-D0** | **validar os pesos** | conjunto rotulado, amostra e limiar | ver §5.2 — **bloqueia F-F** · instrumento: `<alvo>/docs/reports/validacao-pesos.md` |
 | **F-D** | entidade canônica, **estagiada por banda** | ≥20× (41 ent.) → ≥5× (249) → ≥2×∧≥4cls (430) | cobertura por lote, medida pós-codemod |
 | **F-E** | ampliar oráculo | radius·spacing·tipografia além de cor | famílias novas no `PREFIX_PROPERTY` |
 | **F-F** | `APPLY` | tokens escritos + `tokens:build` | **grep no CSS BUILDADO** |
@@ -450,6 +450,20 @@ aplicado conta zero.
 **Sequencial, uma por vez, verificada antes de seguir** (LEI ZERO §6).
 
 ### 5.2 F-D0 — validar os pesos, com amostra e limiar
+
+> **ONDE O INSTRUMENTO MORA** (registrado 2026-08-01, depois que o dono perguntou
+> por que um artefato do processo estava no repo alvo). A divisão é deliberada e
+> a regra é geral: **o processo guarda o MÉTODO; o alvo guarda a MEDIÇÃO.** Os 40
+> pares são medição — saíram dos clusters, das cores e dos call sites daquele
+> alvo, e não existem fora dele. Por isso vivem em
+> `<alvo>/docs/reports/validacao-pesos.md` (hoje:
+> `/home/augusto/code/makers-ai-hub/frontend/docs/reports/validacao-pesos.md`).
+>
+> **O defeito que isso escondia:** esta seção declarava o gate mais consequente
+> do projeto — F-D0 bloqueia `APPLY` — e **não dizia onde agir**. Quem abrisse
+> este repo lia "bloqueia F-F" e não tinha como destravar. Ponteiro adicionado
+> na tabela acima e aqui. Regra que fica: toda fase cujo instrumento vive no
+> alvo declara o caminho relativo dele na própria fase.
 
 Os pesos `cor 40 · contrato 25 · componente 15 · owner 10 · função 10` são meus,
 nunca foram medidos, e sustentam **211 fusões**. A versão anterior deste plano

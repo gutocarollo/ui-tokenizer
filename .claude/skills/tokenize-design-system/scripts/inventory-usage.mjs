@@ -13,7 +13,7 @@ const root = resolveRoot();
 const sourceRoot = path.join(root, "src");
 const propertyByPrefix = [
   [/^bg-/, "background-color"],
-  [/^(text|placeholder)-/, "color"],
+  [/^(text|placeholder)-/, "foreground-color"],
   [/^(border|divide)-/, "border-color"],
   [/^outline-/, "outline-color"],
   [/^ring-/, "outline-color"],

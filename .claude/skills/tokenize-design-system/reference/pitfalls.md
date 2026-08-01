@@ -357,14 +357,18 @@ evidence and no complaint.
 
 `tools/hooks/ui-evidence-gate.sh` `Linha 144`–`Linha 163` deliberately refuses to
 treat `scripts/ui-evidence.sh` existing on disk as proof of wiring — it requires a
-`package.json` script literally named **`ui:evidence`**. This repository's
-`package.json` `Linha 9` declares `evidence`. Different name ⇒ `ENGINE_WIRED=0` ⇒
-`exit 0` with a warning on stderr: the gate is **fail-open**, by design, so that a
-fresh install does not block every commit.
+`package.json` script literally named **`ui:evidence`**. A different name ⇒
+`ENGINE_WIRED=0` ⇒ `exit 0` with a warning on stderr: the gate is **fail-open**,
+by design, so that a fresh install does not block every commit.
 
-Compounding it here: `.claude/settings.json` registers `marathon-stop-gate.sh` and
-`tools/hooks/clarification-gate.py` only — `ui-evidence-gate.sh` is not registered
-as a Stop hook at all.
+> ✔ **BOTH FACTS FIXED in `b7a0405`, and the pitfall stays because the failure was
+> SILENT.** This repository's `package.json` declared `evidence` and
+> `.claude/settings.json` did not register the hook at all — so the gate returned
+> `exit 0` and looked satisfied. Verified now: `package.json` declares
+> `ui:evidence`, and `ui-evidence-gate.sh` is registered as a Stop hook. What
+> stays true, and is the reason to keep reading: a fail-open gate is
+> indistinguishable from a passing one, so **verify the wiring, never the exit
+> code alone**.
 
 **Fix:** verify both facts before relying on the gate; a silent hook is
 indistinguishable from a satisfied one.

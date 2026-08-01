@@ -53,7 +53,7 @@ declarar por que não.
 
 **3. O contrato de zero-match, anti-alucinação.** Quando a busca não bate com
 nada, a skill devolve texto instrutivo explícito em vez de inventar. É o padrão
-que um cookbook de 643 linhas precisa: perguntar "como se chama X" e receber
+que um cookbook de 643 exemplos precisa: perguntar "como se chama X" e receber
 "não há linha para isso, e aqui está como propor uma" é infinitamente melhor que
 receber um nome plausível e falso.
 

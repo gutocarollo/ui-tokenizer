@@ -1,5 +1,11 @@
 # Relatório antes/depois — tokenização completa do design system
 
+> ⛔ **VOCABULÁRIO SUPERADO EM 2026-07-31.** A coluna "Depois" deste relatório
+> apresenta `content-*`, `surface-*` e `static-*` como DESTINO de migração —
+> palavras hoje **BANIDAS** (`GRAMMAR.md` §2, §3.1) ou pigmento cru. Leia a tabela
+> como MEDIÇÃO de 2026-07-26: esses nomes são a dívida que a lei mandou eliminar,
+> nunca o alvo.
+
 > Gerado do `git diff` (fonte completa, não de memória) em 2026-07-26.
 
 > **Antes:** `a7606ec2` · **Depois:** working tree sobre `a7606ec2`.

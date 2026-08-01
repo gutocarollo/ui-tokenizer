@@ -107,7 +107,7 @@ const REUSE_SCHEMA = {
 }
 
 const LEI = `A LEI CANONICA esta em /home/augusto/code/ui-tokenizer-v2/docs/law/GRAMMAR.md.
-Gramatica: owner.anatomy.property[.variant][.state]. As palavras \`content\`, \`surface\` e \`semantic\` sao BANIDAS
+Gramatica: entity[.variant][.anatomy][.property][.state]. As palavras \`content\`, \`surface\` e \`semantic\` sao BANIDAS
 (whitelabels da entidade fisica) — no nome do token E como nome de familia/artefato/secao/conceito.
 Elas so podem aparecer como "nome antigo a eliminar".`
 

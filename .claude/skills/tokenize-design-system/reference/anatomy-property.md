@@ -62,8 +62,21 @@ single part, leave the slot empty. See `examples.md` §2.
 ✅ menu.divider               ❌ menu.divider.border-color
 ```
 
-This list is exactly the oracle’s `IMPLIED_PROPERTY`. **The matrix is its
+This list is exactly the oracle's `IMPLIED_PROPERTY`. **The matrix is its
 source** — if you add an anatomy here with only one ✓, add it to the map.
+
+> **SCOPED 2026-08-01 — "only one ✓" vale DENTRO do domínio de pintura.** A
+> matriz acima tem sete colunas e as sete são paint. Desde que espaçamento e
+> tipografia entraram na §4.3 por decisão do dono, um `label` continua tendo
+> UMA cor — mas tem também `font-weight`, `line-height` e `letter-spacing`. Logo
+> `button.label` é a cor (propriedade omitida) e `button.label.font-weight` é
+> obrigatório escrever. O oráculo faz o mesmo corte em `dominioDaPropriedade()`.
+>
+> E a implicação é regra de RUÍDO, não de impossibilidade: dizer que a única
+> propriedade de pintura de `label` é `foreground-color` **não** implica que
+> `label` não possa carregar outra coisa. As duas afirmações estavam coladas no
+> mesmo mapa e a inferência era inválida — separadas em `IMPLIED_PROPERTY`
+> (ruído) e `PARES_IMPOSSIVEIS` (impossibilidade real, com a razão escrita).
 
 > ✔ **DRIFT FIXED in `b7a0405` (2026-07-31).** §4.3 renamed the text property to
 > `foreground-color` and `scripts/score-naming.mjs` (`IMPLIED_PROPERTY`,
@@ -110,20 +123,24 @@ system:
 | `badge` | 1 | **no** → `badge.background-color` |
 | `progress` | track, indicator | **yes** |
 | `toggle` | track, thumb | **yes** |
-| `divider` (owner) ⚠ | 1 | **no** → `divider.border-color` — **not yet legal, see below** |
+| `divider` (owner) | 1 | **no** → `divider.border-color` — legal since §5.5 |
 
 ⚠ `divider` appears in both lists — it is **anatomy** inside `menu`/`data-table`
 and an **owner** when it is a standalone page separator. This is not ambiguity in
 the law: the law says the owner comes from the **rendered context**. A standalone
 `<hr>` has its own owner; the line between two table rows is part of the table.
 
-> ⚠ **BLOCKED as of 2026-07-31 — needs an owner decision, do not use yet.**
-> `divider` is in §4.2 (anatomy) but is **not** in §4.1 (owners) — verified by
-> reading the vocabulary the guard itself parses: 40 owners, `divider` absent.
-> Since `violations_grammar()` landed, `border-divider-border-color` is rejected
-> outright (`grammar-owner`), reproduced on a fixture. The reasoning in the
-> paragraph above may well be right, but §4 requires a new owner to carry an
-> **explicit justification**, and the guard — which is the enforcement — has the
-> final word. Either `divider` is added to §4.1 with that justification, or a
-> standalone separator takes the owner of the region it separates. **Owner
-> decision; not resolvable from within this document.**
+> ✅ **RESOLVED 2026-08-01 — `divider` e `focus-ring` são ENTIDADES GLOBAIS.**
+> O bloco anterior dizia *"BLOCKED — needs an owner decision, do not use yet"* e
+> era verdade quando foi escrito: §4.1 tinha 40 owners e `divider` não estava lá.
+> A decisão foi tomada: componente global **não tem pai**, e §4.1/§5.5 abriram a
+> categoria Global. Hoje são **42 owners**, e `divider.border-color` e
+> `focus-ring.outline-color` são canônicos — o cookbook os usa em 21 linhas.
+>
+> Por que isso era perigoso: enquanto o bloco existia, um agente que o lesse
+> **recusaria o token que o cookbook prescreve**. O parágrafo acima já estava
+> certo; faltava a decisão, não o raciocínio.
+>
+> `divider` segue nas duas listas de propósito — ANATOMIA dentro de
+> `menu`/`data-table`, ENTIDADE quando é separador autônomo. A regra 1 do §5
+> (contexto renderizado) desempata.

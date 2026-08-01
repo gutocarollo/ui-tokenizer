@@ -104,21 +104,67 @@ export const NO_SLOT = {
 
 /**
  * An anatomy enters this map only when it can carry exactly one CSS property.
- * `label` is text, so it has `color` but no surface of its own. For anatomies
+ * `label` is text, so it has `foreground-color` but no surface of its own. For anatomies
  * that can carry multiple properties (`container`, `icon`), property remains
  * informative and is intentionally absent here.
  */
 /*
- * A propriedade que cada anatomia JA IMPLICA. Serve a dois criterios: marcar
- * palavra redundante e detectar par contraditorio.
+ * DUAS REGRAS QUE ESTAVAM COLADAS NUMA SO, E A COLAGEM ERA UM ERRO DE CATEGORIA.
  *
- * ATUALIZADO 2026-07-31 junto com §4.3 da lei, que trocou `color` por
- * `foreground-color`. Sem esta atualizacao o oraculo produzia FALSO VERMELHO no
- * nome canonico: `button-label-foreground-color` tirava 75/100 e reprovava em
- * `coherent-pair` com "`label` cannot carry `foreground-color` — only `color`".
- * Ou seja, o oraculo reprovava exatamente a grafia que a lei passou a exigir.
+ * O dono perguntou, em 2026-08-01: "por que existe essa lei?", sobre o oraculo
+ * reprovar `button.primary.label.font-weight` com a mensagem "label cannot carry
+ * font-weight — only foreground-color". A pergunta estava certa: a regra nao
+ * tinha logica.
  *
- * Medido apos a correcao: o mesmo nome volta a pontuar cheio.
+ * O mesmo mapa alimentava duas afirmacoes logicamente distintas:
+ *
+ *   DERIVABILIDADE (§7.2)  "a propriedade de `label` e derivavel"
+ *                          -> natureza: REDUNDANCIA. Voce nao PRECISA escreve-la.
+ *   COERENCIA              "`label` nao PODE carregar X"
+ *                          -> natureza: IMPOSSIBILIDADE. Voce nao PODE escreve-la.
+ *
+ * A regra derivava a segunda da primeira, e a inferencia e INVALIDA: "a unica
+ * propriedade de PINTURA e foreground-color" nao implica "a unica propriedade e
+ * foreground-color". A propria mensagem de erro denunciava o contrabando do
+ * quantificador ao dizer "only".
+ *
+ * E a premissa tambem era falsa. Medido no codigo real dos dois produtos em
+ * 2026-08-01, por grep:
+ *
+ *   label      104 ocorrencias de <span>/<label> com `bg-*`  (highlight, chip)
+ *   divider     14 com `h-px` + `bg-*`  (contra 104 com `border-t`)
+ *   backdrop     4 com `text-*`
+ *   placeholder  0 contraexemplos
+ *   caret        0 contraexemplos — o CSS so tem `caret-color`
+ *
+ * Nas tres primeiras eu havia codificado HABITO DE IMPLEMENTACAO como se fosse
+ * fisica. Elas saem. Ficam as duas em que a restricao e do CSS, cada uma com a
+ * razao escrita — entrada sem razao nao entra.
+ *
+ * O que era veto tabelado vira, para os casos removidos, pergunta da §5.1: um
+ * <span> amarelo e um rotulo COM fundo, ou um conteiner com rotulo dentro?
+ * Decisao do dono em 2026-08-01: **rotulo com fundo** — o renderizado ali e uma
+ * caixa so, e inventar anatomia para um elemento sem filho e o inverso do
+ * principio de ler o contexto renderizado.
+ */
+
+/** Os tres dominios da §4.3. A derivabilidade so vale DENTRO de um. */
+export const DOMINIO_DA_PROPRIEDADE = Object.freeze({
+  "background-color": "paint", "foreground-color": "paint", "border-color": "paint",
+  "outline-color": "paint", "box-shadow": "paint", fill: "paint", stroke: "paint",
+  "border-radius": "geometry", padding: "geometry", margin: "geometry",
+  gap: "geometry", "row-gap": "geometry", "column-gap": "geometry",
+  "font-weight": "type", "line-height": "type", "letter-spacing": "type",
+});
+
+export function dominioDaPropriedade(p) {
+  return DOMINIO_DA_PROPRIEDADE[p] ?? "desconhecido";
+}
+
+/**
+ * REGRA 1 — DERIVABILIDADE. A propriedade de PINTURA que a anatomia ja implica,
+ * e que por isso e ruido escrever. Alimenta SO o criterio `no-redundancy`.
+ * Nunca reprova por impossibilidade.
  */
 export const IMPLIED_PROPERTY = {
   label: "foreground-color",
@@ -128,6 +174,32 @@ export const IMPLIED_PROPERTY = {
   backdrop: "background-color",
   divider: "border-color",
 };
+
+/**
+ * REGRA 2 — COERENCIA. Pares que o CSS torna IMPOSSIVEIS. Cada entrada carrega a
+ * razao; entrada sem razao verificavel nao entra, porque foi assim que `label`,
+ * `divider` e `backdrop` viraram falso-vermelho contra 122 ocorrencias reais.
+ */
+export const PARES_IMPOSSIVEIS = Object.freeze({
+  caret: {
+    permitido: ["foreground-color"],
+    razao: "o CSS tem exatamente uma propriedade de caret: `caret-color`. Nao ha " +
+           "caret-background, caret-border nem caret-shadow.",
+  },
+  placeholder: {
+    permitido: ["foreground-color", "font-weight", "line-height", "letter-spacing"],
+    razao: "`::placeholder` aceita cor e tipografia; nao aceita geometria propria — " +
+           "ele nao tem caixa. Medido: 0 ocorrencias de `placeholder:bg-*` nos dois produtos.",
+  },
+});
+
+/** Verdadeiro quando o par anatomia x propriedade e fisicamente impossivel. */
+export function parImpossivel(anatomy, property) {
+  const regra = PARES_IMPOSSIVEIS[anatomy];
+  if (!regra || !property) return null;
+  return regra.permitido.includes(property) ? null : regra.razao;
+}
+
 
 /* --------------------------------------------------------------- name score --- */
 
@@ -237,10 +309,10 @@ export function scoreName(name, vocabulary, universe) {
   }
 
   // 4. ANATOMY × PROPERTY PAIR (10) — internal contradiction.
-  const imp = s.anatomy && IMPLIED_PROPERTY[s.anatomy];
-  if (imp && s.property && s.property !== imp) {
+  const impossivel = s.anatomy && parImpossivel(s.anatomy, s.property);
+  if (impossivel) {
     criteria.push({ c: "coherent-pair", points: 0, maxPoints: 10, ok: false,
-      note: `\`${s.anatomy}\` cannot carry \`${s.property}\` — only \`${imp}\`` });
+      note: `\`${s.anatomy}.${s.property}\` nao existe — ${impossivel}` });
   } else {
     score += 10;
     criteria.push({ c: "coherent-pair", points: 10, maxPoints: 10, ok: true, note: "anatomy and property are compatible" });

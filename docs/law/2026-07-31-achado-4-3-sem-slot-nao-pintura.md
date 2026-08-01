@@ -1,6 +1,21 @@
 # Achado F-E — §4.3 da lei não tem slot para radius, spacing e tipografia
 
-Status: **achado aberto**. Nada foi emendado. A lei permanece como está até
+> ✅ **APLICADO EM 2026-08-01 — ESTE ACHADO ESTÁ FECHADO.** O dono decidiu:
+> *"espaçamento/tipografia ESTÃO ABSOLUTAMENTE DENTRO DO ESCOPO."* A §4.3 passou
+> de 7 para **16 propriedades em três domínios** (paint · geometry · type), e o
+> LAW GAP do alvo foi de **3.546 usos (12,1%) para ZERO**, medido com
+> `measure-coverage.mjs`. Isto é a fase **F-E** do plano mestre.
+>
+> Leia tudo o que segue como o **REGISTRO do achado**, nunca como o estado atual
+> da lei — inclusive a citação da §4.3 com sete propriedades e a grafia `color`,
+> que a lei aboliu horas depois deste texto ser escrito.
+>
+> Por que este banner existe: enquanto o doc dizia *"achado aberto, nada foi
+> emendado"*, ele morava em `docs/law/` — lido como LEI. Um agente o seguiria
+> jogando `padding`, `border-radius` e `font-weight` no balde LAW GAP, ou seja,
+> desfazendo exatamente a emenda que o destravou.
+
+Status original (superado, ver banner): *achado aberto, nada emendado*. A lei permanece como está até
 decisão do dono.
 
 > Contexto: F-E pedia *"ampliar `PREFIX_PROPERTY` para cobrir radius, spacing e
@@ -85,7 +100,7 @@ bloqueio não é de atribuição — é da lei.
 
 ## 4. A emenda proposta, e o que ela custa
 
-**Não aplicada.** Três razões, nesta ordem:
+**Aplicada em 2026-08-01** (ver banner). Três razões, nesta ordem:
 
 1. É decisão sobre a **lei**, não correção de script. §4.3 é vocabulário
    fechado por design; abri-lo muda o contrato de todo token futuro.

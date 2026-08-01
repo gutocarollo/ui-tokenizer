@@ -643,7 +643,7 @@ signatures.
 |---|---|---|
 | `scripts/affected-routes.mjs` | `BEFORE_CAPTURED` | `lib/phase-executors.mjs` `Linha 96` |
 | `scripts/gen-visual-routes.mjs` | `BEFORE_CAPTURED` | `lib/phase-executors.mjs` `Linha 97` |
-| `scripts/ui-evidence.sh` | `BEFORE_CAPTURED` / `AFTER_CAPTURED` | `package.json` `"evidence"`; `tools/hooks/ui-evidence-gate.sh` |
+| `scripts/ui-evidence.sh` | `BEFORE_CAPTURED` / `AFTER_CAPTURED` | `package.json` `"ui:evidence"`; `tools/hooks/ui-evidence-gate.sh` |
 | `scripts/prepare-evidence-run.mjs` | capture setup | `scripts/ui-evidence.sh` `Linha 167` |
 | `scripts/evidence-manifest.mjs` | `BEFORE_CAPTURED` / `AFTER_CAPTURED` | `scripts/ui-evidence.sh` `Linha 198` |
 | `scripts/compare-evidence.mjs` | `COMPARED` | `lib/phase-executors.mjs` `Linha 137` |
