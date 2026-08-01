@@ -74,12 +74,15 @@ export function composeEvidenceManifests({
   manifestPaths,
   outputDirectory,
   expectedScenarioIds,
-  runId,
+  header,
   batchId = null,
   phase,
   bindings,
-  generatedAt = new Date().toISOString(),
 }) {
+  // A identidade que as partes têm de compartilhar vem do MESMO header do
+  // agregado — antes vinha de um `runId` passado à parte, que podia divergir do
+  // header sem ninguém notar.
+  const runId = header?.runId;
   if (!Array.isArray(manifestPaths) || manifestPaths.length < 2) {
     throw new VisualContractError(
       "Evidence composition requires at least two part manifests"
@@ -166,11 +169,10 @@ export function composeEvidenceManifests({
     captureDirectory: stagingDirectory,
     manifestPath: stagingManifestPath,
     expectedScenarioIds,
-    runId,
+    header,
     batchId,
     phase,
     bindings,
-    generatedAt,
   });
   writeFileSync(
     stagingManifestPath,

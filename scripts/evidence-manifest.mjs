@@ -37,11 +37,10 @@ try {
     manifestPath: path.resolve(outputPath),
     expectedScenarioIds:
       config.expectedScenarioIds ?? config.requestedScenarioIds,
-    runId: config.runId,
+    header: config.header,
     batchId: config.batchId ?? null,
     phase: config.phase,
     bindings: config.bindings,
-    generatedAt: config.generatedAt,
     requiredMetadataFields: config.requiredMetadataFields,
   });
   mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });

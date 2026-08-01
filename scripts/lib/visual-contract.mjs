@@ -561,18 +561,87 @@ function validateFingerprints(bindings) {
   }
 }
 
+/**
+ * Valida o cabeçalho de artefato recebido de fora.
+ *
+ * POR QUE ELE VEM DE FORA. `runId` e os dois fingerprints da corrida eram
+ * DIGITADOS na CLI (`--run-id`) e recalculados aqui por um segundo algoritmo.
+ * Medido em 2026-08-01 no alvo, com a MESMA árvore:
+ *
+ *   sourceFingerprint    ancorado fa63…  ×  camada de evidência a691…
+ *   toolchainFingerprint ancorado 884e…  ×  camada de evidência 3742…
+ *
+ * Dois nomes iguais com valores diferentes não são um detalhe cosmético: o
+ * contrato cruza artefatos por `runId` + `sourceFingerprint`, e a divergência
+ * DESLIGA EM SILÊNCIO a checagem de cenário desconhecido
+ * (`artifact-contract.mjs`, guardada por `knownScenarios.size > 0`) — o guard
+ * some sem emitir violação nenhuma.
+ *
+ * O header entra como DADO (objeto simples de 6 campos) e não como dependência
+ * do módulo do envelope: produção o obtém de `envelope.measuredHeader()`, teste
+ * o escreve literal. Validá-lo aqui é o que impede o dado de entrar torto.
+ */
+function assertArtifactHeader(header, expectedArtifactType) {
+  if (!header || typeof header !== "object") {
+    throw new VisualContractError(
+      "Evidence manifest requires an artifact header — build it with envelope.measuredHeader()",
+      { header }
+    );
+  }
+  const problems = [];
+  if (header.schemaVersion !== ARTIFACT_SCHEMA_VERSION) {
+    problems.push(`schemaVersion must be ${ARTIFACT_SCHEMA_VERSION}`);
+  }
+  if (header.artifactType !== expectedArtifactType) {
+    problems.push(`artifactType must be ${expectedArtifactType}`);
+  }
+  if (!/^tokenize-[a-zA-Z0-9._-]+$/.test(header.runId ?? "")) {
+    problems.push("runId must match tokenize-[a-zA-Z0-9._-]+");
+  }
+  for (const field of ["sourceFingerprint", "toolchainFingerprint"]) {
+    if (!isFullSha256(header[field])) {
+      problems.push(`${field} must be a full lowercase SHA-256`);
+    }
+  }
+  if (typeof header.generatedAt !== "string" || !header.generatedAt) {
+    problems.push("generatedAt must be a non-empty string");
+  }
+  if (problems.length) {
+    throw new VisualContractError("Invalid artifact header", {
+      problems,
+      header,
+    });
+  }
+}
+
 export function buildEvidenceManifest({
   captureDirectory,
   manifestPath,
   expectedScenarioIds,
-  runId,
+  header,
   batchId,
   phase,
   bindings,
-  generatedAt = new Date().toISOString(),
   requiredMetadataFields = REQUIRED_CAPTURE_METADATA,
 }) {
+  assertArtifactHeader(header, "evidence-manifest");
   validateFingerprints(bindings);
+  /*
+   * Os bindings nascem em `prepare-evidence-run` (ANTES da captura) e o
+   * manifesto nasce depois dela. Se a árvore andou nesse intervalo, a evidência
+   * foi capturada sobre uma base que já não é a declarada — e o par
+   * before/after passa a comparar coisas diferentes sem sintoma. Esta igualdade
+   * é a única prova de que a janela ficou estável, então ela falha ALTO em vez
+   * de deixar o manifesto nascer mentindo.
+   */
+  for (const field of ["sourceFingerprint", "toolchainFingerprint"]) {
+    if (bindings?.[field] !== header[field]) {
+      throw new VisualContractError(
+        `Evidence bindings disagree with the run header on ${field} — the source moved between prepare and manifest`,
+        { field, binding: bindings?.[field] ?? null, header: header[field] }
+      );
+    }
+  }
   if (!Array.isArray(expectedScenarioIds) || expectedScenarioIds.length === 0) {
     throw new VisualContractError(
       "Expected scenario IDs must be a non-empty array",
@@ -619,12 +688,13 @@ export function buildEvidenceManifest({
     .sort((a, b) => a.scenarioId.localeCompare(b.scenarioId));
 
   const manifest = {
-    schemaVersion: ARTIFACT_SCHEMA_VERSION,
-    artifactType: "evidence-manifest",
-    runId,
+    ...header,
     batchId,
     phase,
-    generatedAt,
+    // Os bindings vêm DEPOIS do header de propósito: a igualdade acima já
+    // provou que os dois campos compartilhados concordam, então esta ordem não
+    // pode mais sobrescrever o header com um valor divergente — antes podia, e
+    // era assim que o valor do segundo algoritmo vencia em silêncio.
     ...Object.fromEntries(
       FINGERPRINT_FIELDS.map((field) => [field, bindings[field]])
     ),

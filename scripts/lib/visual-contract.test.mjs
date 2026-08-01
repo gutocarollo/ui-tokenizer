@@ -79,6 +79,28 @@ function bindings(seed) {
   };
 }
 
+/**
+ * O cabeçalho da corrida, na mesma semente dos bindings.
+ *
+ * Em produção ele vem de `envelope.measuredHeader()`; aqui é literal, porque
+ * fixture é justamente o lugar onde valores fixos são legítimos. O que NÃO é
+ * legítimo é a semente divergir: `buildEvidenceManifest` agora exige que
+ * header e bindings concordem em `sourceFingerprint`/`toolchainFingerprint`, e
+ * é essa igualdade que prova que a árvore não andou entre o prepare e o
+ * manifesto.
+ */
+function header(seed, overrides = {}) {
+  return {
+    schemaVersion: ARTIFACT_SCHEMA_VERSION,
+    artifactType: "evidence-manifest",
+    runId: "tokenize-test-run",
+    sourceFingerprint: sha256Value(`${seed}:source`),
+    toolchainFingerprint: sha256Value("shared:toolchain"),
+    generatedAt: "2026-07-30T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -113,11 +135,10 @@ function makeEvidence({
     captureDirectory,
     manifestPath,
     expectedScenarioIds: scenarioIds,
-    runId: "tokenize-test-run",
+    header: header(bindingSeed),
     batchId: "B0001",
     phase,
     bindings: bindings(bindingSeed),
-    generatedAt: "2026-07-30T00:00:00.000Z",
   });
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return { captureDirectory, manifestPath, manifest };
@@ -176,6 +197,78 @@ test("manifest v2 recomputes full PNG hashes, bytes, dimensions, and all binding
   }
 });
 
+test("manifest refuses a header whose fingerprints disagree with the bindings", (t) => {
+  /*
+   * O caso real que este guard existe para pegar: os bindings nascem em
+   * `prepare-evidence-run`, ANTES da captura, e o manifesto nasce depois. Se a
+   * árvore andar nesse intervalo, a evidência foi capturada sobre uma base que
+   * já não é a declarada — e o par before/after passa a comparar coisas
+   * diferentes sem sintoma nenhum. Antes de P1c isso nem podia ser detectado:
+   * `runId` era digitado na CLI e os fingerprints da corrida eram recalculados
+   * aqui por um SEGUNDO algoritmo, então divergir era o estado normal.
+   */
+  const root = temporaryDirectory(t);
+  const captureDirectory = path.join(root, "captures");
+  mkdirSync(captureDirectory, { recursive: true });
+  writePng(path.join(captureDirectory, "one.png"), 1, 1, () => [0, 0, 0, 255]);
+  writeMeta(path.join(captureDirectory, "one.meta.json"), "settings/default");
+  assert.throws(
+    () =>
+      buildEvidenceManifest({
+        captureDirectory,
+        manifestPath: path.join(captureDirectory, "manifest.json"),
+        expectedScenarioIds: ["settings/default"],
+        header: header("after"), // semente diferente da dos bindings
+        batchId: "B0001",
+        phase: "before",
+        bindings: bindings("before"),
+      }),
+    (error) => {
+      assert.ok(error instanceof VisualContractError);
+      assert.match(error.message, /source moved between prepare and manifest/);
+      assert.equal(error.details.field, "sourceFingerprint");
+      return true;
+    }
+  );
+});
+
+test("manifest refuses a malformed run header instead of emitting a stray artifact", (t) => {
+  /*
+   * `runId` deixou de ser digitado na linha de comando exatamente porque um
+   * valor digitado errado produzia artefato pertencente a corrida NENHUMA, e a
+   * recusa só vinha camadas adiante, apontando para o lugar errado. Validar na
+   * fronteira é o que mantém o erro em cima da causa.
+   */
+  const root = temporaryDirectory(t);
+  const captureDirectory = path.join(root, "captures");
+  mkdirSync(captureDirectory, { recursive: true });
+  writePng(path.join(captureDirectory, "one.png"), 1, 1, () => [0, 0, 0, 255]);
+  writeMeta(path.join(captureDirectory, "one.meta.json"), "settings/default");
+  const base = {
+    captureDirectory,
+    manifestPath: path.join(captureDirectory, "manifest.json"),
+    expectedScenarioIds: ["settings/default"],
+    batchId: "B0001",
+    phase: "before",
+    bindings: bindings("before"),
+  };
+  for (const [caso, mau] of [
+    ["runId fora do padrão da corrida", header("before", { runId: "run-1" })],
+    ["fingerprint truncado", header("before", { sourceFingerprint: "abc" })],
+    ["tipo de artefato errado", header("before", { artifactType: "comparison" })],
+    ["header ausente", undefined],
+  ]) {
+    assert.throws(
+      () => buildEvidenceManifest({ ...base, header: mau }),
+      (error) => {
+        assert.ok(error instanceof VisualContractError, caso);
+        return true;
+      },
+      caso
+    );
+  }
+});
+
 test("manifest creation is fail-closed for non-exact and duplicate produced IDs", (t) => {
   const root = temporaryDirectory(t);
   const captureDirectory = path.join(root, "captures");
@@ -192,7 +285,7 @@ test("manifest creation is fail-closed for non-exact and duplicate produced IDs"
         captureDirectory,
         manifestPath: path.join(captureDirectory, "manifest.json"),
         expectedScenarioIds: ["same-id", "missing-id"],
-        runId: "tokenize-test-run",
+        header: header("before"),
         batchId: "B0001",
         phase: "before",
         bindings: bindings("before"),
@@ -571,12 +664,11 @@ test("evidence manifest CLI writes only a full-hash exact-coverage v2 artifact",
     configPath,
     `${JSON.stringify(
       {
-        runId: "tokenize-test-run",
+        header: header("before"),
         batchId: "B0001",
         phase: "before",
         expectedScenarioIds: ["settings/default"],
         bindings: bindings("before"),
-        generatedAt: "2026-07-30T00:00:00.000Z",
       },
       null,
       2

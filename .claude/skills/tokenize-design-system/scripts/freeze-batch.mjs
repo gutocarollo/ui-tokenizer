@@ -46,7 +46,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { envelopeFrom } from "./lib/artifact-envelope.mjs";
+import { envelopeFrom } from "../../../../scripts/lib/artifact-envelope.mjs";
 import { resolveRoot } from "./lib/paths.mjs";
 
 const argv = process.argv.slice(2);

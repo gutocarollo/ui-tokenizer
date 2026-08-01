@@ -8,6 +8,25 @@ import {
   statSync,
 } from "node:fs";
 import path from "node:path";
+
+/*
+ * A medida da fonte MUDOU DE CASA para `scripts/lib/source-fingerprint.mjs`.
+ * Razão em uma frase: a camada de evidência visual é copiada para dentro do
+ * alvo e roda lá, então ela não pode importar desta árvore — e ter cada camada
+ * medindo a fonte do seu jeito produzia dois valores sob o mesmo nome
+ * (fa63… x a691…), o que desligava em silêncio uma checagem do contrato.
+ * Aqui fica o RE-EXPORT para os importadores existentes continuarem válidos.
+ */
+export {
+  fingerprintSourceRoots,
+  collectSourceFiles,
+  normalizedRelative,
+  isWithin,
+} from "../../../../../scripts/lib/source-fingerprint.mjs";
+import {
+  fingerprintSourceRoots,
+  isWithin,
+} from "../../../../../scripts/lib/source-fingerprint.mjs";
 import {
   createArtifactValidator,
   makeArtifactRef,
@@ -48,97 +67,6 @@ function sameSet(left, right) {
   return true;
 }
 
-function isWithin(parentPath, candidatePath) {
-  const relative = path.relative(parentPath, candidatePath);
-  return (
-    relative === "" ||
-    (!relative.startsWith("..") && !path.isAbsolute(relative))
-  );
-}
-
-function normalizedRelative(root, filePath) {
-  return path.relative(root, filePath).split(path.sep).join("/");
-}
-
-function collectSourceFiles(applicationRoot, sourceRoot, problems) {
-  if (path.isAbsolute(sourceRoot)) {
-    problems.push(`Source root must be application-relative: ${sourceRoot}`);
-    return [];
-  }
-  const absolute = path.resolve(applicationRoot, sourceRoot);
-  if (!isWithin(applicationRoot, absolute)) {
-    problems.push(`Source root escapes the application root: ${sourceRoot}`);
-    return [];
-  }
-  if (!existsSync(absolute)) {
-    problems.push(`Source root does not exist: ${sourceRoot}`);
-    return [];
-  }
-
-  const files = [];
-  function walk(candidate) {
-    const entry = lstatSync(candidate);
-    if (entry.isSymbolicLink()) {
-      problems.push(
-        `Source fingerprint refuses symbolic links: ${normalizedRelative(
-          applicationRoot,
-          candidate
-        )}`
-      );
-      return;
-    }
-    if (entry.isDirectory()) {
-      for (const child of readdirSync(candidate).sort()) {
-        walk(path.join(candidate, child));
-      }
-      return;
-    }
-    if (entry.isFile()) files.push(candidate);
-  }
-  walk(absolute);
-  if (files.length === 0) {
-    problems.push(`Source root is vacuous: ${sourceRoot}`);
-  }
-  return files;
-}
-
-export function fingerprintSourceRoots({ applicationRoot, sourceRoots }) {
-  const root = path.resolve(applicationRoot);
-  const problems = [];
-  const roots = unique(sourceRoots ?? []);
-  if (roots.length === 0) {
-    return {
-      fingerprint: null,
-      files: [],
-      problems: ["No source roots are configured"],
-    };
-  }
-  const files = unique(
-    roots.flatMap((sourceRoot) =>
-      collectSourceFiles(root, sourceRoot, problems)
-    )
-  ).sort((left, right) =>
-    normalizedRelative(root, left).localeCompare(
-      normalizedRelative(root, right)
-    )
-  );
-  if (files.length === 0) {
-    problems.push("The complete source file set is empty");
-    return { fingerprint: null, files, problems: unique(problems) };
-  }
-  const hash = createHash("sha256");
-  for (const filePath of files) {
-    hash.update(normalizedRelative(root, filePath));
-    hash.update("\0");
-    hash.update(readFileSync(filePath));
-    hash.update("\0");
-  }
-  return {
-    fingerprint: hash.digest("hex"),
-    files: files.map((filePath) => normalizedRelative(root, filePath)),
-    problems: unique(problems),
-  };
-}
 
 function evaluateLiveToolchain(applicationRoot, config) {
   const problems = [];

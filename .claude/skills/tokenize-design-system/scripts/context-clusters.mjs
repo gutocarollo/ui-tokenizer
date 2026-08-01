@@ -371,7 +371,7 @@ if (emitDir) {
     console.error("--emit-artifacts exige --run-config <path> (o header vem da ancora da corrida)");
     process.exit(1);
   }
-  const { envelopeFrom, fingerprint } = await import("./lib/artifact-envelope.mjs");
+  const { envelopeFrom, fingerprint } = await import("../../../../scripts/lib/artifact-envelope.mjs");
   const { mkdirSync: mkd, writeFileSync: wf, existsSync: ex } = await import("node:fs");
   const env = envelopeFrom(runConfigPath);
   mkd(emitDir, { recursive: true });

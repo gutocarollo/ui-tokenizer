@@ -22,7 +22,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { fingerprintSourceRoots } from "./absolute-completion.mjs";
+import { fingerprintSourceRoots } from "./source-fingerprint.mjs";
 
 /** sha256 de um arquivo — a mesma forma que o contrato usa para conferir refs. */
 export function sha256File(filePath) {

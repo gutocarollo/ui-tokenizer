@@ -335,9 +335,30 @@ function gitText(repoRoot, args) {
   });
 }
 
+/**
+ * @param {object} [header] cabeçalho da corrida (`envelope.measuredHeader`).
+ *   Quando presente, `sourceFingerprint` e `toolchainFingerprint` vêm DELE.
+ *
+ *   POR QUÊ. Estes dois campos já eram calculados aqui, por um algoritmo
+ *   próprio (`fingerprintPaths` sobre git), enquanto a âncora da corrida os
+ *   calcula com `fingerprintSourceRoots`. Medido no alvo, mesma árvore, mesmo
+ *   instante: fa63… × a691… e 884e… × 3742…. Um conceito com dois donos produz
+ *   dois valores sob um nome só, e o contrato — que cruza artefatos por
+ *   `runId` + `sourceFingerprint` — passa a comparar coisas que nunca vão
+ *   bater.
+ *
+ *   A âncora vence porque é ela que define a corrida: todo outro artefato já
+ *   carrega o valor dela. Se a definição da âncora for estreita demais (por
+ *   exemplo, ignorar `index.html`), o conserto é `sourceRoots` no run-config —
+ *   configuração — e não um segundo algoritmo aqui.
+ *
+ *   Os outros 5 fingerprints continuam desta camada: eles medem coisas que o
+ *   run-config não conhece (tokens, CSS gerado, registries, worktree).
+ */
 export function buildEvidenceBindings({
   repoRoot,
   frontendRoot,
+  header = null,
   contextPath = path.join(frontendRoot, DEFAULT_CONTEXT_FILE),
   scenarioPath = path.join(frontendRoot, DEFAULT_SCENARIO_FILE),
   networkFixturePath = path.join(frontendRoot, DEFAULT_NETWORK_FIXTURE_FILE),
@@ -369,10 +390,14 @@ export function buildEvidenceBindings({
       );
     }
   }
-  const sourceFingerprint = fingerprintPaths(repoRoot, [
-    path.relative(repoRoot, path.join(frontendRoot, "src")),
-    path.relative(repoRoot, path.join(frontendRoot, "index.html")),
-  ]);
+  // Sem header, mede localmente — é o modo dos testes de unidade da camada
+  // visual, que não têm corrida ancorada. Com header, a âncora manda.
+  const sourceFingerprint =
+    header?.sourceFingerprint ??
+    fingerprintPaths(repoRoot, [
+      path.relative(repoRoot, path.join(frontendRoot, "src")),
+      path.relative(repoRoot, path.join(frontendRoot, "index.html")),
+    ]);
   const tokenSourceFingerprint = fingerprintPaths(repoRoot, [
     path.relative(repoRoot, path.join(frontendRoot, "tokens")),
   ]);
@@ -380,7 +405,9 @@ export function buildEvidenceBindings({
     path.relative(repoRoot, path.join(frontendRoot, "src/index.css")),
     path.relative(repoRoot, path.join(frontendRoot, "src/styles/generated")),
   ]);
-  const toolchainFingerprint = fingerprintPaths(repoRoot, [
+  const toolchainFingerprint =
+    header?.toolchainFingerprint ??
+    fingerprintPaths(repoRoot, [
     path.relative(repoRoot, path.join(frontendRoot, "package.json")),
     path.relative(repoRoot, path.join(repoRoot, "yarn.lock")),
     path.relative(

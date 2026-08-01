@@ -43,7 +43,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { envelopeFrom } from "./lib/artifact-envelope.mjs";
+import { envelopeFrom } from "../../../../scripts/lib/artifact-envelope.mjs";
 import { resolveRoot } from "./lib/paths.mjs";
 import { ABSOLUTE_REPORT_PREDICATES, absoluteReportId } from "./lib/absolute-completion-contract.mjs";
 
