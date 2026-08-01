@@ -317,7 +317,25 @@ const lista = [...clusters.values()]
       reason: proposed ? null : (s.lawGap ?? "owner nao determinado pelo contexto renderizado"),
     };
   })
-  .sort((a, b) => b.count - a.count);
+  .sort((a, b) => b.count - a.count)
+  /*
+   * O `clusterId` NASCE AQUI, e é o MESMO id que o `cluster-packet` carrega.
+   *
+   * DEFEITO REAL que isto fecha (review adversarial, 2026-08-01): o
+   * `batch-contract` declarava `targetClusterIds` derivados da chave do
+   * contrato final, e o `cluster-packet` declarava ids por índice. Medido no run
+   * root: **0 de 236** ids do lote existiam entre os packets, e **0 de 3.119**
+   * `occurrenceIds` existiam no censo — com `tokenization-runner validate`
+   * devolvendo `valid:true`, porque o contrato não tem check de integridade
+   * referencial para esses campos.
+   *
+   * Referência pendurada dentro de artefato que o verificador carimba como
+   * válido é exatamente a classe de defeito que este repositório existe para
+   * caçar. Atribuir o id na LISTA — e não no emissor — faz o mesmo id fluir para
+   * `clusters.json`, daí para `converged.json` pela convergência, e daí para o
+   * `batch-contract`, sem ninguém precisar recalcular nada.
+   */
+  .map((c, i) => ({ ...c, clusterId: `cluster-${String(i + 1).padStart(5, "0")}` }));
 
 const total = ocorrencias.length;
 const derivados = lista.filter((c) => c.proposedName);
@@ -379,7 +397,7 @@ if (emitDir) {
     : env.ref("run-config", runConfigPath, { relativeTo: runRoot });
 
   const sitioId = (o) => `${o.file}:${o.line}:${o.token}`;
-  const pacotes = lista.map((c, i) => {
+  const pacotes = lista.map((c) => {
     // Uma variante de estilo por VALOR FISICO distinto dentro do cluster: e
     // exatamente a divergencia que a §9 manda expor em vez de apagar.
     const porValor = new Map();
@@ -400,7 +418,7 @@ if (emitDir) {
     }));
     return {
       ...env.header("cluster-packet"),
-      clusterId: `cluster-${String(i + 1).padStart(5, "0")}`,
+      clusterId: c.clusterId,
       occurrenceIds: [...new Set(c.occurrences.map(sitioId))],
       contextFingerprint: fingerprint(c.key ?? c.sample ?? {}),
       styleVariants,

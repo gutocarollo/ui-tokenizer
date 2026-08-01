@@ -308,8 +308,27 @@ while (semMudanca < 2 && iteracao < 20) {
       const outlier = m.uncertainty > MAX_UNCERTAINTY && isOutlierMerge(ancora, outro, deCor);
       if (m.uncertainty <= MAX_UNCERTAINTY || outlier) {
         ancora.count += outro.count;
+        /*
+         * O ID DO CLUSTER ABSORVIDO SOBE PARA O CONTRATO. Sem isto o
+         * `batch-contract` não tem como declarar `targetClusterIds` que existam
+         * de fato entre os `cluster-packet` — foi assim que uma corrida chegou a
+         * DECIDED com 0 de 236 ids juntáveis e o verificador devolveu
+         * `valid:true`, porque não há check de integridade referencial para
+         * esses campos (review adversarial, 2026-08-01).
+         *
+         * `absorvedClusterIds` acumula transitivamente: uma âncora que já
+         * absorveu antes carrega os ids anteriores, então o contrato final
+         * conhece TODOS os clusters de contexto que ele representa.
+         */
+        ancora.absorvedClusterIds = [
+          ...new Set([
+            ...(ancora.absorvedClusterIds ?? [ancora.clusterId].filter(Boolean)),
+            ...(outro.absorvedClusterIds ?? [outro.clusterId].filter(Boolean)),
+          ]),
+        ];
         ancora.mergedFrom.push({
           key: outro.key, count: outro.count, confidence: m.confidence,
+          clusterId: outro.clusterId ?? null,
           reason: outlier ? "absorvido-por-outlier" : "confianca",
         });
         fusoes.push({

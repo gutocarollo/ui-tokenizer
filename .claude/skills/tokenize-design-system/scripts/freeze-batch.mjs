@@ -131,6 +131,9 @@ const motivoDeExclusao = (c) => {
   if (!c.dominantPrimitive || String(c.dominantPrimitive).startsWith("(sem valor")) {
     return "primitivo dominante não resolve — não há valor a herdar";
   }
+  // Sem id de cluster o lote não consegue citar de onde o contrato veio, e a
+  // referência volta a ser pendurada — o defeito que esta versão fecha.
+  if (!c.clusterId && !(c.absorvedClusterIds ?? []).length) return "sem clusterId rastreável até CLASSIFIED";
   return null;
 };
 
@@ -142,16 +145,110 @@ for (const c of finais) {
   else elegiveis.push(c);
 }
 
-const limite = Number(arg("--limit", String(elegiveis.length)));
-// Maior primeiro: o lote 1 deve carregar o máximo de evidência por unidade de
-// risco, e um contrato com 140 usos prova mais sobre o processo que um com 1.
-const noLote = [...elegiveis].sort((a, b) => b.count - a.count).slice(0, Math.max(0, limite));
+/*
+ * UM LOTE = UM ALVO SEMÂNTICO COERENTE. Corrigido 2026-08-01 (review adversarial).
+ *
+ * A primeira versão punha TODOS os elegíveis num lote só: 236 alvos semânticos
+ * distintos em 128 arquivos. Isso é um `batch-contract` único na forma e um
+ * big-bang no escopo, e contradiz a letra do grafo —
+ * `reference/end-to-end-workflow.md` Linha 735: *"One batch has one coherent
+ * semantic target and a bounded mutation set."* Se o APPLY existisse, seria um
+ * codemod de 128 arquivos numa tacada, com uma prova de pixel só para separar
+ * 236 causas possíveis de regressão.
+ *
+ * O alvo coerente é a ENTIDADE: todos os contratos de `button`, ou os de `modal`.
+ * Compartilham dono, aparecem juntos na tela e regridem juntos — se o pixel se
+ * mexer, o conjunto de suspeitos é pequeno e tem sentido.
+ *
+ * `--entity <nome>` escolhe qual; sem ela, a de maior evidência. `--all` mantém
+ * o comportamento antigo para quem quiser deliberadamente um lote grande, e a
+ * saída diz que ele é grande.
+ */
+const entidadeDe = (c) => c.sample?.owner ?? "(sem entidade)";
+const porEntidade = new Map();
+for (const c of elegiveis) {
+  const e = entidadeDe(c);
+  if (!porEntidade.has(e)) porEntidade.set(e, []);
+  porEntidade.get(e).push(c);
+}
+const entidadePedida = arg("--entity");
+const pegarTudo = argv.includes("--all");
+
+let escopo;
+let alvoSemantico;
+if (pegarTudo) {
+  escopo = elegiveis;
+  alvoSemantico = `TODAS as ${porEntidade.size} entidades (--all)`;
+} else if (entidadePedida) {
+  escopo = porEntidade.get(entidadePedida) ?? [];
+  alvoSemantico = `entidade ${entidadePedida}`;
+  if (!escopo.length) {
+    falhar(
+      `nenhum contrato elegível na entidade ${entidadePedida}`,
+      `entidades disponíveis: ${[...porEntidade.keys()].slice(0, 12).join(", ")}`
+    );
+  }
+} else {
+  const [nome, contratos] = [...porEntidade.entries()].sort(
+    (a, b) => b[1].reduce((s, c) => s + c.count, 0) - a[1].reduce((s, c) => s + c.count, 0)
+  )[0];
+  escopo = contratos;
+  alvoSemantico = `entidade ${nome} (a de maior evidência)`;
+}
+
+const limite = Number(arg("--limit", String(escopo.length)));
+// Maior primeiro dentro do escopo: um contrato com 140 usos prova mais sobre o
+// processo que um com 1.
+const noLote = [...escopo].sort((a, b) => b.count - a.count).slice(0, Math.max(0, limite));
 
 if (!noLote.length) {
   falhar(
     `nenhum contrato elegível entre os ${finais.length} finais`,
     excluidos.length ? `motivo mais comum: ${excluidos[0].motivo}` : "rode CONVERGE antes"
   );
+}
+
+
+/* ────────────────────────────────────── a reversibilidade tem que ser REAL ── */
+/*
+ * DEFEITO REAL (review adversarial, 2026-08-01): `rollbackSourceFingerprint`
+ * recebia o hash da ÁRVORE DE TRABALHO do alvo — `fingerprintSourceRoots` lê os
+ * bytes dos arquivos, não um commit. E o alvo estava SUJO, com dezenas de
+ * arquivos rastreados modificados. O hash nomeava um estado que não existe em
+ * commit, tag ou snapshot nenhum: se o APPLY mutasse e precisasse reverter, não
+ * havia mecanismo capaz de restaurar aquela árvore.
+ *
+ * O grafo pede o fingerprint como `rollbackRef` e manda "restore the pre-batch
+ * state" sem dizer como. A letra estava satisfeita e a reversibilidade não
+ * existia — que é pior que não prometer.
+ *
+ * O lote agora só congela sobre árvore LIMPA, e registra o commit. `--allow-dirty`
+ * existe para quem aceita o risco explicitamente, e nesse caso o motivo aparece
+ * na saída em vez de ficar implícito.
+ */
+const { execFileSync } = await import("node:child_process");
+function estadoGitDoAlvo() {
+  const rodar = (args) => execFileSync("git", ["-C", ROOT, ...args], { encoding: "utf8" }).trim();
+  try {
+    return { head: rodar(["rev-parse", "HEAD"]), sujo: rodar(["status", "--porcelain"]).length > 0, disponivel: true };
+  } catch {
+    return { head: null, sujo: null, disponivel: false };
+  }
+}
+const git = estadoGitDoAlvo();
+if (!argv.includes("--allow-dirty")) {
+  if (!git.disponivel) {
+    falhar(
+      `não consegui ler o estado git de ${ROOT}`,
+      "sem commit não há ponto de restauração; use --allow-dirty se aceitar um lote irreversível"
+    );
+  }
+  if (git.sujo) {
+    falhar(
+      `a árvore do alvo está SUJA — o rollbackSourceFingerprint nomearia um estado que não existe em commit nenhum`,
+      "comite ou guarde as mudanças do alvo, ou passe --allow-dirty aceitando que o lote não é revertível"
+    );
+  }
 }
 
 /* ──────────────────────────────────────────────────────────── os artefatos ── */
@@ -162,23 +259,38 @@ const refRunConfig = existsSync(path.join(runRoot, "config.json"))
   : env.ref("run-config", runConfigPath, { relativeTo: runRoot });
 
 /*
- * ID DO ALVO DO LOTE. Derivado da CHAVE do contrato, com hash, e não do
- * `proposedName + component`: a primeira versão usava esses dois e o contrato
- * reprovou com "targetClusterIds must NOT have duplicate items (205 e 206)" —
- * dois contratos finais podem legitimamente compartilhar nome e componente e se
- * distinguir por outro eixo da chave.
- *
- * LIMITE DECLARADO, mesma honestidade do `occurrenceIds` do cluster-packet:
- * estes ids vivem no espaço dos contratos FINAIS (pós-convergência, 244), e os
- * `cluster-packet` emitidos em CLASSIFIED vivem no espaço dos clusters de
- * contexto (pré-convergência, 2076). Um contrato final absorve N clusters, e
- * `converged.json` não carrega de volta os ids dos absorvidos — reconciliar os
- * dois espaços é trabalho próprio. Até lá, o id é estável e reproduzível, mas
- * não é o mesmo id do packet. Não os cite como se fossem.
+ * A EVIDÊNCIA REAL das decisões são os `cluster-packet`, não a âncora. Citar só
+ * o run-config satisfazia `minItems: 1` e não distinguia esta decisão de
+ * nenhuma outra da corrida — o review adversarial chamou de vácuo, com razão.
  */
-const { createHash } = await import("node:crypto");
-const clusterIdDe = (c) =>
-  `contract-${createHash("sha256").update(JSON.stringify(c.key ?? c.sample ?? c.proposedName)).digest("hex").slice(0, 12)}`;
+const packetsPath = path.join(path.resolve(outDir), "cluster-packets.ndjson");
+const refsDeEvidencia = existsSync(packetsPath)
+  ? [refRunConfig, env.ref("cluster-packet", packetsPath, { relativeTo: runRoot })]
+  : [refRunConfig];
+
+/*
+ * OS IDS DO LOTE SÃO OS IDS REAIS DOS CLUSTERS QUE O CONTRATO REPRESENTA.
+ *
+ * DEFEITO REAL, pego pelo review adversarial de 2026-08-01 e corrigido aqui: a
+ * primeira versão derivava um id sintético do hash da chave do contrato. Medido
+ * no run root: **0 de 236** `targetClusterIds` existiam entre os
+ * `cluster-packet` emitidos em CLASSIFIED, e o
+ * `tokenization-runner validate` devolvia `valid:true` — porque o contrato não
+ * tem check de integridade referencial para esses campos.
+ *
+ * Referência pendurada dentro de artefato que o verificador carimba como válido
+ * é a classe de defeito que este repositório existe para caçar, e eu a produzi.
+ *
+ * Agora `context-clusters.mjs` atribui `clusterId` na própria lista e
+ * `converge-tokens.mjs` acumula os absorvidos em `absorvedClusterIds`, então o
+ * contrato final conhece TODOS os clusters de contexto que ele representa — e o
+ * lote cita exatamente esses.
+ */
+const idsDoContrato = (c) => {
+  const ids = new Set(c.absorvedClusterIds ?? []);
+  if (c.clusterId) ids.add(c.clusterId);
+  return [...ids];
+};
 
 /*
  * OS CENÁRIOS QUE O LOTE PROMETE NÃO MEXER.
@@ -215,7 +327,7 @@ if (!cenarios.length) {
 const decisoes = noLote.map((c, i) => ({
   ...env.header("decision"),
   decisionId: `${batchId}-D${String(i + 1).padStart(4, "0")}`,
-  clusterIds: [clusterIdDe(c)],
+  clusterIds: idsDoContrato(c),
   // NÃO usar `semantic-token`, que o enum do contrato oferece: `semantic` é uma
   // das cinco palavras banidas (§3.1). `component-token` também é o que estes
   // contratos SÃO — todos têm entidade como cabeça do nome.
@@ -235,7 +347,18 @@ const decisoes = noLote.map((c, i) => ({
     reversibility: `total — rollbackSourceFingerprint fixa a árvore anterior ao lote`,
     localPatternFit: [`entidade ${c.sample?.owner}`, `propriedade ${c.sample?.property}`],
   },
-  evidenceRefs: [refRunConfig],
+  /*
+   * A EVIDÊNCIA REAL, não só a âncora. A primeira versão referenciava apenas o
+   * run-config, satisfazendo `minItems: 1` na letra e dizendo nada — o review
+   * adversarial chamou de "vácuo", e estava certo: o run-config é o que ancora
+   * TODA decisão da corrida, então citá-lo não distingue esta decisão de
+   * nenhuma outra.
+   *
+   * O `cluster-packet` é a evidência que sustenta ESTA decisão: ele carrega as
+   * variantes de estilo, as localizações e a frequência do cluster que virou o
+   * contrato. Quem auditar a decisão precisa dele, não da âncora.
+   */
+  evidenceRefs: refsDeEvidencia,
 }));
 
 const arquivos = [...new Set(noLote.flatMap((c) => (c.occurrences ?? []).map((o) => o.file)))].sort();
@@ -249,7 +372,7 @@ if (!arquivos.length) {
 const contrato = {
   ...env.header("batch-contract"),
   batchId,
-  targetClusterIds: noLote.map(clusterIdDe),
+  targetClusterIds: [...new Set(noLote.flatMap(idsDoContrato))],
   decisionIds: decisoes.map((d) => d.decisionId),
   plannedFiles: arquivos,
   // Ver o docstring: preservar não é otimismo, é a asserção que a prova de pixel
@@ -262,6 +385,11 @@ const contrato = {
     occurrencesMigrated: noLote.reduce((s, c) => s + c.count, 0),
     filesTouched: arquivos.length,
   },
+  /*
+   * O fingerprint é da árvore; o que a torna RESTAURÁVEL é o commit, garantido
+   * pelo guard acima. Os dois juntos: o hash identifica o conteúdo, o commit dá
+   * o mecanismo.
+   */
   rollbackSourceFingerprint: env.sourceFingerprint,
 };
 
@@ -272,6 +400,8 @@ writeFileSync(contratoPath, JSON.stringify(contrato, null, 1) + "\n");
 
 const resumo = {
   batchId,
+  alvoSemantico,
+  entidades: porEntidade.size,
   contratosFinais: finais.length,
   elegiveis: elegiveis.length,
   noLote: noLote.length,
@@ -287,6 +417,7 @@ if (argv.includes("--json")) {
   console.log(`BATCH ${batchId} congelado`);
   console.log(`  contratos finais      ${finais.length}`);
   console.log(`  elegíveis             ${elegiveis.length}  (nome + valor único + zero divergência + eixo mapeado)`);
+  console.log(`  alvo semântico        ${alvoSemantico}  — ${porEntidade.size} entidades no total`);
   console.log(`  NO LOTE               ${noLote.length}  → ${contrato.absoluteTargets.occurrencesMigrated} ocorrências em ${arquivos.length} arquivos`);
   console.log(`  efeito esperado       preserve (herda o primitivo dominante; mudança de pixel = lote errado)`);
   console.log(`  rollback              ${env.sourceFingerprint.slice(0, 16)}…`);

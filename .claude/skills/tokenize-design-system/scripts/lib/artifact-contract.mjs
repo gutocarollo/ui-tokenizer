@@ -1184,6 +1184,71 @@ function checkClassProjection(
   }
 }
 
+/**
+ * INTEGRIDADE REFERENCIAL DOS IDS DE CLUSTER — o check que faltava.
+ *
+ * DEFEITO REAL que motivou este bloco (review adversarial, 2026-08-01). Uma
+ * corrida chegou a `DECIDED` com **0 de 236** `targetClusterIds` do
+ * `batch-contract` existindo entre os `cluster-packet` da fase anterior, e
+ * **0 de 3.119** `occurrenceIds` existindo no censo — e
+ * `tokenization-runner validate` devolveu `valid:true`.
+ *
+ * A razão: `grep occurrenceIds|targetClusterIds|clusterId` neste arquivo não
+ * devolvia NADA. O schema exige `nonEmptyStringSet` e nada mais; qualquer string
+ * passa. O contrato reconta eixos contra o censo (checkAxisDiscovery) mas nunca
+ * recontava id de cluster — então a cadeia CLASSIFIED→DECIDED podia estar
+ * inteiramente desconectada e ainda assim ser carimbada como válida.
+ *
+ * Referência pendurada dentro de artefato que o verificador aprova é a classe de
+ * defeito que este contrato existe para impedir. Ele agora recusa.
+ *
+ * ESCOPO DELIBERADO: só verifica quando HÁ `cluster-packet` no conjunto ativo.
+ * Uma re-entrada que revalide só o lote não tem os packets em mãos, e exigir a
+ * presença deles ali transformaria um check de integridade em exigência de
+ * completude — que é outra coisa, e faria a re-entrada falhar por um motivo que
+ * não é o dela.
+ */
+function checkClusterReferentialIntegrity(index, violations) {
+  const packets = index.get("cluster-packet") ?? [];
+  if (packets.length === 0) return;
+
+  const conhecidos = new Set(
+    packets.map((record) => record.artifact?.clusterId).filter(Boolean)
+  );
+  if (conhecidos.size === 0) return;
+
+  const conferir = (tipo, artifact, campo, ids) => {
+    const penduradas = (ids ?? []).filter((id) => !conhecidos.has(id));
+    if (penduradas.length === 0) return;
+    violations.push(
+      violation(
+        tipo,
+        "E-CLASSIFY",
+        `${campo} cita ${penduradas.length} cluster(s) que nenhum cluster-packet declara`,
+        artifact,
+        {
+          campo,
+          penduradas: penduradas.slice(0, 10),
+          totalCitados: (ids ?? []).length,
+          clustersConhecidos: conhecidos.size,
+        }
+      )
+    );
+  };
+
+  for (const record of index.get("decision") ?? []) {
+    conferir("decision", record.artifact, "decision.clusterIds", record.artifact?.clusterIds);
+  }
+  for (const record of index.get("batch-contract") ?? []) {
+    conferir(
+      "batch-contract",
+      record.artifact,
+      "batch-contract.targetClusterIds",
+      record.artifact?.targetClusterIds
+    );
+  }
+}
+
 function checkAxisDiscovery(
   index,
   currentDesignRecords,
@@ -2751,6 +2816,7 @@ export function validateArtifactSet({
     activeSourceFingerprint,
     violations
   );
+  checkClusterReferentialIntegrity(index, violations);
   checkAxisDiscovery(
     index,
     currentDesignRecords,
