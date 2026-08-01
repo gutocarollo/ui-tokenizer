@@ -90,6 +90,36 @@ test("a ordem do nome e enforced: variante DEPOIS da propriedade reprova", () =>
   assert.equal(slots.remainder, null, "nada pode sobrar do nome canonico");
 });
 
+test("redundancia e por PROPRIEDADE inteira, nao por palavra compartilhada", () => {
+  /*
+   * Decisao do dono, 2026-08-01: um <span> com fundo e um ROTULO COM FUNDO, nao
+   * um conteiner com rotulo dentro — o renderizado ali e uma caixa so. Logo
+   * `markdown.label.background-color` e canonico.
+   *
+   * O criterio `no-redundancy` reprovava esse nome com 85/100 porque quebrava a
+   * propriedade implicada (`foreground-color`) em palavras e achava `color`
+   * dentro de `background-color`. Sao propriedades DIFERENTES: compartilhar uma
+   * palavra nao torna uma derivavel da outra. O que continua — e tem que
+   * continuar — sendo redundante e escrever a propriedade que a anatomia de fato
+   * implica.
+   */
+  const universo = new Set([
+    "markdown-label", "markdown-label-background-color",
+    "button-label", "button-label-foreground-color",
+  ]);
+  assert.equal(
+    scoreName("markdown-label-background-color", vocabulario, universo).score,
+    100,
+    "rotulo COM fundo e canonico desde a decisao de 2026-08-01"
+  );
+  const redundante = scoreName("button-label-foreground-color", vocabulario, universo);
+  assert.ok(
+    redundante.score < 100 &&
+      redundante.criteria.some((c) => c.c === "no-redundancy" && !c.ok),
+    "escrever a propriedade que a anatomia IMPLICA continua sendo ruido"
+  );
+});
+
 test("as tres palavras banidas nao passam como cabeca de nome", () => {
   for (const banida of ["content-primary", "surface-canvas", "semantic-color-primary"]) {
     const r = scoreName(banida, vocabulario, new Set());

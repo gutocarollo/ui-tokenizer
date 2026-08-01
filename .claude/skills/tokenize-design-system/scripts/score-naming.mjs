@@ -295,8 +295,19 @@ export function scoreName(name, vocabulary, universe) {
     if (collides) continue; // necessary for uniqueness
     // `container` says "the part that is the whole". An empty slot already says that.
     if (p === "container" && s.anatomy === "container") { redundant.push(`${p} (an empty slot already means the owner itself)`); continue; }
-    // Property derivable from anatomy.
-    if (s.anatomy && IMPLIED_PROPERTY[s.anatomy] && s.property &&
+    /*
+     * Propriedade derivavel da anatomia.
+     *
+     * A COMPARACAO E PELA PROPRIEDADE INTEIRA, NAO PALAVRA A PALAVRA. A versao
+     * anterior quebrava `foreground-color` em ["foreground","color"] e marcava
+     * a palavra `color` como redundante em QUALQUER nome que a contivesse —
+     * inclusive `markdown.label.background-color`, que e outra propriedade e
+     * nao e derivavel de coisa alguma. Resultado medido: 85/100 num nome que o
+     * dono acabara de declarar canonico (decisao "rotulo COM fundo",
+     * 2026-08-01). `background-color` != `foreground-color`; compartilhar a
+     * palavra `color` nao torna uma derivavel da outra.
+     */
+    if (s.anatomy && IMPLIED_PROPERTY[s.anatomy] && s.property === IMPLIED_PROPERTY[s.anatomy] &&
         IMPLIED_PROPERTY[s.anatomy].split("-").includes(p)) {
       redundant.push(`${p} (derivable from \`${s.anatomy}\`)`);
     }
