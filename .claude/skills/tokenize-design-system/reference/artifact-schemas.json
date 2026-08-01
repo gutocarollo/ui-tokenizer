@@ -2588,27 +2588,38 @@
     },
     "comparisonPair": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "scenarioId",
+        "expectedVisualEffect",
         "beforeCapture",
         "afterCapture",
         "status",
-        "changedPixels",
-        "changedPixelRatio",
+        "beforeDimensions",
+        "afterDimensions",
+        "exactChangedPixels",
+        "exactChangedPixelRatio",
+        "perceptualChangedPixels",
+        "perceptualChangedPixelRatio",
+        "maxChannelDelta",
         "diffBounds",
-        "heatmapPath",
+        "heatmap",
         "errorDelta",
-        "policyVerdict"
+        "deterministicPolicyVerdict",
+        "policyReasons"
       ],
       "properties": {
         "scenarioId": {
           "$ref": "#/$defs/nonEmptyString"
         },
+        "expectedVisualEffect": {
+          "$ref": "#/$defs/expectedVisualEffect"
+        },
         "beforeCapture": {
-          "$ref": "#/$defs/artifactRef"
+          "$ref": "#/$defs/binaryEvidenceRef"
         },
         "afterCapture": {
-          "$ref": "#/$defs/artifactRef"
+          "$ref": "#/$defs/binaryEvidenceRef"
         },
         "status": {
           "enum": [
@@ -2618,20 +2629,71 @@
             "only-after"
           ]
         },
-        "changedPixels": {
+        "beforeDimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "width",
+            "height"
+          ],
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "afterDimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "width",
+            "height"
+          ],
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "exactChangedPixels": {
           "type": "integer",
           "minimum": 0
         },
-        "changedPixelRatio": {
+        "exactChangedPixelRatio": {
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        },
+        "perceptualChangedPixels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "perceptualChangedPixelRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "maxChannelDelta": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
         },
         "diffBounds": {
           "type": [
             "object",
             "null"
           ],
+          "additionalProperties": false,
           "required": [
             "x",
             "y",
@@ -2655,52 +2717,113 @@
               "type": "integer",
               "minimum": 1
             }
-          },
-          "additionalProperties": false
+          }
         },
-        "heatmapPath": {
-          "type": [
-            "string",
-            "null"
+        "heatmap": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/binaryEvidenceRef"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "errorDelta": {
           "type": "object",
+          "additionalProperties": false,
           "required": [
-            "console",
-            "page",
-            "network",
-            "axe",
-            "overflow"
+            "counts",
+            "added",
+            "overflowIntroduced",
+            "hasRegression"
           ],
           "properties": {
-            "console": {
-              "type": "integer"
+            "counts": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "console",
+                "page",
+                "network",
+                "axe",
+                "overflow"
+              ],
+              "properties": {
+                "console": {
+                  "type": "integer"
+                },
+                "page": {
+                  "type": "integer"
+                },
+                "network": {
+                  "type": "integer"
+                },
+                "axe": {
+                  "type": "integer"
+                },
+                "overflow": {
+                  "type": "integer"
+                }
+              }
             },
-            "page": {
-              "type": "integer"
+            "added": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "console",
+                "page",
+                "network",
+                "axe"
+              ],
+              "properties": {
+                "console": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "page": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "network": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "axe": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
             },
-            "network": {
-              "type": "integer"
+            "overflowIntroduced": {
+              "type": "boolean"
             },
-            "axe": {
-              "type": "integer"
-            },
-            "overflow": {
-              "type": "integer"
+            "hasRegression": {
+              "type": "boolean"
             }
-          },
-          "additionalProperties": false
+          }
         },
-        "policyVerdict": {
+        "deterministicPolicyVerdict": {
           "enum": [
             "pass",
-            "fail",
-            "review"
+            "fail"
           ]
+        },
+        "policyReasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "comparison": {
       "allOf": [
@@ -2712,12 +2835,23 @@
           "required": [
             "artifactType",
             "batchId",
+            "worktreeFingerprint",
             "beforeManifest",
             "afterManifest",
+            "beforeBindings",
+            "afterBindings",
+            "matrixFingerprint",
             "expectedVisualEffect",
+            "expectedChangedScenarioIds",
+            "expectedUnchangedScenarioIds",
+            "thresholds",
             "pairs",
             "missingPairCount",
             "exactCoverage",
+            "deterministicVerdict",
+            "requiredReviewScenarioIds",
+            "visualReviewVerdict",
+            "waivedBindings",
             "verdict"
           ],
           "properties": {
@@ -2749,7 +2883,7 @@
               "minimum": 0
             },
             "exactCoverage": {
-              "type": "boolean"
+              "const": true
             },
             "verdict": {
               "enum": [
@@ -2757,6 +2891,200 @@
                 "fail",
                 "review"
               ]
+            },
+            "worktreeFingerprint": {
+              "$ref": "#/$defs/sha256"
+            },
+            "beforeBindings": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceFingerprint",
+                "worktreeFingerprint",
+                "toolchainFingerprint",
+                "tokenSourceFingerprint",
+                "generatedCssFingerprint",
+                "routeRegistryFingerprint",
+                "fixtureRegistryFingerprint"
+              ],
+              "properties": {
+                "sourceFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "worktreeFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "toolchainFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "tokenSourceFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "generatedCssFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "routeRegistryFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "fixtureRegistryFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            },
+            "afterBindings": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceFingerprint",
+                "worktreeFingerprint",
+                "toolchainFingerprint",
+                "tokenSourceFingerprint",
+                "generatedCssFingerprint",
+                "routeRegistryFingerprint",
+                "fixtureRegistryFingerprint"
+              ],
+              "properties": {
+                "sourceFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "worktreeFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "toolchainFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "tokenSourceFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "generatedCssFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "routeRegistryFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                },
+                "fixtureRegistryFingerprint": {
+                  "$ref": "#/$defs/sha256"
+                }
+              }
+            },
+            "matrixFingerprint": {
+              "$ref": "#/$defs/sha256"
+            },
+            "expectedChangedScenarioIds": {
+              "$ref": "#/$defs/stringSet"
+            },
+            "expectedUnchangedScenarioIds": {
+              "$ref": "#/$defs/stringSet"
+            },
+            "thresholds": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "preserveMaxExactChangedPixels",
+                "preserveMaxExactChangedPixelRatio",
+                "changeMinExactChangedPixels",
+                "changeMinExactChangedPixelRatio",
+                "pixelmatchThreshold"
+              ],
+              "properties": {
+                "preserveMaxExactChangedPixels": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "preserveMaxExactChangedPixelRatio": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "changeMinExactChangedPixels": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "changeMinExactChangedPixelRatio": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "pixelmatchThreshold": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            },
+            "deterministicVerdict": {
+              "enum": [
+                "pass",
+                "fail"
+              ]
+            },
+            "requiredReviewScenarioIds": {
+              "$ref": "#/$defs/stringSet"
+            },
+            "visualReviewVerdict": {
+              "enum": [
+                "pending",
+                "pass",
+                "fail",
+                "requires-human"
+              ]
+            },
+            "waivedBindings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "before",
+                  "after",
+                  "owner",
+                  "reason",
+                  "scope",
+                  "review",
+                  "evidence",
+                  "changedContractSources",
+                  "permittedCategories"
+                ],
+                "properties": {
+                  "field": {
+                    "const": "fixtureRegistryFingerprint"
+                  },
+                  "before": {
+                    "$ref": "#/$defs/sha256"
+                  },
+                  "after": {
+                    "$ref": "#/$defs/sha256"
+                  },
+                  "owner": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  },
+                  "reason": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  },
+                  "scope": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  },
+                  "review": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  },
+                  "evidence": {
+                    "$ref": "#/$defs/nonEmptyString"
+                  },
+                  "changedContractSources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "permittedCategories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
             }
           }
         }

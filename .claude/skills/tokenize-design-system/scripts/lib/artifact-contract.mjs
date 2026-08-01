@@ -1774,18 +1774,44 @@ function checkPairingAndEffect(index, records, violations) {
     for (const pair of comparison.pairs) {
       const beforeCapture = beforeCaptures.get(pair.scenarioId);
       const afterCapture = afterCaptures.get(pair.scenarioId);
-      const pairBeforeTargets = referencedTargets(records, pair.beforeCapture);
-      const pairAfterTargets = referencedTargets(records, pair.afterCapture);
+      /*
+       * O QUE MUDOU E POR QUÊ (2026-08-01). Este bloco chamava
+       * `referencedTargets(records, pair.beforeCapture)` e exigia que o
+       * resultado contivesse o manifesto declarado. Duas coisas estavam erradas:
+       *
+       * 1. `referencedTargets` devolve VAZIO para ref sem `artifactType`, e a
+       *    captura aponta para um PNG — que não é nenhum dos tipos fechados.
+       *    A invariante reprovava toda comparação, inclusive a correta.
+       * 2. Mesmo funcionando, a pergunta era fraca: "esta captura pertence ao
+       *    manifesto declarado?" dá a MESMA resposta para todos os pares, já que
+       *    o manifesto é declarado uma vez no topo. Não distinguia nada.
+       *
+       * A pergunta forte é sobre BYTES: o hash que o par diz ter comparado é o
+       * hash que o manifesto registrou para AQUELE cenário? Isso pega o caso que
+       * importa — o par comparou uma imagem que não é a capturada — e usa dado
+       * que já existe nos dois lados. O caminho não serve de comparador: ele é
+       * relativo a bases diferentes (o par ao diretório da comparação, a captura
+       * ao do manifesto), então bater caminho aqui compararia convenção, não
+       * conteúdo.
+       */
+      const capturaConfere = (ref, capture) =>
+        Boolean(capture) && ref?.sha256 === capture.sha256;
       if (
-        !pairBeforeTargets.includes(beforeManifest) ||
-        !pairAfterTargets.includes(afterManifest)
+        !capturaConfere(pair.beforeCapture, beforeCapture) ||
+        !capturaConfere(pair.afterCapture, afterCapture)
       ) {
         violations.push(
           violation(
             "pairing",
             "E-COMPARE",
-            `${pair.scenarioId} capture refs do not resolve to the declared before/after manifests`,
-            comparison
+            `${pair.scenarioId} capture bytes do not match what the before/after manifests recorded`,
+            comparison,
+            {
+              declaredBefore: pair.beforeCapture?.sha256 ?? null,
+              manifestBefore: beforeCapture?.sha256 ?? null,
+              declaredAfter: pair.afterCapture?.sha256 ?? null,
+              manifestAfter: afterCapture?.sha256 ?? null,
+            }
           )
         );
       }
@@ -1794,12 +1820,30 @@ function checkPairingAndEffect(index, records, violations) {
       const statusConsistent =
         (pair.status === "identical" && hashesEqual) ||
         (pair.status === "changed" && !hashesEqual);
+      /*
+       * NOMES ALINHADOS AO EMISSOR (2026-08-01). Este bloco lia
+       * `pair.changedPixels`, `pair.changedPixelRatio` e `pair.errorDelta[key]`
+       * — campos que `compareEvidenceManifests` NUNCA emitiu com esses nomes.
+       * O emissor produz `exactChangedPixels`, `exactChangedPixelRatio` e um
+       * `errorDelta` com as contagens sob `counts`.
+       *
+       * A consequência não era um erro: era pior. `undefined / pixelCount` dá
+       * NaN, toda comparação com NaN é falsa, e a invariante de razão passava a
+       * reprovar SEMPRE — o guard virava ruído constante em vez de sinal. E a
+       * checagem de errorDelta comparava `undefined === valor` para as cinco
+       * chaves, portanto nunca podia concordar.
+       *
+       * A razão é medida sobre a métrica EXATA (pixel que mudou de valor), não
+       * sobre a perceptual: é a exata que tem relação aritmética com a contagem
+       * de pixels da imagem. A perceptual responde outra pergunta — o que se VÊ
+       * mudar — e não é derivável de `width × height`.
+       */
       const pixelCount = beforeCapture.width * beforeCapture.height;
-      const expectedRatio = pair.changedPixels / pixelCount;
+      const expectedRatio = pair.exactChangedPixels / pixelCount;
       const ratioTolerance = 1 / pixelCount;
       const ratioConsistent =
-        pair.changedPixels <= pixelCount &&
-        Math.abs(pair.changedPixelRatio - expectedRatio) <= ratioTolerance;
+        pair.exactChangedPixels <= pixelCount &&
+        Math.abs(pair.exactChangedPixelRatio - expectedRatio) <= ratioTolerance;
       const expectedErrorDelta = {
         console:
           afterCapture.consoleErrors.length -
@@ -1815,7 +1859,7 @@ function checkPairingAndEffect(index, records, violations) {
           Number(afterCapture.overflow) - Number(beforeCapture.overflow),
       };
       const errorDeltaConsistent = Object.entries(expectedErrorDelta).every(
-        ([key, value]) => pair.errorDelta[key] === value
+        ([key, value]) => pair.errorDelta?.counts?.[key] === value
       );
       if (!statusConsistent || !ratioConsistent || !errorDeltaConsistent) {
         violations.push(
@@ -1827,7 +1871,7 @@ function checkPairingAndEffect(index, records, violations) {
             {
               hashesEqual,
               expectedRatio,
-              actualRatio: pair.changedPixelRatio,
+              actualRatio: pair.exactChangedPixelRatio,
               expectedErrorDelta,
               actualErrorDelta: pair.errorDelta,
             }
@@ -1904,16 +1948,20 @@ function checkPairingAndEffect(index, records, violations) {
           )
         );
       }
+      // Mesmos nomes do emissor: `deterministicPolicyVerdict` e a métrica
+      // EXATA. Antes lia `policyVerdict`/`changedPixels`, que nunca existiram
+      // no artefato — `undefined === "pass"` é falso, então `observedPass` era
+      // falso para TODO par e esta invariante reprovava até o lote perfeito.
       const observedPass =
-        pair.policyVerdict === "pass" &&
+        pair.deterministicPolicyVerdict === "pass" &&
         ((expected === "preserve" &&
           pair.status === "identical" &&
-          pair.changedPixels === 0 &&
-          pair.changedPixelRatio === 0) ||
+          pair.exactChangedPixels === 0 &&
+          pair.exactChangedPixelRatio === 0) ||
           (expected === "change" &&
             pair.status === "changed" &&
-            pair.changedPixels > 0 &&
-            pair.changedPixelRatio > 0));
+            pair.exactChangedPixels > 0 &&
+            pair.exactChangedPixelRatio > 0));
       if (!observedPass) {
         effectPass = false;
         violations.push(
@@ -1924,9 +1972,9 @@ function checkPairingAndEffect(index, records, violations) {
             comparison,
             {
               status: pair.status,
-              changedPixels: pair.changedPixels,
-              changedPixelRatio: pair.changedPixelRatio,
-              policyVerdict: pair.policyVerdict,
+              exactChangedPixels: pair.exactChangedPixels,
+              exactChangedPixelRatio: pair.exactChangedPixelRatio,
+              deterministicPolicyVerdict: pair.deterministicPolicyVerdict,
             }
           )
         );
@@ -2165,7 +2213,13 @@ function checkAcceptance(index, records, violations) {
       comparison.verdict !== "pass" ||
       comparison.exactCoverage !== true ||
       comparison.missingPairCount !== 0 ||
-      comparison.pairs.some((pair) => pair.policyVerdict !== "pass")
+      // `policyVerdict` não existe no artefato: o emissor grava
+      // `deterministicPolicyVerdict`. Lendo o nome errado, `undefined !== "pass"`
+      // era sempre verdadeiro e a aceitação de QUALQUER lote — inclusive um
+      // impecável — era recusada aqui.
+      comparison.pairs.some(
+        (pair) => pair.deterministicPolicyVerdict !== "pass"
+      )
     ) {
       violations.push(
         violation(

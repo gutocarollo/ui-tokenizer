@@ -58,6 +58,35 @@ const REF = {
   sha256: HASH_C,
 };
 
+/**
+ * Referência a bytes que NÃO são artefato do contrato — PNG de captura, mapa de
+ * calor, manifesto apontado de fora da corrida. Sem `artifactType` de propósito:
+ * exigi-lo reprovava todo par de comparação, e um PNG não pertence aos 19 tipos.
+ */
+const BINARY_REF = {
+  path: "captures/s1.png",
+  sha256: HASH_C,
+};
+
+/** Ref a um ARTEFATO do contrato: leva `artifactType`, senão `referencedTargets`
+ *  devolve vazio e a invariante de resolução reprova o artefato correto. */
+const MANIFEST_REF = {
+  artifactType: "evidence-manifest",
+  path: "batches/B0001/before/manifest.json",
+  sha256: HASH_C,
+};
+
+/** Os 7 fingerprints que a camada de evidência liga a um manifesto. */
+const BINDINGS = {
+  sourceFingerprint: SOURCE_B,
+  worktreeFingerprint: HASH_C,
+  toolchainFingerprint: HASH_C,
+  tokenSourceFingerprint: HASH_C,
+  generatedCssFingerprint: HASH_C,
+  routeRegistryFingerprint: HASH_C,
+  fixtureRegistryFingerprint: HASH_C,
+};
+
 function header(artifactType, sourceFingerprint = SOURCE_A) {
   return {
     schemaVersion: "1.0.0",
@@ -466,34 +495,70 @@ function schemaFixtures() {
     ],
     allPassed: true,
   });
+  /*
+   * ESTA FIXTURE ESTAVA DESCOLADA DO EMISSOR, e por isso certificava nada.
+   * Medido em 2026-08-01 rodando `compareEvidenceManifests` de verdade e
+   * validando a saída: 39 reprovações. O par emitia 17 campos e o schema
+   * declarava 10, com 4 nomes trocados (`changedPixels`→`exactChangedPixels`,
+   * `changedPixelRatio`→`exactChangedPixelRatio`, `heatmapPath`→`heatmap`,
+   * `policyVerdict`→`deterministicPolicyVerdict`) e o `errorDelta` inteiro numa
+   * outra forma. A fixture usava os nomes ANTIGOS, então o teste ficava verde
+   * enquanto nenhum artefato real passava.
+   *
+   * Os refs de imagem usam {path, sha256} sem `artifactType`: um PNG não é
+   * artefato do contrato, e exigir o campo reprovava todo par.
+   */
   fixtures.set("comparison", {
     ...header("comparison", SOURCE_B),
     batchId: "B0001",
-    beforeManifest: REF,
-    afterManifest: REF,
+    worktreeFingerprint: HASH_C,
+    beforeManifest: MANIFEST_REF,
+    afterManifest: MANIFEST_REF,
+    beforeBindings: BINDINGS,
+    afterBindings: BINDINGS,
+    matrixFingerprint: HASH_C,
     expectedVisualEffect: "preserve",
+    expectedChangedScenarioIds: [],
+    expectedUnchangedScenarioIds: ["S1"],
+    thresholds: {
+      preserveMaxExactChangedPixels: 0,
+      preserveMaxExactChangedPixelRatio: 0,
+      changeMinExactChangedPixels: 0,
+      changeMinExactChangedPixelRatio: 0,
+      pixelmatchThreshold: 0.1,
+    },
     pairs: [
       {
         scenarioId: "S1",
-        beforeCapture: REF,
-        afterCapture: REF,
+        expectedVisualEffect: "preserve",
+        beforeCapture: BINARY_REF,
+        afterCapture: BINARY_REF,
         status: "identical",
-        changedPixels: 0,
-        changedPixelRatio: 0,
+        beforeDimensions: { width: 2, height: 2 },
+        afterDimensions: { width: 2, height: 2 },
+        exactChangedPixels: 0,
+        exactChangedPixelRatio: 0,
+        perceptualChangedPixels: 0,
+        perceptualChangedPixelRatio: 0,
+        maxChannelDelta: 0,
         diffBounds: null,
-        heatmapPath: null,
+        heatmap: null,
         errorDelta: {
-          console: 0,
-          page: 0,
-          network: 0,
-          axe: 0,
-          overflow: 0,
+          counts: { console: 0, page: 0, network: 0, axe: 0, overflow: 0 },
+          added: { console: [], page: [], network: [], axe: [] },
+          overflowIntroduced: false,
+          hasRegression: false,
         },
-        policyVerdict: "pass",
+        deterministicPolicyVerdict: "pass",
+        policyReasons: [],
       },
     ],
     missingPairCount: 0,
     exactCoverage: true,
+    deterministicVerdict: "pass",
+    requiredReviewScenarioIds: ["S1"],
+    visualReviewVerdict: "pending",
+    waivedBindings: [],
     verdict: "pass",
   });
   fixtures.set("visual-review", {
@@ -938,8 +1003,8 @@ test("pairing and effect policy reject changed pixels in a preserve batch", () =
       {
         ...fixtures.get("comparison").pairs[0],
         status: "changed",
-        changedPixels: 1,
-        changedPixelRatio: 0.0001,
+        exactChangedPixels: 1,
+        exactChangedPixelRatio: 0.0001,
       },
     ],
   };
@@ -1056,8 +1121,21 @@ test("a fully referenced passing batch satisfies pairing, effect, review, and ac
       pairs: [
         {
           ...fixtures.get("comparison").pairs[0],
-          beforeCapture: beforeFile.ref,
-          afterCapture: afterFile.ref,
+          /*
+           * A captura do par referencia os BYTES da imagem, e a invariante nova
+           * confere o hash contra o que o manifesto registrou para este cenário.
+           * A fixture antiga apontava o par para o próprio MANIFESTO — o que
+           * passava só porque a checagem de então resolvia `artifactType` e
+           * nunca olhava byte nenhum.
+           */
+          beforeCapture: {
+            path: "batches/B0001/before/s1.png",
+            sha256: fixtures.get("evidence-manifest").captures[0].sha256,
+          },
+          afterCapture: {
+            path: "batches/B0001/after/s1.png",
+            sha256: fixtures.get("evidence-manifest").captures[0].sha256,
+          },
         },
       ],
     }

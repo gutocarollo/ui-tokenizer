@@ -1291,6 +1291,12 @@ function evaluatePairPolicy(pair, expectedEffect, thresholds) {
   };
 }
 
+/**
+ * Referência a BYTES: caminho relativo + hash. Sem `artifactType`, porque um PNG
+ * e um mapa de calor não são nenhum dos tipos fechados do contrato — declarar um
+ * tipo falso ali faria o coletor de referências tentar resolvê-los como artefato
+ * e não achar registro nenhum.
+ */
 function artifactRef(filePath, relativeTo) {
   return {
     path: path
@@ -1299,6 +1305,19 @@ function artifactRef(filePath, relativeTo) {
       .join("/"),
     sha256: sha256File(filePath),
   };
+}
+
+/**
+ * Referência a um ARTEFATO do contrato: os mesmos dois campos MAIS o tipo.
+ *
+ * A distinção não é estilística. `referencedTargets` (artifact-contract.mjs)
+ * devolve lista VAZIA para qualquer ref sem `artifactType`, e a invariante que
+ * exige "os refs da comparação resolvem para os manifestos declarados" comparava
+ * essa lista vazia — reprovando toda comparação, inclusive a correta. Manifesto
+ * é artefato e leva tipo; captura é byte e leva hash.
+ */
+function contractArtifactRef(artifactType, filePath, relativeTo) {
+  return { artifactType, ...artifactRef(filePath, relativeTo) };
 }
 
 function safeArtifactStem(scenarioId) {
@@ -1438,8 +1457,16 @@ export function compareEvidenceManifests({
     sourceFingerprint: afterManifest.sourceFingerprint,
     worktreeFingerprint: afterManifest.worktreeFingerprint,
     toolchainFingerprint: afterManifest.toolchainFingerprint,
-    beforeManifest: artifactRef(beforeManifestPath, outputDirectory),
-    afterManifest: artifactRef(afterManifestPath, outputDirectory),
+    beforeManifest: contractArtifactRef(
+      "evidence-manifest",
+      beforeManifestPath,
+      outputDirectory
+    ),
+    afterManifest: contractArtifactRef(
+      "evidence-manifest",
+      afterManifestPath,
+      outputDirectory
+    ),
     beforeBindings: Object.fromEntries(
       FINGERPRINT_FIELDS.map((field) => [field, beforeManifest[field]])
     ),
