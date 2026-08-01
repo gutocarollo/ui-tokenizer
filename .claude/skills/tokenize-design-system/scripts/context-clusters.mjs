@@ -222,7 +222,59 @@ if (existsSync(tokensJson)) {
   };
   walk(J);
 }
-const primitiveOf = (token) => VALUES.get(`semantic.light.surface.${token.replace(/^surface-/, "")}`) ?? null;
+/*
+ * INDICE POR SUFIXO — o que substituiu o lookup de familia unica.
+ *
+ * DEFEITO CORRIGIDO EM 2026-08-01, e ele era o mais caro do motor. A linha antiga
+ * era:
+ *
+ *     VALUES.get(`semantic.light.surface.${token.replace(/^surface-/, "")}`)
+ *
+ * com a familia CRAVADA no caminho. Todo token que nao fosse `surface-*` errava o
+ * lookup e virava `(sem valor: ...)`. Medido contra o alvo: **478 de 3.321
+ * ocorrencias resolvidas — 14,4%**. Com a derivacao abaixo: **3.321 de 3.321, 100%**.
+ *
+ * A consequencia em cadeia era o defeito de verdade. Sem hex dos dois lados,
+ * `converge-tokens.mjs` Linha 198 recebe `null` do `deltaE` e registra
+ * `{ name: "cor", weight: 40, score: 0 }` — o MAIOR sinal do orcamento de
+ * confianca, zerado. Resultado medido: **1.449 dos 1.457 pares** que a
+ * convergencia mandava para o humano tinham o sinal de cor morto. A fila humana
+ * nao era ambiguidade; era um sinal desligado — exatamente o modo de falha que o
+ * docstring do `tokenize.mjs` diz existir para prevenir.
+ *
+ * E a ironia era o diagnostico: `surface` e uma das cinco palavras BANIDAS. A
+ * unica familia que o resolvedor enxergava era a que a lei proibe — residuo da
+ * epoca em que so `surface-*` estava sendo migrado, do mesmo feitio do
+ * `--ext ts,tsx` que fez o miner varrer 2% do app e imprimir sucesso.
+ *
+ * POR QUE INDICE DE SUFIXO, e nao so trocar `surface` pela familia do token: o
+ * caminho tambem cravava o TIER (`semantic`) e o TEMA (`light`). Os dois sao
+ * convencao do alvo de hoje, nao lei. Indexar pelos ultimos segmentos resolve
+ * `content-primary` em `<qualquer>.content.primary` sem saber como o alvo batizou
+ * seus tiers. Empate entre temas e resolvido por preferencia estavel (claro
+ * primeiro), porque toda a comparacao de ΔE roda dentro de um tema so — alternar
+ * tornaria a fusao nao-deterministica.
+ */
+const BY_SUFFIX = new Map();
+for (const [caminho, valor] of VALUES) {
+  const seg = caminho.split(".");
+  const sufixo = seg.slice(-2).join(".");
+  const claro = /(^|\.)light(\.|$)/.test(caminho);
+  const atual = BY_SUFFIX.get(sufixo);
+  // primeira escrita vence; tema claro sobrepoe um escuro ja gravado
+  if (!atual || (claro && !atual.claro)) BY_SUFFIX.set(sufixo, { valor, claro });
+}
+
+const primitiveOf = (token) => {
+  const corte = token.indexOf("-");
+  if (corte > 0) {
+    const porFamilia = BY_SUFFIX.get(`${token.slice(0, corte)}.${token.slice(corte + 1)}`);
+    if (porFamilia) return porFamilia.valor;
+  }
+  // token de segmento unico (`background`, `border`) ou familia que o alvo nao separa
+  const direto = BY_SUFFIX.get(token) ?? null;
+  return direto ? direto.valor : null;
+};
 
 const lista = [...clusters.values()]
   .map((c) => {

@@ -38,7 +38,7 @@
  *   node tokenize.mjs --root <app> --json
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveRoot } from "./lib/paths.mjs";
@@ -73,13 +73,51 @@ const fail = (fase, motivo, comoResolver) => {
   process.exit(1);
 };
 
-function run(script, args, { capture = false } = {}) {
-  const r = spawnSync(process.execPath, [path.join(HERE, script), "--root", ROOT, ...args], {
-    encoding: "utf8",
-    stdio: capture ? ["ignore", "pipe", "pipe"] : ["ignore", "inherit", "inherit"],
-  });
-  if (r.error) return { ok: false, err: r.error.message };
-  return { ok: r.status === 0, code: r.status, out: r.stdout, err: r.stderr };
+/**
+ * Roda um script da skill contra o alvo.
+ *
+ * `outFile` existe por um defeito medido em 2026-08-01: com `stdio: "pipe"`, o
+ * `spawnSync` aplica o `maxBuffer` default de 1 MB. A fase CLUSTER emite 3,64 MB
+ * e a CONVERGE 3,37 MB, entao AS DUAS morriam com ENOBUFS — e o loop parava na
+ * terceira de sete fases dizendo "context-clusters falhou", quando o filho havia
+ * saido com 0 e JSON valido. Mesma classe do truncamento de `--json` corrigido no
+ * mesmo dia: o erro e de quem LE e a mensagem acusa o DADO.
+ *
+ * Elevar o `maxBuffer` seria remendo — 3,6 MB e o alvo de hoje e o numero cresce
+ * com o app. As duas fases ja gravavam o stdout capturado em arquivo logo depois;
+ * o pipe era um intermediario que so existia para estourar. Passar o descritor
+ * como `stdio[1]` remove o teto e a copia dupla em memoria.
+ */
+function run(script, args, { capture = false, outFile = null } = {}) {
+  let fd = null;
+  if (outFile) fd = openSync(outFile, "w");
+  try {
+    const r = spawnSync(process.execPath, [path.join(HERE, script), "--root", ROOT, ...args], {
+      encoding: "utf8",
+      // com outFile o stdout vai DIRETO para o descritor: sem maxBuffer, sem copia
+      stdio: fd !== null
+        ? ["ignore", fd, "pipe"]
+        : capture
+          ? ["ignore", "pipe", "pipe"]
+          : ["ignore", "inherit", "inherit"],
+      maxBuffer: 256 * 1024 * 1024, // teto de seguranca para quem ainda captura por pipe
+    });
+    if (r.error) {
+      // Distinguir FILHO QUE FALHOU de PAI QUE NAO CONSEGUIU LER. Chamar os dois
+      // de "o script falhou" manda o operador depurar o arquivo errado.
+      const doLeitor = r.error.code === "ENOBUFS";
+      return {
+        ok: false,
+        leitor: doLeitor,
+        err: doLeitor
+          ? `a saida de ${script} passou do buffer do orquestrador (o script NAO falhou) — use outFile`
+          : r.error.message,
+      };
+    }
+    return { ok: r.status === 0, code: r.status, out: r.stdout, err: r.stderr };
+  } finally {
+    if (fd !== null) closeSync(fd);
+  }
 }
 
 /* ───────────────────────────────────────────────────────────── PREFLIGHT ── */
@@ -191,10 +229,13 @@ if (stopAt < 2) finish();
 
 say("\nEXTRACT + CLUSTER");
 const clustersFile = path.join(WORK, "clusters.json");
-const c = run("context-clusters.mjs", ["--json"], { capture: true });
-if (!c.ok || !c.out) fail("CLUSTER", "context-clusters falhou", c.err?.split("\n")[0] ?? "");
-writeFileSync(clustersFile, c.out);
-const CL = JSON.parse(c.out);
+const c = run("context-clusters.mjs", ["--json"], { outFile: clustersFile });
+if (!c.ok) {
+  fail("CLUSTER",
+    c.leitor ? c.err : "context-clusters falhou",
+    c.leitor ? "defeito do orquestrador, nao do script" : (c.err?.split("\n")[0] ?? ""));
+}
+const CL = JSON.parse(readFileSync(clustersFile, "utf8"));
 const comNome = CL.clusters.filter((x) => x.proposedName);
 const ocorr = comNome.reduce((s, x) => s + x.count, 0);
 // Um cluster sem nome derivado tem DUAS causas possiveis, e chamar as duas de
@@ -216,10 +257,13 @@ if (stopAt < 4) finish();
 say("\nCONVERGE");
 const convFile = path.join(WORK, "converged.json");
 const maxU = arg("--max-uncertainty", "30");
-const v = run("converge-tokens.mjs", ["--clusters", clustersFile, "--max-uncertainty", maxU, "--json"], { capture: true });
-if (!v.ok || !v.out) fail("CONVERGE", "converge-tokens falhou", v.err?.split("\n")[0] ?? "");
-writeFileSync(convFile, v.out);
-const CV = JSON.parse(v.out);
+const v = run("converge-tokens.mjs", ["--clusters", clustersFile, "--max-uncertainty", maxU, "--json"], { outFile: convFile });
+if (!v.ok) {
+  fail("CONVERGE",
+    v.leitor ? v.err : "converge-tokens falhou",
+    v.leitor ? "defeito do orquestrador, nao do script" : (v.err?.split("\n")[0] ?? ""));
+}
+const CV = JSON.parse(readFileSync(convFile, "utf8"));
 if (!CV.convergiu) {
   fail("CONVERGE", `nao convergiu em ${CV.iteracoes} iteracoes`,
     "aumente --max-iter ou investigue oscilacao entre duas fusoes que se desfazem");

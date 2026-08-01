@@ -4,7 +4,7 @@ status: aberto
 quem_resolve: agente
 severidade: alta
 bloqueia: qualquer migração real do alvo; hoje o processo termina em relatório
-fonte: .claude/skills/tokenize-design-system/scripts/tokenize.mjs:253
+fonte: .claude/skills/tokenize-design-system/scripts/tokenize.mjs:297
 citacao: 'APPLY — fase declarada, NAO implementada.'
 updated: 2026-08-01
 ---
