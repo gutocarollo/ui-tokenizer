@@ -21,6 +21,7 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -180,42 +181,67 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["impacted-context", "scenario", "evidence-manifest"],
     steps: [
-      { shell: "node scripts/affected-routes.mjs", args: () => ["--json"], emits: "impacted-context" },
+      {
+        /*
+         * OS ARQUIVOS VÊM DO LOTE, NÃO DO GIT — e isso é da natureza da fase.
+         *
+         * `affected-routes` sem argumento lê o diff da worktree e, na captura de
+         * REFERÊNCIA, o diff está vazio por definição: a mutação ainda não
+         * aconteceu. Medido: `exit=3, emptyChangeSet: true`. Aceitar isso com
+         * `--allow-empty` gravaria um impacted-context afirmando que o lote não
+         * afeta nada — a alegação exatamente oposta à verdade.
+         *
+         * Antes da mutação, os arquivos afetados são os PLANEJADOS, e quem os
+         * declara é o batch-contract. Ler o lote aqui evita que cada chamador
+         * precise saber disso; é estado durável da própria corrida.
+         *
+         * `--allow-gaps` é deliberado e tem causa única medida no alvo:
+         * `/accept-invite/:code` não tem fixture porque o parâmetro é um código
+         * de convite de uso único (`reasonCode: sensitive-ephemeral-fixture`).
+         * Não é descuido, é exclusão estrutural — e ela fica GRAVADA em
+         * `fixtureGaps` dentro do artefato, então a cobertura incompleta é
+         * declarada, não escondida.
+         */
+        shell: "node scripts/affected-routes.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot", "batchId"], "affected-routes");
+          const lote = JSON.parse(
+            readFileSync(`${artefatos(ctx)}/batch-${ctx.batchId}.json`, "utf8")
+          );
+          const planejados = lote.plannedFiles ?? [];
+          if (!planejados.length) {
+            throw new Error(
+              `batch ${ctx.batchId} sem plannedFiles — um lote que não declara o que vai tocar não tem impacto verificável`
+            );
+          }
+          return ["--files", planejados.join(","), "--json", "--allow-gaps"];
+        },
+        emits: "impacted-context",
+      },
       { shell: "node scripts/gen-visual-routes.mjs", args: () => ["--json"], emits: "scenario" },
       {
-        // `--run-config`, nao `--run-id`: identificador digitado a mao e um
-        // segundo lugar onde a verdade mora (ver prepare-evidence-run.mjs).
-        shell: "node scripts/prepare-evidence-run.mjs",
-        args: (ctx) => {
-          exigir(ctx, ["runConfigPath", "applicationRoot", "runRoot", "batchId"], "prepare-evidence-run/before");
-          return [
-            "--run-config", ctx.runConfigPath,
-            "--root", ctx.applicationRoot,
-            "--phase", "before",
-            "--batch-id", ctx.batchId,
-            "--selection-out", `${artefatos(ctx)}/${ctx.batchId}/before/selection.json`,
-            "--manifest-config-out", `${artefatos(ctx)}/${ctx.batchId}/before/manifest-config.json`,
-          ];
-        },
-        emits: "scenario",
-      },
-      {
+        /*
+         * UM PASSO, nao cinco. A primeira versao deste registro decompunha a
+         * captura em prepare + playwright + manifesto, e estava errada em duas
+         * frentes MEDIDAS ao ler `ui-evidence.sh`:
+         *
+         *   1. ele JA orquestra os tres — prepara a selecao, roda a matriz,
+         *      monta o evidence-manifest fail-closed e promove o diretorio
+         *      ATOMICAMENTE. Decompor aqui duplicaria o prepare e deixaria dois
+         *      donos da mesma selecao;
+         *   2. ele RECUSA `--out` ("unknown option", exit 2). O destino nao e
+         *      escolhido: e `.claude/evidence/<label>/`, e o label e POSICIONAL.
+         *
+         * O label carrega fase e lote porque o diretorio e IMUTAVEL — rodar de
+         * novo com o mesmo label falha de proposito, entao o nome precisa ser
+         * unico por lote e fase.
+         */
         shell: "bash scripts/ui-evidence.sh",
         args: (ctx) => {
-          exigir(ctx, ["runRoot", "batchId"], "ui-evidence/before");
-          return ["--phase", "before", "--batch-id", ctx.batchId,
-                  "--out", `${artefatos(ctx)}/${ctx.batchId}/before/captures`];
-        },
-        emits: "evidence-manifest",
-      },
-      {
-        shell: "node scripts/evidence-manifest.mjs",
-        args: (ctx) => {
-          exigir(ctx, ["runRoot", "batchId"], "evidence-manifest/before");
-          const base = `${artefatos(ctx)}/${ctx.batchId}/before`;
-          return ["--config", `${base}/manifest-config.json`,
-                  "--capture-dir", `${base}/captures`,
-                  "--out", `${base}/manifest.json`];
+          exigir(ctx, ["runConfigPath", "batchId"], "ui-evidence/before");
+          // `--run-config`, nunca `--run-id`: o identificador vem da ancora.
+          return [`before-${ctx.batchId}`, "--run-config", ctx.runConfigPath,
+                  "--batch-id", ctx.batchId, "--phase", "before"];
         },
         emits: "evidence-manifest",
       },
@@ -258,40 +284,15 @@ export const PHASE_EXECUTORS = Object.freeze({
     artifacts: ["evidence-manifest"],
     steps: [
       {
-        // Fase `after`: SEM `assertBase`. Aqui a fonte DEVE ter divergido da
-        // ancora — e a mutacao que se quer medir. Exigir igualdade nesta fase
-        // reprovaria toda migracao bem-sucedida.
-        shell: "node scripts/prepare-evidence-run.mjs",
-        args: (ctx) => {
-          exigir(ctx, ["runConfigPath", "applicationRoot", "runRoot", "batchId"], "prepare-evidence-run/after");
-          return [
-            "--run-config", ctx.runConfigPath,
-            "--root", ctx.applicationRoot,
-            "--phase", "after",
-            "--batch-id", ctx.batchId,
-            "--selection-out", `${artefatos(ctx)}/${ctx.batchId}/after/selection.json`,
-            "--manifest-config-out", `${artefatos(ctx)}/${ctx.batchId}/after/manifest-config.json`,
-          ];
-        },
-        emits: "evidence-manifest",
-      },
-      {
+        // Mesma orquestracao unica da fase de referencia; muda so a fase, e com
+        // ela o contrato de fingerprint: `before` exige a fonte IGUAL a ancora,
+        // `after` exige que ela tenha andado — e a mutacao que se quer medir.
         shell: "bash scripts/ui-evidence.sh",
         args: (ctx) => {
-          exigir(ctx, ["runRoot", "batchId"], "ui-evidence/after");
-          return ["--phase", "after", "--batch-id", ctx.batchId,
-                  "--out", `${artefatos(ctx)}/${ctx.batchId}/after/captures`];
-        },
-        emits: "evidence-manifest",
-      },
-      {
-        shell: "node scripts/evidence-manifest.mjs",
-        args: (ctx) => {
-          exigir(ctx, ["runRoot", "batchId"], "evidence-manifest/after");
-          const base = `${artefatos(ctx)}/${ctx.batchId}/after`;
-          return ["--config", `${base}/manifest-config.json`,
-                  "--capture-dir", `${base}/captures`,
-                  "--out", `${base}/manifest.json`];
+          exigir(ctx, ["runConfigPath", "batchId"], "ui-evidence/after");
+          // `--run-config`, nunca `--run-id`: o identificador vem da ancora.
+          return [`after-${ctx.batchId}`, "--run-config", ctx.runConfigPath,
+                  "--batch-id", ctx.batchId, "--phase", "after"];
         },
         emits: "evidence-manifest",
       },
