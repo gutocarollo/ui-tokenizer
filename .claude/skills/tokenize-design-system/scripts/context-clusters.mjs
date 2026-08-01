@@ -36,8 +36,19 @@ import { prefixAlternation, lawSlotFor } from "./lib/utility-families.mjs";
 const ROOT = resolveRoot();
 const SRC = path.join(ROOT, "src");
 
-/** Palavras proibidas no nome publico — a lei §2, §3 e §3.1 (content, 2026-07-31). */
-const FORBIDDEN = ["surface", "semantic", "content"];
+/*
+ * As palavras proibidas pela lei (§2, §3.1) — a lista tem que ser a MESMA que o
+ * guard executavel usa (`tools/gates/ds-naming-law.py`, FORBIDDEN). Ela cresceu
+ * de tres para CINCO em 2026-08-01, quando `label` e `foreground` foram banidas
+ * junto com a troca de anatomia e propriedade (§5.6), e esta copia ficou para
+ * tras — divergencia entre a lei e o motor que a aplica.
+ *
+ * Aqui a lista define o que conta como VIOLACAO a migrar, entao ela e o que o
+ * censo enxerga. Medido no alvo de referencia antes de mudar: zero classes
+ * `*-label-*` ou `*-foreground-*`, entao o corpus nao muda — mas um alvo que as
+ * tivesse ficaria com elas invisiveis, e o silencio pareceria limpeza.
+ */
+const FORBIDDEN = ["surface", "semantic", "content", "label", "foreground"];
 
 /* --------------------------------------------------------------- varredura -- */
 
@@ -312,9 +323,126 @@ const total = ocorrencias.length;
 const derivados = lista.filter((c) => c.proposedName);
 const cobertos = derivados.reduce((s, c) => s + c.count, 0);
 
+/* ─────────────────────────────────────────── o envelope de CLASSIFIED ───── */
+/*
+ * `--emit-artifacts <dir> --run-config <path>` transforma o resultado desta
+ * análise nos DOIS artefatos que a transição para CLASSIFIED exige:
+ * `cluster-packet` (um por cluster) e um `inventory-report` de kind `ownerless`.
+ *
+ * POR QUE AQUI DENTRO, e não num script separado que leia `clusters.json`. O
+ * `cluster-packet` exige `occurrenceIds` COMPLETO, e a saída `--json` deste
+ * mesmo script trunca as ocorrências em 6 por cluster (a linha logo abaixo).
+ * Um emissor externo teria de escolher entre reprocessar tudo de novo ou emitir
+ * uma lista mutilada com cara de completa — e a segunda é a classe de defeito
+ * que este repositório passou o dia caçando. Aqui a lista inteira está viva em
+ * memória.
+ *
+ * LIMITE DECLARADO: `occurrenceIds` sai como `<arquivo>:<linha>:<token>`, um id
+ * derivado do sítio, e NÃO o `occurrenceId` do censo canônico. A razão é que
+ * este script ainda faz a própria varredura de `src/` em vez de ler
+ * `design-occurrences.ndjson` — por isso ele enxerga 5.639 sítios de className
+ * onde o extrator canônico acha 13.869 ocorrências em 17 kinds. Ligar os dois é
+ * trabalho próprio, rastreado em `docs/pending/`; enquanto não acontece, o id é
+ * estável e reproduzível, mas é DESTE script, não do censo. Não o cite como se
+ * fosse o mesmo.
+ */
+const emitDir = arg("--emit-artifacts");
+if (emitDir) {
+  const runConfigPath = arg("--run-config");
+  if (!runConfigPath) {
+    console.error("--emit-artifacts exige --run-config <path> (o header vem da ancora da corrida)");
+    process.exit(1);
+  }
+  const { envelopeFrom, fingerprint } = await import("./lib/artifact-envelope.mjs");
+  const { mkdirSync: mkd, writeFileSync: wf, existsSync: ex } = await import("node:fs");
+  const env = envelopeFrom(runConfigPath);
+  mkd(emitDir, { recursive: true });
+
+  /*
+   * REFERENCIA E RELATIVA AO RUN ROOT, e aponta para a COPIA materializada.
+   *
+   * `resolveArtifactRefPath` (artifact-contract.mjs:485-491) recusa caminho
+   * absoluto: "Artifact references must be run-relative". A razao e integridade
+   * — um run root tem que poder ser movido, arquivado ou inspecionado noutra
+   * maquina sem que as refs apontem para o disco de quem o gerou.
+   *
+   * E a ref ao run-config aponta para `<runRoot>/config.json`, a copia que o
+   * `init` materializou, NAO para o arquivo de origem em `<alvo>/.tokenize/`.
+   * Sao dois arquivos com o mesmo conteudo e destinos diferentes: o de origem
+   * pode ser regenerado por um `anchor-run` novo e mudar de sha256, e a ref
+   * ficaria apontando para bytes que a corrida nunca viu.
+   */
+  const runRoot = arg("--run-root") ?? path.dirname(path.resolve(emitDir));
+  const configNoRun = path.join(runRoot, "config.json");
+  const refRunConfig = ex(configNoRun)
+    ? env.ref("run-config", configNoRun, { relativeTo: runRoot })
+    : env.ref("run-config", runConfigPath, { relativeTo: runRoot });
+
+  const sitioId = (o) => `${o.file}:${o.line}:${o.token}`;
+  const pacotes = lista.map((c, i) => {
+    // Uma variante de estilo por VALOR FISICO distinto dentro do cluster: e
+    // exatamente a divergencia que a §9 manda expor em vez de apagar.
+    const porValor = new Map();
+    for (const o of c.occurrences) {
+      const v = primitiveOf(o.token) ?? `(sem valor: ${o.token})`;
+      if (!porValor.has(v)) porValor.set(v, []);
+      porValor.get(v).push(o);
+    }
+    const styleVariants = [...porValor.entries()].map(([valor, ocs]) => ({
+      styleFingerprint: fingerprint({ valor, tokens: [...new Set(ocs.map((o) => o.token))].sort() }),
+      rawValues: [...new Set(ocs.map((o) => o.token))].sort(),
+      frequency: ocs.length,
+      locations: ocs.slice(0, 64).map((o) => ({ file: o.file, line: Math.max(1, o.line), column: 1 })),
+      // O cluster agrupa por CONTEXTO renderizado, nao por igualdade provada de
+      // CSS. Declarar EXACT_SET aqui seria afirmar uma prova que este script nao
+      // produz; OBSERVED_EQUIVALENT e o que a evidencia sustenta.
+      equivalenceLevel: porValor.size === 1 ? "OBSERVED_EQUIVALENT" : "NOT_EQUIVALENT",
+    }));
+    return {
+      ...env.header("cluster-packet"),
+      clusterId: `cluster-${String(i + 1).padStart(5, "0")}`,
+      occurrenceIds: [...new Set(c.occurrences.map(sitioId))],
+      contextFingerprint: fingerprint(c.key ?? c.sample ?? {}),
+      styleVariants,
+      evidenceRefs: [refRunConfig],
+      classificationStatus: c.proposedName ? "classified" : "requires-human",
+    };
+  });
+
+  const pacotesPath = path.join(emitDir, "cluster-packets.ndjson");
+  wf(pacotesPath, pacotes.map((p) => JSON.stringify(p)).join("\n") + "\n");
+
+  const semOwner = lista.filter((c) => !c.proposedName);
+  const relatorio = {
+    ...env.header("inventory-report"),
+    reportId: "classified/ownerless",
+    inventoryKind: "ownerless",
+    inputArtifactRefs: [refRunConfig, env.ref("cluster-packet", pacotesPath, { relativeTo: runRoot })],
+    counts: {
+      population: total,
+      clusters: lista.length,
+      classified: lista.length - semOwner.length,
+      requiresHuman: semOwner.length,
+      unapprovedResidual: semOwner.reduce((s, c) => s + c.count, 0),
+    },
+    detailArtifactRefs: [],
+    // `reconciled` afirma que o inventario fecha com o censo. Ele so pode ser
+    // verdadeiro quando NENHUM cluster ficou sem nome — senao ha populacao que o
+    // relatorio conta e nao explica.
+    reconciled: semOwner.length === 0,
+  };
+  const relatorioPath = path.join(emitDir, "inventory-ownerless.json");
+  wf(relatorioPath, JSON.stringify(relatorio, null, 1) + "\n");
+
+  console.error(
+    `CLASSIFIED emitido: ${pacotes.length} cluster-packet + 1 inventory-report` +
+      ` (${relatorio.counts.classified} classificados, ${relatorio.counts.requiresHuman} para humano)`
+  );
+}
+
 if (argv.includes("--json")) {
   console.log(JSON.stringify({ total, clusters: lista.map((c) => ({ ...c, occurrences: c.occurrences.slice(0, 6) })) }, null, 1));
-} else {
+} else if (!emitDir) {
   console.log(`ocorrencias que violam a lei : ${total}`);
   console.log(`CLUSTERS DE CONTEXTO         : ${lista.length}   <- a unidade de decisao`);
   console.log(`  com nome DERIVADO da lei   : ${derivados.length} clusters, ${cobertos} ocorrencias (${(100 * cobertos / total).toFixed(1)}%)`);

@@ -115,7 +115,36 @@ test("failed scanners and unmapped occurrences prevent exhaustive discovery", ()
     configuredAxes: DESIGN_AXES,
     scannerResults,
   });
-  assert.ok(discovery.uncoveredOccurrenceKinds.includes("canvas-draw"));
+  /*
+   * ATUALIZADO 2026-08-01 — a PROPRIEDADE que este teste protege continua
+   * inteira; o lugar onde ela vive mudou, porque as duas asserções originais
+   * codificavam um modelo que o contrato de artefato torna impossível.
+   *
+   * 1. `canvas-draw` NÃO aparece mais em `uncoveredOccurrenceKinds`. O contrato
+   *    (`lib/artifact-contract.mjs:1331-1337`) exige
+   *    `covered ∪ uncovered ⊆ discovered`, e `canvas-draw` não foi descoberto
+   *    nesta fixture. O sinal do scanner quebrado passou a ser lido da FONTE —
+   *    `scannerResults[].status` — dentro de `exhaustive`, o que é mais forte:
+   *    antes ele só contava se o kind estivesse na varredura dos 19; agora vale
+   *    mesmo quando o kind não aparece em lugar nenhum.
+   *
+   * 2. `byAxis` conta REGISTROS por eixo primário, não pertinências. A
+   *    expectativa antiga era `{breakpoint:1, color:1, spacing:1, unmapped:1}` —
+   *    soma 4 para 2 ocorrências, porque `md:px-2 bg-red-500` é um bundle que
+   *    toca três eixos. Um campo chamado `occurrenceCounts` cuja soma excede o
+   *    número de ocorrências não conta ocorrências. E o contrato
+   *    (`artifact-contract.mjs:1213-1218` e o `sameSet` da Linha 1345) recontava
+   *    por `artifact.axis` e exigia igualdade — as duas leituras não podem
+   *    coexistir, e a que o enforcement aplica é a do registro.
+   *
+   * A leitura multi-eixo não se perdeu do sistema: `axesForOccurrence` continua
+   * exportada, e cada `design-occurrence` carrega o bundle dividido em
+   * `classExpression.rawTokens`.
+   */
+  assert.ok(
+    !discovery.uncoveredOccurrenceKinds.includes("canvas-draw"),
+    "kind não descoberto não pode entrar na cobertura — o contrato reprova"
+  );
   assert.ok(discovery.uncoveredAxes.includes("unmapped"));
   assert.ok(discovery.discoveredAxes.includes("unmapped"));
   assert.deepEqual(
@@ -125,12 +154,17 @@ test("failed scanners and unmapped occurrences prevent exhaustive discovery", ()
         discovery.occurrenceCounts.byAxis[axis],
       ])
     ),
-    {
-      breakpoint: 1,
-      color: 1,
-      spacing: 1,
-      unmapped: 1,
-    }
+    { breakpoint: 0, color: 0, spacing: 1, unmapped: 1 },
+    "byAxis é a partição por eixo primário: 2 ocorrências, soma 2"
   );
-  assert.equal(discovery.exhaustive, false);
+  assert.equal(
+    Object.values(discovery.occurrenceCounts.byAxis).reduce((s, n) => s + n, 0),
+    2,
+    "a soma de byAxis tem que ser o número de ocorrências, senão não é contagem de ocorrências"
+  );
+  assert.equal(
+    discovery.exhaustive,
+    false,
+    "scanner com status failed derruba a exaustividade mesmo sem ocorrência do kind"
+  );
 });

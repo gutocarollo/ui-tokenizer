@@ -563,13 +563,55 @@ export function makeAxisDiscovery({
     OCCURRENCE_KINDS.map((kind) => [kind, 0])
   );
 
+  /*
+   * A UNIDADE DA CONTAGEM É O REGISTRO, NÃO O EIXO QUE ELE TOCA.
+   * Corrigido 2026-08-01, e a correção é sobre SIGNIFICADO, não aritmética.
+   *
+   * O que havia: o laço somava em `byAxis` uma vez para CADA eixo devolvido por
+   * `axesForOccurrence`, que para uma `utility-class` infere todos os eixos do
+   * bundle. Medido no alvo real: soma declarada 26.611 contra 13.869 ocorrências
+   * — quase o dobro, e todo eixo divergindo menos `unmapped` (686 = 686, porque
+   * ocorrência sem eixo secundário conta uma vez pelos dois critérios).
+   *
+   * Por que o dobro: **6.116 das 7.356 ocorrências `utility-class` são bundles**.
+   * `rawValue` é o `className` inteiro — a unidade do censo é o SITE, não a
+   * classe, e isso é deliberado: dividir por classe destruiria `expressionKind`,
+   * `branchId` e `unresolvedDynamicFragments`, que descrevem a expressão. O
+   * bundle sobrevive dividido em `classExpression.rawTokens`.
+   *
+   * O contrato (`artifact-contract.mjs:1213-1218`) reconta por `artifact.axis`,
+   * o eixo primário de cada registro, e exigia igualdade. As duas grandezas são
+   * legítimas e DIFERENTES: uma é "quantos registros têm este eixo como
+   * primário", a outra é "quantas vezes este eixo aparece em algum bundle".
+   *
+   * O contrato está certo sobre QUAL delas cabe aqui: o campo se chama
+   * `occurrenceCounts` e vive dentro dele. Contagem cuja soma excede o número de
+   * ocorrências não é contagem de ocorrências — é contagem de pertinências, e
+   * `unevaluatedProperties: false` no schema impede acrescentar um campo para
+   * ela sem emenda.
+   *
+   * `discoveredAxisSet` passa a sair da MESMA fonte, e isso não é detalhe: o
+   * contrato também compara o CONJUNTO de eixos declarados com o conjunto de
+   * eixos primários (Linha 1343). Derivar o conjunto de `axesForOccurrence` e a
+   * contagem do primário faria os dois divergirem em qualquer alvo onde um eixo
+   * apareça só como secundário — o defeito voltaria pela outra porta.
+   *
+   * `axesForOccurrence` continua exportada e é a leitura mais rica do que um
+   * site pinta; ela só não é a contagem deste artefato.
+   */
   for (const occurrence of occurrences) {
     byOccurrenceKind[occurrence.occurrenceKind] =
       (byOccurrenceKind[occurrence.occurrenceKind] ?? 0) + 1;
-    for (const axis of axesForOccurrence(occurrence)) {
-      discoveredAxisSet.add(axis);
-      byAxis[axis] = (byAxis[axis] ?? 0) + 1;
-    }
+    const primario =
+      occurrence.axis ??
+      primaryAxisFor({
+        occurrenceKind: occurrence.occurrenceKind,
+        property: occurrence.property,
+        rawValue: occurrence.rawValue,
+      }) ??
+      "unmapped";
+    discoveredAxisSet.add(primario);
+    byAxis[primario] = (byAxis[primario] ?? 0) + 1;
   }
 
   const discoveredOccurrenceKinds = OCCURRENCE_KINDS.filter(
@@ -583,14 +625,34 @@ export function makeAxisDiscovery({
   const resultByKind = new Map(
     scannerResults.map((result) => [result.occurrenceKind, result])
   );
-  const coveredOccurrenceKinds = OCCURRENCE_KINDS.filter((kind) => {
+  /*
+   * COBERTURA CLASSIFICA O QUE FOI DESCOBERTO, NÃO O REGISTRO INTEIRO.
+   * Corrigido 2026-08-01.
+   *
+   * O que havia: os dois conjuntos varriam `OCCURRENCE_KINDS`, os 19 do
+   * registro, e o script imprimia `coveredKinds=19/19`. Mas neste alvo só 17
+   * foram descobertos — `css-in-js` e `generated-class` têm zero ocorrências. O
+   * contrato (`artifact-contract.mjs:1331-1337`) exige
+   * `covered ∪ uncovered ⊆ discovered` e reprovava com "Coverage mentions
+   * undiscovered occurrence kind css-in-js".
+   *
+   * E o contrato está certo. Um kind com zero ocorrências não é "coberto" — é
+   * AUSENTE. Chamá-lo de coberto é verdade vacuosa que infla o número: `19/19`
+   * lê-se como cobertura total quando dois dos kinds sequer apareceram no alvo.
+   * É a mesma família do `exactCoverage`, que prova `requested == produced` e
+   * nunca `requested == matriz completa`.
+   *
+   * A informação "este alvo não tem CSS-in-JS" não se perde: ela está em
+   * `discoveredOccurrenceKinds`, por ausência, que é onde ela pertence.
+   */
+  const coveredOccurrenceKinds = discoveredOccurrenceKinds.filter((kind) => {
     const result = resultByKind.get(kind);
     return (
       result?.status === "executed" ||
       result?.status === "approved-out-of-scope"
     );
   });
-  const uncoveredOccurrenceKinds = OCCURRENCE_KINDS.filter(
+  const uncoveredOccurrenceKinds = discoveredOccurrenceKinds.filter(
     (kind) => !coveredOccurrenceKinds.includes(kind)
   );
   const discoveredAxes = [...discoveredAxisSet].sort();
@@ -617,8 +679,32 @@ export function makeAxisDiscovery({
       byAxis,
       byOccurrenceKind,
     },
+    /*
+     * SCANNER QUE FALHOU DERRUBA A EXAUSTIVIDADE SOZINHO — independente de ter
+     * havido ocorrência daquele kind. Acrescentado em 2026-08-01, e a razão é a
+     * distinção que a mudança de cobertura acima quase apagou:
+     *
+     *   kind com ZERO ocorrências e scanner que EXECUTOU  → ausência PROVADA
+     *   kind com ZERO ocorrências e scanner que FALHOU    → ausência NÃO PROVADA
+     *
+     * Antes, o sinal do scanner quebrado chegava aqui de carona em
+     * `uncoveredOccurrenceKinds`, que varria os 19 do registro. Ao passar a
+     * classificar só os kinds descobertos (exigência do contrato,
+     * `artifact-contract.mjs:1331`), um scanner quebrado cujo kind não apareceu
+     * sumiria da conta e a corrida se declararia exaustiva sobre um scanner que
+     * nunca rodou. O teste `failed scanners and unmapped occurrences prevent
+     * exhaustive discovery` existe exatamente para impedir isso, e foi ele quem
+     * pegou a regressão.
+     *
+     * Agora o sinal é lido da FONTE — o status do scanner — em vez de inferido
+     * de um conjunto derivado. É mais forte que antes: vale mesmo quando o kind
+     * não aparece em lugar nenhum.
+     */
     exhaustive:
       upstreamExhaustive &&
+      scannerResults.every(
+        (r) => r?.status === "executed" || r?.status === "approved-out-of-scope"
+      ) &&
       uncoveredOccurrenceKinds.length === 0 &&
       uncoveredAxes.length === 0,
   };
