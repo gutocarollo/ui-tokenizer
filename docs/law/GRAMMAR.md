@@ -233,6 +233,55 @@ An omitted state means `default`. Do **not** write `.default`.
 
 ## 5. Decision rules
 
+### 5.7 Identical colour plus identical contract is sufficient to merge
+
+> **OWNER'S RULING, 2026-08-01 (D2).** Asked whether two clusters with ΔE 0,00
+> and an identical derived contract should merge regardless of file and tag, the
+> owner chose **yes**.
+
+When the `cor` signal scores **1** (ΔE ≤ the imperceptible threshold) **and** the
+`contrato` signal scores **1** (same entity, property, variant and state), the
+pair merges. The remaining signals cannot veto it.
+
+**The reason, which is what makes this an exception rather than a tweak.** The
+two signals that used to veto — `componente` (Dice over the file name, weight
+15) and `funcao` (tag plus role, weight 10) — measure **where the code lives**,
+not what the token is. `Button` under `components/` versus `ApiCallNode` under
+`pages/` is a fact about folder organisation. Letting two locality signals
+overrule an identity that colour and contract have already asserted inverts the
+method's own hierarchy of evidence.
+
+**What it does not do.** It changes no weight, it does not lower the cut, and it
+does not apply when colour is merely *close* (score 0,5). It requires both
+signals at maximum.
+
+**The measured effect** on `makers-ai-hub/frontend`, same command before and
+after:
+
+| | before | after |
+|---|---:|---:|
+| human queue | 129 pairs | **92** |
+| merges | 993 | **1016** |
+| …of which absorbed by outlier | 194 | **0** |
+| final contracts | 267 | **244** |
+| names carrying more than one cluster | 25 | **14** |
+| iterations to converge | 4 | **3** |
+
+Two consequences worth naming. The outlier escape hatch — the weakest
+justification a merge can have — **went to zero**: every merge is now carried by
+confidence. And of the 14 names that still map to more than one cluster,
+**every one has a different dominant primitive**; none is a residue of this
+defect. Those are the §9 case: divergence to expose, never to erase.
+
+**The accepted cost.** Two consumers that are the same colour today by
+coincidence share one token. If product later diverges them, colour stops
+scoring 1 and the pair returns to the weighted sum — but until then, separating
+them costs a codemod.
+
+Implemented in `scripts/converge-tokens.mjs::mergeConfidence`, which emits a
+`suficiencia` signal on every pair it lifts, so the report shows which merges
+came from this rule rather than from the sum.
+
 ### 5.6 `text` replaced `label`, and `color` replaced the coined property
 
 > **OWNER'S RULING, 2026-08-01.** Verbatim: *"o que eu disse é text no lugar de
@@ -340,21 +389,33 @@ Tailwind          bg-page
 > zero occurrences in real code across all four senses (text×background,
 > bg×border, border×background, text×border).
 >
-> ⚠ **Two spellings in this block are an OPEN architecture decision, not
-> settled law — do not cite them as precedent.** (a) whether the class is
-> `bg-page` or `bg-page-background-color` (shadcn omits the suffix, M3 and Primer
-> write it); (b) whether the CSS variable is `--mh-*` or `--color-*` (the
-> Tailwind namespace `--color-*` is what generates the utilities at all).
-> Registered with the price of each side in commit `4091e37`. What the guard
-> already enforces **under either spelling** is the invariant above: the prefix
-> may not contradict the property.
+> ✅ **CLOSED 2026-08-01 (D1) — the emitted spelling is the SHORT class under
+> the `--color-*` namespace.** This block was an open architecture decision for
+> two questions: (a) `bg-page` or `bg-page-background-color`; (b) `--mh-*` or
+> `--color-*`. The owner chose the short class and `--color-*`.
+>
+> **The datum that decided it:** the reference target runs Tailwind **4.3.3**
+> (measured, and recorded in the run's `run-config` under `toolchain.versions`),
+> and `--color-*` is the namespace `@theme` consumes to generate utilities at
+> all. Under `--mh-*` the bridge to the utility layer would have to be written
+> by hand for every token.
+>
+> **The accepted cost, stated so nobody rediscovers it as a defect:** the class
+> alone no longer shows the property, so `bg-button-primary` and
+> `text-button-primary` look unrelated to a reader who sees only the class.
+> That relationship survives where it matters — the **DTCG name still carries
+> the property**, and the DTCG name is what the naming oracle judges. The class
+> is a projection, not the contract.
+>
+> Unchanged, and still enforced under the chosen spelling: the prefix may not
+> contradict the property. Prices of each side were registered in `4091e37`.
 
-With variant, anatomy, and state:
+With variant, anatomy, and state — in the closed spelling:
 
 ```
 DTCG   button.primary.background-color.hover
-CSS    --mh-button-primary-background-color-hover
-TW     hover:bg-button-primary-background-color
+CSS    --color-button-primary-background-color-hover
+TW     hover:bg-button-primary
 ```
 
 > **ORDER CORRECTED 2026-08-01 — the variant sits next to what it qualifies.**

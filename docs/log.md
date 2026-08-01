@@ -7,6 +7,30 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-08-01] lei · decisao do dono
+
+- **D1 — a grafia emitida FECHOU.** O bloco da §1 que dizia *"Two spellings in
+  this block are an OPEN architecture decision"* deixou de estar aberto: classe
+  CURTA (`bg-button-primary`) sob o namespace `--color-*`. O dado que decidiu:
+  o alvo de referencia roda Tailwind **4.3.3** (medido, gravado no `run-config`
+  em `toolchain.versions`) e `--color-*` e o namespace que o `@theme` consome
+  para gerar utility — sob `--mh-*` a ponte seria manual para cada token. Custo
+  aceito e declarado na lei: a classe sozinha nao mostra mais a propriedade; a
+  relacao sobrevive no nome DTCG, que e o que o oraculo julga.
+- **D2 — §5.7 nova: cor identica + contrato identico bastam para fundir.**
+  Quando `cor` marca 1 (ΔE imperceptivel) E `contrato` marca 1, o par funde e os
+  demais sinais nao vetam. A razao: `componente` (Dice do nome do arquivo) e
+  `funcao` (tag+role) medem ONDE O CODIGO MORA, nao o que o token e — deixar dois
+  sinais de localizacao derrubarem uma identidade que cor e contrato ja
+  afirmaram inverte a hierarquia de evidencia do metodo.
+- Efeito medido no mesmo comando, antes e depois: fila humana **129 -> 92**;
+  fusoes 993 -> 1016; **fusoes por outlier 194 -> 0** (a justificativa mais fraca
+  que uma fusao pode ter foi a zero); contratos finais 267 -> 244; nomes com mais
+  de um cluster 25 -> 14; iteracoes 4 -> 3.
+- Verificado exaustivo: **zero** pares com `cor=1` e `contrato=1` sobraram na
+  fila, e **zero** nomes duplicados com o mesmo primitivo — os 14 que restam tem
+  cor DIFERENTE e sao a divergencia legitima da §9, que a lei manda expor.
+
 ## [2026-08-01] auditoria · planos
 
 - **Documento do PROCESSO morando no repo do ALVO.** O dono pediu para varrer os

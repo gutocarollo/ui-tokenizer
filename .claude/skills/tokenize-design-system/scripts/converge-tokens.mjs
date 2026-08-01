@@ -219,7 +219,54 @@ function mergeConfidence(a, b) {
   signals.push({ name: "funcao", weight: 10, score: mesmaFuncao ? 1 : 0, note: mesmaFuncao ? `mesma tag <${a.sample.tag}> e mesmo role` : "tag ou role diferentes" });
 
   const total = signals.reduce((s, x) => s + x.weight * x.score, 0);
-  return { confidence: Math.round(total), uncertainty: 100 - Math.round(total), signals };
+
+  /*
+   * REGRA DE SUFICIENCIA — decisao do dono, 2026-08-01 (D2), e ela e a unica
+   * parte deste calculo que NAO e soma ponderada.
+   *
+   * O PROBLEMA MEDIDO. Na corrida contra makers-ai-hub/frontend, 37 dos 129
+   * pares da fila humana tinham `cor = 1` (deltaE 0,00, imperceptivel) E
+   * `contrato = 1` (mesmo owner+propriedade+variante+estado) e paravam em
+   * confianca 68 ou 69, contra um corte de 70. Perdiam por UM a DOIS pontos
+   * porque `componente` (peso 15) e `funcao` (peso 10) zeravam.
+   *
+   * O caso concreto: `button-primary-color` ficava separado entre `Button` em
+   * `components/` (110 usos) e `ApiCallNode` em `pages/` (5 usos) — mesma cor,
+   * mesmo contrato derivado, arquivos e tags diferentes. O processo emitia DOIS
+   * contratos com o MESMO nome e a MESMA cor e chamava isso de convergido.
+   *
+   * A RAZAO, que e o que justifica a excecao: quando cor e contrato ja
+   * concordam, `componente` (Dice sobre o nome do arquivo) e `funcao` (tag +
+   * role) estao medindo ONDE O CODIGO MORA, nao o que o token e. `Button` em
+   * `components/` versus `ApiCallNode` em `pages/` e fato de organizacao de
+   * pasta — nao e evidencia sobre identidade de token. Deixar dois sinais de
+   * localizacao vetarem uma identidade que a cor e o contrato ja afirmaram
+   * inverte a hierarquia de evidencia do proprio metodo.
+   *
+   * O QUE ISTO NAO FAZ: nao mexe em peso nenhum, nao afrouxa o corte, e nao vale
+   * quando a cor e apenas PROXIMA (score 0,5). Exige os dois sinais no maximo.
+   * Um par que amanha divergir por decisao de produto deixa de ter cor 1 e volta
+   * a ser julgado pela soma — o custo declarado desta opcao e que, ate la, os
+   * dois consumidores compartilham o token.
+   *
+   * Registrado na lei em §5.7, porque uma regra de identidade que so existe em
+   * codigo e regra que a proxima sessao nao encontra.
+   */
+  const cor = signals.find((s) => s.name === "cor");
+  const contrato = signals.find((s) => s.name === "contrato");
+  const suficiente = cor?.score === 1 && contrato?.score === 1;
+  const confidence = suficiente ? Math.max(Math.round(total), 100 - MAX_UNCERTAINTY) : Math.round(total);
+
+  if (suficiente && confidence !== Math.round(total)) {
+    signals.push({
+      name: "suficiencia",
+      weight: 0,
+      score: 1,
+      note: `cor identica + contrato identico bastam (§5.7): ${Math.round(total)} elevado a ${confidence}`,
+    });
+  }
+
+  return { confidence, uncertainty: 100 - confidence, signals };
 }
 
 /* -------------------------------------------------------------- iteracoes -- */
