@@ -69,15 +69,15 @@ for (const w of words) {
 
 ```js
 export const IMPLIED_PROPERTY = {
-  label: "foreground-color", placeholder: "foreground-color", helper: "foreground-color",
-  caret: "foreground-color", backdrop: "background-color", divider: "border-color",
+  label: "color", placeholder: "color", helper: "color",
+  caret: "color", backdrop: "background-color", divider: "border-color",
 };
 ```
 
 ### 1.4 Coherent anatomy × property pair — 10 points
 
 See `anatomy-property.md` for the complete matrix. It fails on internal
-contradictions: `label` + `background-color`, `track` + `foreground-color`, or `divider` +
+contradictions: `text` + `background-color`, `track` + `color`, or `divider` +
 `background-color`.
 
 ### 1.5 State with a default pair — 10 points
@@ -149,7 +149,7 @@ node "$SKILL/scripts/score-naming.mjs" --root "$ROOT"   # "N of 53 prefixes have
 ```
 
 ⚠ **Live divergence, measured 2026-07-31.** §4.3 renamed the text property from
-the bare CSS name to `foreground-color`, and `scripts/lib/utility-families.mjs`
+the bare CSS name to `color`, and `scripts/lib/utility-families.mjs`
 still maps `text`, `caret`, `placeholder` and `accent` to the old name. The
 consequence is visible in the line above: the unlawed count went from 41 to 45,
 and `text-*` — the paint utility the law exists to govern — became LAW GAP. Until

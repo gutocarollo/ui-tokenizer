@@ -2,7 +2,7 @@
  * A LEI e o CODIGO nao podem divergir em silencio.
  *
  * DEFEITO REAL QUE ORIGINOU ESTE TESTE, cometido em 2026-07-31: a §4.3 da lei
- * foi renomeada de `color` para `foreground-color` e o `UTILITY_FAMILIES` de
+ * foi renomeada de `color` para `color` e o `UTILITY_FAMILIES` de
  * `lib/utility-families.mjs` continuou dizendo `color`. Nada estourou.
  *
  * O efeito nao foi erro — foi RECLASSIFICACAO SILENCIOSA. Como

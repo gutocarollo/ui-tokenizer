@@ -15,7 +15,7 @@ property?"** — the question behind criterion §1.4 of the NAME score.
 ## 1. The matrix
 
 Column headings are shorthand for the §4.3 property they stand for: `bg` =
-`background-color`, `fg` = `foreground-color`, `border` = `border-color`,
+`background-color`, `fg` = `color`, `border` = `border-color`,
 `outline` = `outline-color`, `shadow` = `box-shadow`. The shorthand is for
 column width only — **the §4.3 spelling is what goes in a token name.**
 
@@ -23,7 +23,7 @@ column width only — **the §4.3 spelling is what goes in a token name.**
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | *(empty — the owner itself)* | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
 | `container` ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
-| `label` | ✗ | **✓** | ✗ | ✗ | ✗ | — | — |
+| `text` | ✗ | **✓** | ✗ | ✗ | ✗ | — | — |
 | `placeholder` | ✗ | **✓** | ✗ | ✗ | ✗ | — | — |
 | `helper` | ✗ | **✓** | ✗ | ✗ | ✗ | — | — |
 | `caret` | ✗ | **✓** | ✗ | ✗ | ✗ | — | — |
@@ -53,11 +53,11 @@ single part, leave the slot empty. See `examples.md` §2.
 
 ### 2.1 Single-property anatomy → do NOT write the property
 
-`label` · `placeholder` · `helper` · `caret` · `backdrop` · `divider` have only
+`text` · `placeholder` · `helper` · `caret` · `backdrop` · `divider` have only
 **one ✓**. The anatomy already determines the property:
 
 ```
-✅ field.placeholder          ❌ field.placeholder.foreground-color
+✅ field.placeholder          ❌ field.placeholder.color
 ✅ modal.backdrop             ❌ modal.backdrop.background-color
 ✅ menu.divider               ❌ menu.divider.border-color
 ```
@@ -67,30 +67,30 @@ source** — if you add an anatomy here with only one ✓, add it to the map.
 
 > **SCOPED 2026-08-01 — "only one ✓" vale DENTRO do domínio de pintura.** A
 > matriz acima tem sete colunas e as sete são paint. Desde que espaçamento e
-> tipografia entraram na §4.3 por decisão do dono, um `label` continua tendo
+> tipografia entraram na §4.3 por decisão do dono, um `text` continua tendo
 > UMA cor — mas tem também `font-weight`, `line-height` e `letter-spacing`. Logo
-> `button.label` é a cor (propriedade omitida) e `button.label.font-weight` é
+> `button.text` é a cor (propriedade omitida) e `button.text.font-weight` é
 > obrigatório escrever. O oráculo faz o mesmo corte em `dominioDaPropriedade()`.
 >
 > E a implicação é regra de RUÍDO, não de impossibilidade: dizer que a única
-> propriedade de pintura de `label` é `foreground-color` **não** implica que
-> `label` não possa carregar outra coisa. As duas afirmações estavam coladas no
+> propriedade de pintura de `text` é `color` **não** implica que
+> `text` não possa carregar outra coisa. As duas afirmações estavam coladas no
 > mesmo mapa e a inferência era inválida — separadas em `IMPLIED_PROPERTY`
 > (ruído) e `PARES_IMPOSSIVEIS` (impossibilidade real, com a razão escrita).
 
 > ✔ **DRIFT FIXED in `b7a0405` (2026-07-31).** §4.3 renamed the text property to
-> `foreground-color` and `scripts/score-naming.mjs` (`IMPLIED_PROPERTY`,
-> Linhas 105-112) was realigned in the same commit — `label`/`placeholder`/
-> `helper`/`caret` now map to `foreground-color`, `backdrop` to
+> `color` and `scripts/score-naming.mjs` (`IMPLIED_PROPERTY`,
+> Linhas 105-112) was realigned in the same commit — `text`/`placeholder`/
+> `helper`/`caret` now map to `color`, `backdrop` to
 > `background-color`, `divider` to `border-color`. The false failure this note
-> used to describe (`button-label-foreground-color` rejected by `coherent-pair`)
+> used to describe (`button-label-color` rejected by `coherent-pair`)
 > no longer reproduces. The matrix above remains the SOURCE of the map: adding a
 > single-✓ anatomy here requires adding it to `IMPLIED_PROPERTY` in the same
 > change.
 
 ### 2.2 Multi-property anatomy → property REQUIRED
 
-`icon` carries `foreground-color` **and** `fill` **and** `stroke` — three
+`icon` carries `color` **and** `fill` **and** `stroke` — three
 different things in an SVG. `header` carries background, text, and border.
 Without the property, the name is ambiguous:
 
@@ -101,7 +101,7 @@ Without the property, the name is ambiguous:
 
 ### 2.3 ✗ cell → the name is wrong, not a synonym
 
-`button.label.background-color` is not "another way to say
+`button.text.background-color` is not "another way to say
 `button.background-color`". It is an **impossible pair**, and the fix is to
 replace the token, never to invent an alias. Decision rule §2: *an incompatible
 property means the owner is wrong, not that it is a synonym*.
@@ -116,7 +116,7 @@ system:
 | owner | addressable parts | write anatomy? |
 |---|---|---|
 | `page` | 1 (the surface) | **no** → `page.background-color` |
-| `button` | container, label, icon | **yes** → `button.label` (§2.1: `label` implies the property) |
+| `button` | container, label, icon | **yes** → `button.text` (§2.1: `text` implies the property) |
 | `field` | container, label, placeholder, helper, caret | **yes** |
 | `modal` | container, header, backdrop | **yes** |
 | `data-table` | header, row, cell, divider | **yes** |

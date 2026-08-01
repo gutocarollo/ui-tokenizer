@@ -37,14 +37,14 @@ const CASOS = [
   { owner: "page", property: "background-color" },
   { owner: "button", variant: "secondary", property: "border-color" },
   { owner: "button", variant: "primary", property: "background-color", state: "hover" },
-  { owner: "button", variant: "destructive", anatomy: "label" },
+  { owner: "button", variant: "destructive", anatomy: "text" },
   { owner: "field", anatomy: "placeholder" },
   { owner: "data-table", anatomy: "header", property: "background-color" },
   { owner: "divider", property: "border-color" },
   { owner: "focus-ring", property: "outline-color" },
   { owner: "menu", anatomy: "row", property: "background-color", state: "selected" },
   { owner: "card", property: "padding" },
-  { owner: "button", variant: "ghost", anatomy: "icon", property: "foreground-color", state: "disabled" },
+  { owner: "button", variant: "ghost", anatomy: "icon", property: "color", state: "disabled" },
   { owner: "chat-message", property: "line-height" },
 ];
 

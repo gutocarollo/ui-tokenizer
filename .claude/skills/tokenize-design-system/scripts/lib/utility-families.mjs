@@ -45,7 +45,7 @@
 export const UTILITY_FAMILIES = {
   /* ---- paint · §4.3 HAS a slot for every property below ------------------ */
   bg: { property: "background-color", family: "paint" },
-  text: { property: "foreground-color", family: "paint", valueDependent: "font-size" },
+  text: { property: "color", family: "paint", valueDependent: "font-size" },
   border: { property: "border-color", family: "paint" },
   ring: { property: "outline-color", family: "paint" },
   divide: { property: "border-color", family: "paint" },
@@ -53,9 +53,9 @@ export const UTILITY_FAMILIES = {
   shadow: { property: "box-shadow", family: "paint" },
   fill: { property: "fill", family: "paint" },
   stroke: { property: "stroke", family: "paint" },
-  placeholder: { property: "foreground-color", family: "paint" },
-  accent: { property: "foreground-color", family: "paint" },
-  caret: { property: "foreground-color", family: "paint" },
+  placeholder: { property: "color", family: "paint" },
+  accent: { property: "color", family: "paint" },
+  caret: { property: "color", family: "paint" },
 
   /* ---- radius · NO §4.3 SLOT --------------------------------------------- */
   /* Corner is a SIDE axis, not a different property — the same way `border-`

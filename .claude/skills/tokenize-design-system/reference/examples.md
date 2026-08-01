@@ -58,7 +58,7 @@ THE BUTTON? WHY SHOULD THE EXTERNAL CONTAINER TOKEN BE UNDER BUTTON? IF IT IS TH
 BUTTON ITSELF, WHY CONTAINER?"*
 
 **The right question is: if `container` were not there, what could be there?**
-Answer: `label`, `icon`, `prefix`, `suffix`. `container` means "none of those"
+Answer: `text`, `icon`, `prefix`, `suffix`. `container` means "none of those"
 — **the part that is the whole**. That is exactly what the **empty** slot already
 says.
 
@@ -70,8 +70,8 @@ with an existing token. Zero information, 33 times.
 ```
 button.background-color          ← the button’s own surface
 button.label                     ← the text inside it (§2.1 of anatomy-property.md:
-                                    `label` permits only one property, so writing
-                                    `foreground-color` here would be redundant)
+                                    `text` permits only one property, so writing
+                                    `color` here would be redundant)
 button.icon.fill                 ← the icon inside it
 ```
 
@@ -93,10 +93,10 @@ information: removing `header` collides with `row`.
 ### ❌ Bad
 
 ```
-field.placeholder.foreground-color
+field.placeholder.color
 ```
 
-`placeholder` **can only** have `foreground-color`. `placeholder.background-color`
+`placeholder` **can only** have `color`. `placeholder.background-color`
 does not exist — a placeholder is text. The property is derivable from the
 anatomy.
 
@@ -111,7 +111,7 @@ field.placeholder
 ```
 field.background-color
 field.border-color
-field.foreground-color
+field.color
 ```
 
 `field` itself permits background, border, **and** text. Without the property,
@@ -338,15 +338,15 @@ src/components/EmbeddingSelection/VoyageAiOptions/index.jsx:9
 ```
 
 They all render the label of a credentials form field. **One contract with 50
-instances** → `field.label`. The cluster is legitimate: all 50 change together
+instances** → `field.text`. The cluster is legitimate: all 50 change together
 because **they are the same thing**.
 
-(`field.label` and not `field.label.foreground-color`: `label` permits only one
+(`field.text` and not `field.text`: `text` permits only one
 property, so the property would be redundant — §2.1 of `anatomy-property.md`.)
 
 ### ❌ Bad — a cluster that destroys information
 
-Putting `<p>` + `content-primary` (198 uses) into one `text.foreground-color`
+Putting `<p>` + `content-primary` (198 uses) into one `text`
 because "it is all text." Note that the *proposed* name is doubly illegal:
 `text` is not an owner of §4.1, so `violations_grammar()` rejects it on the
 first segment — replacing a banned name with an ownerless one is not a

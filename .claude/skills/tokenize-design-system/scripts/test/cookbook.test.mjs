@@ -49,11 +49,11 @@ test("cada regra da lei tem um caso, e o oraculo concorda com ela", () => {
   ]);
   const casos = [
     ["page-background-color", 100, "entidade + propriedade, o caso minimo"],
-    ["page-foreground-color", 100, "propriedade por extenso, nunca `color`"],
+    ["page-color", 100, "propriedade por extenso, nunca `color`"],
     ["button-primary-background-color", 100, "variante colada a entidade"],
     ["button-primary-background-color-hover", 100, "estado no fim, com par base"],
     ["button-secondary-border-color", 100, "a variante qualifica o BOTAO"],
-    ["button-destructive-label", 100, "anatomia de propriedade unica"],
+    ["button-destructive-text", 100, "anatomia de propriedade unica"],
     ["field-placeholder", 100, "idem — placeholder e texto por definicao"],
     ["data-table-header-background-color", 100, "entidade composta + anatomia"],
     ["divider-border-color", 100, "entidade GLOBAL, sem pai (§5.5)"],
@@ -94,25 +94,34 @@ test("redundancia e por PROPRIEDADE inteira, nao por palavra compartilhada", () 
   /*
    * Decisao do dono, 2026-08-01: um <span> com fundo e um ROTULO COM FUNDO, nao
    * um conteiner com rotulo dentro — o renderizado ali e uma caixa so. Logo
-   * `markdown.label.background-color` e canonico.
+   * `markdown.text.background-color` e canonico.
    *
    * O criterio `no-redundancy` reprovava esse nome com 85/100 porque quebrava a
-   * propriedade implicada (`foreground-color`) em palavras e achava `color`
+   * propriedade implicada (`color`) em palavras e achava `color`
    * dentro de `background-color`. Sao propriedades DIFERENTES: compartilhar uma
    * palavra nao torna uma derivavel da outra. O que continua — e tem que
    * continuar — sendo redundante e escrever a propriedade que a anatomia de fato
    * implica.
    */
   const universo = new Set([
-    "markdown-label", "markdown-label-background-color",
-    "button-label", "button-label-foreground-color",
+    "markdown-text", "markdown-text-background-color",
   ]);
+  /*
+   * NEM `button-text` NEM `button-text-color` entram no universo, e a razao e
+   * sutil. O criterio `no-redundancy` so aponta uma palavra quando remove-la NAO
+   * colide com um nome que ja existe — uma palavra que garante unicidade nao e
+   * ruido. Se `button-text` estivesse no universo, encurtar `button-text-color`
+   * bateria nele, o `collides` protegeria a palavra `color`, e a redundancia
+   * ficaria invisivel. E o ponto do teste e exatamente o oposto: quem escreveu
+   * `button.text.color` deveria ter escrito `button.text`, porque sao a MESMA
+   * coisa e so uma delas deve existir.
+   */
   assert.equal(
-    scoreName("markdown-label-background-color", vocabulario, universo).score,
+    scoreName("markdown-text-background-color", vocabulario, universo).score,
     100,
     "rotulo COM fundo e canonico desde a decisao de 2026-08-01"
   );
-  const redundante = scoreName("button-label-foreground-color", vocabulario, universo);
+  const redundante = scoreName("button-text-color", vocabulario, universo);
   assert.ok(
     redundante.score < 100 &&
       redundante.criteria.some((c) => c.c === "no-redundancy" && !c.ok),

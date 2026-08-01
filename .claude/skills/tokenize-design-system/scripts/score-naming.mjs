@@ -104,7 +104,7 @@ export const NO_SLOT = {
 
 /**
  * An anatomy enters this map only when it can carry exactly one CSS property.
- * `label` is text, so it has `foreground-color` but no surface of its own. For anatomies
+ * `text` is a text node, so it has `color` but no surface of its own. For anatomies
  * that can carry multiple properties (`container`, `icon`), property remains
  * informative and is intentionally absent here.
  */
@@ -150,7 +150,7 @@ export const NO_SLOT = {
 
 /** Os tres dominios da §4.3. A derivabilidade so vale DENTRO de um. */
 export const DOMINIO_DA_PROPRIEDADE = Object.freeze({
-  "background-color": "paint", "foreground-color": "paint", "border-color": "paint",
+  "background-color": "paint", color: "paint", "border-color": "paint",
   "outline-color": "paint", "box-shadow": "paint", fill: "paint", stroke: "paint",
   "border-radius": "geometry", padding: "geometry", margin: "geometry",
   gap: "geometry", "row-gap": "geometry", "column-gap": "geometry",
@@ -167,10 +167,10 @@ export function dominioDaPropriedade(p) {
  * Nunca reprova por impossibilidade.
  */
 export const IMPLIED_PROPERTY = {
-  label: "foreground-color",
-  placeholder: "foreground-color",
-  helper: "foreground-color",
-  caret: "foreground-color",
+  text: "color",
+  placeholder: "color",
+  helper: "color",
+  caret: "color",
   backdrop: "background-color",
   divider: "border-color",
 };
@@ -182,12 +182,12 @@ export const IMPLIED_PROPERTY = {
  */
 export const PARES_IMPOSSIVEIS = Object.freeze({
   caret: {
-    permitido: ["foreground-color"],
+    permitido: ["color"],
     razao: "o CSS tem exatamente uma propriedade de caret: `caret-color`. Nao ha " +
            "caret-background, caret-border nem caret-shadow.",
   },
   placeholder: {
-    permitido: ["foreground-color", "font-weight", "line-height", "letter-spacing"],
+    permitido: ["color", "font-weight", "line-height", "letter-spacing"],
     razao: "`::placeholder` aceita cor e tipografia; nao aceita geometria propria — " +
            "ele nao tem caixa. Medido: 0 ocorrencias de `placeholder:bg-*` nos dois produtos.",
   },

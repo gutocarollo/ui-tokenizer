@@ -121,7 +121,14 @@ BASELINE = _achar_baseline()
 # Divida no momento do banimento, medida: 3.086 classes consumidas, 90 custom
 # properties e 2 caminhos na fonte DTCG. O baseline registra esse numero para o
 # catraca impedir uso NOVO enquanto a migracao acontece.
-FORBIDDEN = ("surface", "semantic", "content")
+FORBIDDEN = ("surface", "semantic", "content", "label", "foreground")
+#
+# `label` e `foreground` entraram em 2026-08-01 por decisao expressa do dono.
+# `label` descreve um CONTROLE; a anatomia canonica e `text`, que qualquer
+# entidade pode ter — uma mensagem de chat nao tem rotulo, tem texto. E
+# `foreground` era uma cunhagem nossa: a propriedade agora e `color`, a palavra
+# que o proprio CSS usa. A ambiguidade que motivou a cunhagem (`card.color`:
+# texto ou preenchimento?) some quando `text` existe como anatomia.
 
 
 def violations_in_source():

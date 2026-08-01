@@ -9,7 +9,7 @@ orphan and a defect, the same rule `docs/SCHEMA.md` applies to the wiki.
 
 | File | Authority | Purpose |
 | --- | --- | --- |
-| `law.md` | normative | Closed vocabulary, grammar, scoring rules, and semantic naming constraints. Scripts read this file directly. Three words are banned from a public token name — `surface`, `semantic` and `content`; the text property is `foreground-color`, never `color`. |
+| `law.md` | normative | Closed vocabulary, grammar, scoring rules, and semantic naming constraints. Scripts read this file directly. Three words are banned from a public token name — `surface`, `semantic` and `content`; the text property is `color`, never `color`. |
 | `cookbook.md` | normative | A situação real → o nome que a lei dá a ela. Espelho de `docs/law/cookbook.md`; validado por `validate-cookbook.mjs`. Exceção sem justificativa escrita é falha. |
 | `anatomy-property.md` | normative | The limited anatomy × property matrix used by the score and derivation rules. |
 | `end-to-end-workflow.md` | normative | The orchestration contract: 22 sections and a 49-node graph (30 marked `[D]`, 3 `[H]`), invariants, completion predicates and re-entry routing. |

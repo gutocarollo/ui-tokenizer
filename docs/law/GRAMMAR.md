@@ -167,7 +167,7 @@ See §5.5 — the head is an entity, and a cross-cutting decision is one.
 
 ### 4.2 Anatomy
 
-`container` · `label` · `icon` · `track` · `thumb` · `indicator` · `header` ·
+`container` · `text` · `icon` · `track` · `thumb` · `indicator` · `header` ·
 `row` · `cell` · `backdrop` · `divider` · `caret` · `placeholder` · `helper` ·
 `prefix` · `suffix` · `handle`
 
@@ -184,8 +184,8 @@ owner with no parts writes `owner.property` — the empty slot already means
 
 ### 4.3 Properties
 
-Paint — `background-color` · `foreground-color` · `border-color` ·
-`outline-color` · `box-shadow` · `fill` · `stroke`
+Paint — `background-color` · `color` · `border-color` · `outline-color` ·
+`box-shadow` · `fill` · `stroke`
 
 Geometry — `border-radius` · `padding` · `margin` · `gap` · `row-gap` ·
 `column-gap`
@@ -212,11 +212,13 @@ Type — `font-weight` · `line-height` · `letter-spacing`
 > that is also why this note may not contain a lowercase backticked word that is
 > not a property.
 
-> **CHANGED 2026-07-31.** The bare CSS property name for text was replaced by
-> `foreground-color`. Rationale, references, and the rejected abbreviation are in
-> §8.2 — deliberately **not here**, because this section is machine-read and any
-> backticked lowercase word placed between the §4.3 and §4.4 headings is parsed
-> as a valid property.
+> **SUPERSEDED 2026-08-01 — see §5.6.** A note here used to announce a coined
+> name for the text property. Both that name and the anatomy it paired with are
+> gone; the record is in §5.6 — deliberately **not here**, because this section is
+> machine-read and any backticked lowercase word placed between the §4.3 and §4.4
+> headings is parsed as a valid property. Naming the banned words here would put
+> them back in the vocabulary, which is exactly what happened on the first attempt.
+
 
 ### 4.4 Variants (only where the owner genuinely has them)
 
@@ -230,6 +232,38 @@ Type — `font-weight` · `line-height` · `letter-spacing`
 An omitted state means `default`. Do **not** write `.default`.
 
 ## 5. Decision rules
+
+### 5.6 `text` replaced `label`, and `color` replaced the coined property
+
+> **OWNER'S RULING, 2026-08-01.** Verbatim: *"o que eu disse é text no lugar de
+> label, literalmente. Não usar mais label. Proibir. E não use foreground também."*
+> Both words are now in the guard's `FORBIDDEN` list, alongside the other three.
+>
+> **Why `text` beats `label`, and it is not about Tailwind.** `label` describes a
+> control: a button has one, a field has one. A chat message does not have a label
+> — it has text; so does a table cell, a code block, a citation. The old anatomy
+> forced the control's word onto every entity that merely renders characters. `text`
+> is the part that any entity can have, and it happens to be the word the utility
+> prefix already uses.
+>
+> **Why the property survived the ban, with a different name.** The first attempt
+> removed it outright, and the removal was executed and measured before being
+> reverted: **72 names became inexpressible** — 42 of them under `icon`, the rest
+> under `row`, `header`, `cell`, `prefix` and `indicator`. The colour of an icon is
+> not "text". The two words answer different questions and only coincide when the
+> part IS the text:
+>
+> | slot | question | example |
+> |---|---|---|
+> | anatomy `text` | **which part?** | `button.text` — paint implied by §7.2 |
+> | property `color` | **what does it paint?** | `card.icon.color` — an icon is not text |
+>
+> **Why `color` and not another coinage.** §8.2 had rejected the bare CSS name as
+> ambiguous — *"does `card.color` mean the card's text or its fill?"*. That
+> ambiguity **dissolves** once `text` exists as an anatomy: `card.text` is the text,
+> `card.icon.color` is the icon, `card.background-color` is the fill. What made the
+> bare name ambiguous was the absence of a part to attach it to, not the word.
+> Between a coinage of ours and the word CSS already ships, the second wins.
 
 ### 5.5 The head of the name is an ENTITY, and globals qualify
 
@@ -267,7 +301,7 @@ An omitted state means `default`. Do **not** write `.default`.
    page’s. Two contracts with the same value today remain two contracts.
 2. **An incompatible property means the owner is wrong, not that it is a
    synonym.** A background alias painting text (`color: theme.surface.panel`)
-   does not become `x.container.foreground-color` — it becomes the text token
+   does not become `x.container.color` — it becomes the text token
    that the owner already has.
 3. **Repetition is evidence, not a verdict.** Thirty uses of the same pair do
    not prove that all thirty have the same role; they prove that all thirty are
@@ -296,7 +330,7 @@ Tailwind          bg-page
 > written into the law itself: `text-page` paints the TEXT with the PAGE
 > BACKGROUND value. A token declares **one** property, so it is consumed by the
 > **one** utility family that sets that property. Want the page's text color?
-> That is a different token: `page.foreground-color`.
+> That is a different token: `page.text`.
 >
 > This is now executable —
 > [`ds-naming-law.py::violations_prefix_property()`](../../tools/gates/ds-naming-law.py)
@@ -407,11 +441,11 @@ and the empty slot already conveys that.
 
 > **SCOPED 2026-08-01.** This table used to say "only possible property", full
 > stop — true only while §4.3 knew nothing but paint. Since spacing and typography
-> entered the law by the owner's ruling, a `label` still has exactly one COLOUR,
+> entered the law by the owner's ruling, a `text` node still has exactly one COLOUR,
 > but it also has weight, line height and letter spacing. So the derivation is
 > **per domain**: the paint property is implied and therefore omitted
-> (`button.label`); a geometry or type property is **not** implied and therefore
-> must be written (`button.label.font-weight`, `field.placeholder.line-height`).
+> (`button.text`); a geometry or type property is **not** implied and therefore
+> must be written (`button.text.font-weight`, `field.placeholder.line-height`).
 > The oracle enforces the same cut — `dominioDaPropriedade()` in
 > `scripts/score-naming.mjs`. Before the cut it scored the correct name 90/100,
 > the same class of false red that the 2026-07-31 note further up records.
