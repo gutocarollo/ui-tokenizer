@@ -220,5 +220,19 @@ function main(argv) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  process.exit(main(process.argv.slice(2)));
+  /*
+   * `process.exitCode`, NUNCA `process.exit()`.
+   *
+   * DEFEITO REAL (2026-08-01): `--json` emite ~65 KB e `process.exit()` mata o
+   * processo ANTES de o stdout drenar quando ele e um pipe — a saida cortava no
+   * meio de uma palavra (`"ju` de `justificado`) e o consumidor via um
+   * JSONDecodeError, culpando o DADO em vez do writer. Node so garante escrita
+   * sincrona em TTY; em pipe ela e assincrona.
+   *
+   * Atribuir `exitCode` deixa o event loop drenar e o processo sair sozinho com
+   * o codigo certo. Mesma classe do truncamento por `| tail -N`, que ja escondeu
+   * o erro real de um Playwright nesta mesma sessao: saida cortada mente sobre a
+   * causa.
+   */
+  process.exitCode = main(process.argv.slice(2));
 }

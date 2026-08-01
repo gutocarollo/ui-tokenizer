@@ -188,6 +188,26 @@ test("a traducao ponto->hifen e a unica ponte entre lei e codigo", () => {
   assert.equal(paraFormaConsumida("page.background-color"), "page-background-color");
 });
 
+test("o modo --json emite JSON COMPLETO, sem truncar", async () => {
+  /*
+   * DEFEITO REAL (2026-08-01): o CLI chamava `process.exit()` logo apos escrever
+   * ~65 KB. Em pipe (nao TTY) a escrita e assincrona, entao o processo morria
+   * antes de drenar e a saida cortava no meio de uma palavra. O consumidor via
+   * JSONDecodeError e culpava o DADO, nao o writer — saida truncada mente sobre
+   * a causa, mesma classe do `| tail -N`.
+   */
+  const { execFileSync } = await import("node:child_process");
+  const path2 = await import("node:path");
+  const cli = path2.resolve(AQUI, "../validate-cookbook.mjs");
+  const saida = execFileSync(process.execPath, [cli, "--json"], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const parsed = JSON.parse(saida); // estoura se truncou
+  assert.ok(parsed.total > 0, "JSON sem exemplos nao prova nada");
+  assert.equal(parsed.resultados.length, parsed.total, "o array chegou inteiro");
+});
+
 /* ------------------------------------------------- 3. o cookbook de verdade --- */
 
 test("todo exemplo do cookbook canonico sobrevive ao oraculo", () => {
