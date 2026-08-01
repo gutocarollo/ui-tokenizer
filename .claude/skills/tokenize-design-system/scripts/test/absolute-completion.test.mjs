@@ -22,7 +22,10 @@ import {
   ABSOLUTE_REPORT_PREDICATES,
   absoluteReportId,
 } from "../lib/absolute-completion-contract.mjs";
-import { fingerprintSourceRoots } from "../lib/absolute-completion.mjs";
+import {
+  fingerprintSourceRoots,
+  verifyCaptureFile,
+} from "../lib/absolute-completion.mjs";
 import { runAbsoluteCompletionCli } from "../evaluate-absolute-completion.mjs";
 
 const SKILL_ROOT = path.resolve(
@@ -456,9 +459,20 @@ function buildFixture({
     metaPath,
     JSON.stringify({ consoleErrors: [], pageErrors: [], networkFailures: [], axeViolationIds: [], overflow: false })
   );
+  /*
+   * CAMINHOS RELATIVOS AO MANIFESTO, não ao run root (corrigido em 2026-08-01).
+   * O manifesto vive em `<run>/final/evidence-manifest.json` e o PNG em
+   * `<run>/final/assets/root.png`, então o caminho gravado é `assets/root.png`.
+   *
+   * Esta fixture carregava `final/assets/root.png` — a convenção run-relative,
+   * que NENHUM emissor produz: `buildEvidenceManifest` grava com
+   * `resolveStoredPath(pngPath, manifestPath)` e `verifyEvidenceManifestFiles`
+   * relê com `resolveManifestFile(manifestPath, …)`. Era o consumidor que
+   * divergia do produtor, e a fixture sustentava a divergência.
+   */
   const capture = {
     scenarioId: scenario.scenarioId,
-    pngPath: "final/assets/root.png",
+    pngPath: "assets/root.png",
     bytes: PNG_BYTES.length,
     width: 1,
     height: 1,
@@ -468,7 +482,7 @@ function buildFixture({
     networkFailures: [],
     axeViolationIds: [],
     overflow: false,
-    metaPath: "final/assets/root.json",
+    metaPath: "assets/root.json",
     metaSha256: sha256File(metaPath),
   };
   const matrixPath = path.join(runRoot, "final/evidence-manifest.json");
@@ -718,5 +732,63 @@ test("an empty design census fails closed instead of proving a vacuous 100 perce
         predicateId === "inventory.design-occurrences-terminal" &&
         predicateGaps.some((message) => /vacuous/u.test(message))
     )
+  );
+});
+
+test("a captura resolve pela base do MANIFESTO e continua contida no run root", () => {
+  /*
+   * Duas propriedades num teste só, porque uma sem a outra é meio conserto.
+   *
+   * (1) BASE. O manifesto grava `pngPath` relativo A SI MESMO; esta camada
+   *     resolvia contra o run root. Medido em 2026-08-01: manifesto em
+   *     `<run>/batches/B0001/before/manifest.json` com o PNG ao lado grava
+   *     `"s1.png"`, que resolvido contra o run root vira `<run>/s1.png` e não
+   *     existe. TODA captura era reportada ausente, e como o gap entra em
+   *     `rendered.pairs-integrity`, o predicado nunca podia fechar.
+   *
+   * (2) CONTENÇÃO. Trocar a base não pode virar porta de saída: um caminho que
+   *     escapa da corrida continua recusado. Afrouxar isso seria trocar uma
+   *     medida por uma promessa.
+   */
+  const runRoot = mkdtempSync(path.join(os.tmpdir(), "capture-base-"));
+  const dir = path.join(runRoot, "batches", "B0001", "before");
+  mkdirSync(dir, { recursive: true });
+  const png = path.join(dir, "s1.png");
+  writeFileSync(png, PNG_BYTES);
+  const manifestPath = path.join(dir, "manifest.json");
+
+  const capture = {
+    scenarioId: "settings/default",
+    pngPath: "s1.png", // relativo ao MANIFESTO, como o emissor grava
+    bytes: PNG_BYTES.length,
+    width: 1,
+    height: 1,
+    sha256: sha256File(png),
+    consoleErrors: [],
+    pageErrors: [],
+    networkFailures: [],
+    axeViolationIds: [],
+    overflow: false,
+  };
+
+  assert.deepEqual(
+    verifyCaptureFile(runRoot, capture, manifestPath),
+    [],
+    "com a base do manifesto o PNG é encontrado e conferido"
+  );
+
+  assert.deepEqual(
+    verifyCaptureFile(runRoot, capture, null),
+    [`Capture PNG is missing: s1.png`],
+    "sem a base do manifesto o mesmo arquivo some — é este o defeito que o conserto elimina"
+  );
+
+  const fugitiva = { ...capture, pngPath: "../../../../etc/passwd" };
+  const gaps = verifyCaptureFile(runRoot, fugitiva, manifestPath);
+  assert.equal(gaps.length, 1);
+  assert.match(
+    gaps[0],
+    /escapes the run root/,
+    "a contenção no run root sobrevive à troca de base"
   );
 });

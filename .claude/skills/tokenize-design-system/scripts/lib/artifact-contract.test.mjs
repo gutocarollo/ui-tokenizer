@@ -68,6 +68,11 @@ const BINARY_REF = {
   sha256: HASH_C,
 };
 
+const BINARY_REF_AFTER = {
+  path: "captures/s1-after.png",
+  sha256: HASH_C,
+};
+
 /** Ref a um ARTEFATO do contrato: leva `artifactType`, senão `referencedTargets`
  *  devolve vazio e a invariante de resolução reprova o artefato correto. */
 const MANIFEST_REF = {
@@ -564,6 +569,9 @@ function schemaFixtures() {
   fixtures.set("visual-review", {
     ...header("visual-review", SOURCE_B),
     batchId: "B0001",
+    // Amarra o parecer à comparação que ele revisou. Sem isto, nada impedia
+    // colar uma revisão da comparação A num lote cuja comparação é B.
+    comparisonFingerprint: HASH_C,
     reviewerId: "reviewer",
     requiredReviewScenarioIds: ["S1"],
     entries: [
@@ -572,7 +580,9 @@ function schemaFixtures() {
         verdict: "expected",
         observation: "Pixels are preserved",
         requiredAction: "None",
-        evidenceRefs: [REF],
+        // DUAS referências: um veredito sobre MUDANÇA não se sustenta citando
+        // uma imagem só. São bytes (PNG), não artefatos dos 19 tipos.
+        evidenceRefs: [BINARY_REF, BINARY_REF_AFTER],
       },
     ],
     complete: true,
@@ -1145,10 +1155,25 @@ test("a fully referenced passing batch satisfies pairing, effect, review, and ac
     "batches/B0001/visual-review.json",
     {
       ...fixtures.get("visual-review"),
+      /*
+       * O revisor cita as DUAS imagens que olhou, não o artefato de comparação.
+       * A fixture antiga citava `comparisonFile.ref` — um artefato, com
+       * `artifactType` — e uma referência só: nem o número mínimo nem a forma
+       * batiam com o que uma revisão visual honesta produz.
+       */
       entries: [
         {
           ...fixtures.get("visual-review").entries[0],
-          evidenceRefs: [comparisonFile.ref],
+          evidenceRefs: [
+            {
+              path: "batches/B0001/before/s1.png",
+              sha256: fixtures.get("evidence-manifest").captures[0].sha256,
+            },
+            {
+              path: "batches/B0001/after/s1.png",
+              sha256: fixtures.get("evidence-manifest").captures[0].sha256,
+            },
+          ],
         },
       ],
     }

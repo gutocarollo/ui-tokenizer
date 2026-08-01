@@ -198,12 +198,37 @@ function latestGeneratedAt(records) {
   return values.length > 0 ? Math.max(...values) : Number.NEGATIVE_INFINITY;
 }
 
-function verifyCaptureFile(runRoot, capture) {
+/**
+ * @param {string} [manifestPath] caminho do manifesto que declara esta captura.
+ *
+ * A BASE DO CAMINHO, e por que ela mudou (2026-08-01). O manifesto grava
+ * `pngPath` relativo A SI MESMO (`resolveStoredPath(pngPath, manifestPath)`),
+ * enquanto esta função resolvia contra o RUN ROOT. Duas bases para um caminho.
+ *
+ * Medido: manifesto em `<run>/batches/B0001/before/manifest.json` com o PNG ao
+ * lado grava `"s1.png"`; resolvendo contra o run root isso vira `<run>/s1.png`,
+ * que não existe. TODA captura era reportada ausente — e como o gap entra em
+ * `rendered.pairs-integrity`, o predicado nunca poderia fechar.
+ *
+ * A base do MANIFESTO vence porque é ela que torna o diretório de evidência
+ * auto-contido: o compositor monta a evidência num diretório de staging e o
+ * RENOMEIA para o lugar final, e só o caminho relativo ao manifesto sobrevive a
+ * essa mudança de lugar. Caminho relativo ao run root quebraria em toda
+ * relocação — e relocação é o mecanismo, não um acidente.
+ *
+ * A contenção no run root CONTINUA sendo verificada depois de resolver: é ela
+ * que impede uma captura de apontar para fora da corrida. Trocar a base não
+ * afrouxa a checagem; afrouxá-la seria trocar uma medida por uma promessa.
+ */
+export function verifyCaptureFile(runRoot, capture, manifestPath = null) {
   const problems = [];
   if (path.isAbsolute(capture.pngPath)) {
-    return [`Capture path must be run-relative: ${capture.pngPath}`];
+    return [`Capture path must be manifest-relative: ${capture.pngPath}`];
   }
-  const absolute = path.resolve(runRoot, capture.pngPath);
+  const base = manifestPath
+    ? path.dirname(path.resolve(manifestPath))
+    : runRoot;
+  const absolute = path.resolve(base, capture.pngPath);
   if (!isWithin(runRoot, absolute)) {
     return [`Capture path escapes the run root: ${capture.pngPath}`];
   }
@@ -929,9 +954,9 @@ export function evaluateAbsoluteCompletion({
   }
 
   const manifestRecords = recordsOfType(records, "evidence-manifest");
-  const captureFileGaps = manifestRecords.flatMap(({ artifact }) =>
+  const captureFileGaps = manifestRecords.flatMap(({ artifact, sourcePath }) =>
     artifact.captures.flatMap((capture) =>
-      verifyCaptureFile(absoluteRunRoot, capture)
+      verifyCaptureFile(absoluteRunRoot, capture, sourcePath)
     )
   );
   for (const message of captureFileGaps) {

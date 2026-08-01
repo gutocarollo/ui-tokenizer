@@ -3119,10 +3119,10 @@
         },
         "evidenceRefs": {
           "type": "array",
+          "minItems": 2,
           "items": {
-            "$ref": "#/$defs/artifactRef"
-          },
-          "minItems": 1
+            "$ref": "#/$defs/binaryEvidenceRef"
+          }
         }
       },
       "additionalProperties": false
@@ -3137,6 +3137,7 @@
           "required": [
             "artifactType",
             "batchId",
+            "comparisonFingerprint",
             "reviewerId",
             "requiredReviewScenarioIds",
             "entries",
@@ -3165,7 +3166,7 @@
               }
             },
             "complete": {
-              "type": "boolean"
+              "const": true
             },
             "verdict": {
               "enum": [
@@ -3173,6 +3174,9 @@
                 "fail",
                 "requires-human"
               ]
+            },
+            "comparisonFingerprint": {
+              "$ref": "#/$defs/sha256"
             }
           }
         }
