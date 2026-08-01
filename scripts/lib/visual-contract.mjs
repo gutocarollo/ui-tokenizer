@@ -13,7 +13,30 @@ import Ajv from "ajv";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 
+/*
+ * A VERSÃO DO MOTOR, e ela deixou de aparecer em artefato (2026-08-01).
+ *
+ * Ela carimbava `schemaVersion: "2.0.0"` nos três artefatos que este módulo
+ * emite, contra o `const "1.0.0"` que o contrato do journal exige — e por isso o
+ * journal recusava tudo que a camada visual produzia. Dois contratos de artefato
+ * incompatíveis convivendo, sem nada documentando a divergência.
+ *
+ * A reconciliação NÃO afrouxou o const, e a razão é medida: com o
+ * `schemaVersion` já forçado a "1.0.0", o Ajv ainda reprova o mesmo manifesto em
+ * outros CINCO pontos (`captures[].metaPath`, `captures[].metaSha256`,
+ * `worktreeFingerprint`, `matrixFingerprint`, `coverage`). O const era 1 de 6, e
+ * trocá-lo por `enum` compraria zero transições enquanto apagaria o único
+ * discriminador entre um corpo de semântica A e um de semântica B — em 19 tipos,
+ * para consertar 3.
+ *
+ * O que este número identifica agora é o MOTOR de contrato visual: a forma
+ * interna que `evidenceManifestSchema` e os irmãos validam antes de emitir. Ele
+ * não entra em artefato nenhum.
+ */
 export const VISUAL_CONTRACT_VERSION = "2.0.0";
+
+/** A versão que TODO artefato carrega — a do contrato do journal, não a do motor. */
+export const ARTIFACT_SCHEMA_VERSION = "1.0.0";
 export const REQUIRED_CAPTURE_METADATA = Object.freeze([
   "consoleErrors",
   "pageErrors",
@@ -98,7 +121,7 @@ export const evidenceManifestSchema = {
     "exactCoverage",
   ],
   properties: {
-    schemaVersion: { const: VISUAL_CONTRACT_VERSION },
+    schemaVersion: { const: ARTIFACT_SCHEMA_VERSION },
     artifactType: { const: "evidence-manifest" },
     runId: {
       type: "string",
@@ -187,7 +210,7 @@ const visualReviewOutputSchema = {
     "verdict",
   ],
   properties: {
-    schemaVersion: { const: VISUAL_CONTRACT_VERSION },
+    schemaVersion: { const: ARTIFACT_SCHEMA_VERSION },
     artifactType: { const: "visual-review" },
     runId: {
       type: "string",
@@ -596,7 +619,7 @@ export function buildEvidenceManifest({
     .sort((a, b) => a.scenarioId.localeCompare(b.scenarioId));
 
   const manifest = {
-    schemaVersion: VISUAL_CONTRACT_VERSION,
+    schemaVersion: ARTIFACT_SCHEMA_VERSION,
     artifactType: "evidence-manifest",
     runId,
     batchId,
@@ -1337,7 +1360,7 @@ export function compareEvidenceManifests({
     ? "fail"
     : "pass";
   const comparison = {
-    schemaVersion: VISUAL_CONTRACT_VERSION,
+    schemaVersion: ARTIFACT_SCHEMA_VERSION,
     artifactType: "comparison",
     runId: beforeManifest.runId,
     batchId: beforeManifest.batchId,
@@ -1378,7 +1401,7 @@ export function buildVisualReviewInput(comparison, comparisonPath) {
   }
   const comparisonFingerprint = sha256Value(comparison);
   return {
-    schemaVersion: VISUAL_CONTRACT_VERSION,
+    schemaVersion: ARTIFACT_SCHEMA_VERSION,
     artifactType: "visual-review-input",
     runId: comparison.runId,
     batchId: comparison.batchId,

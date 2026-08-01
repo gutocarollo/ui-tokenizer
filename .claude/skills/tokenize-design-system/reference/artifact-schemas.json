@@ -134,7 +134,11 @@
     },
     "designOccurrenceSupersession": {
       "type": "object",
-      "required": ["occurrenceId", "recordSha256", "artifactRef"],
+      "required": [
+        "occurrenceId",
+        "recordSha256",
+        "artifactRef"
+      ],
       "properties": {
         "occurrenceId": {
           "$ref": "#/$defs/nonEmptyString"
@@ -686,7 +690,10 @@
               "const": "design-occurrence"
             },
             "recordStage": {
-              "enum": ["raw", "classified"]
+              "enum": [
+                "raw",
+                "classified"
+              ]
             },
             "supersedes": {
               "oneOf": [
@@ -946,7 +953,9 @@
                     "const": "raw"
                   }
                 },
-                "required": ["recordStage"]
+                "required": [
+                  "recordStage"
+                ]
               },
               "then": {
                 "properties": {
@@ -963,7 +972,9 @@
                     "const": "classified"
                   }
                 },
-                "required": ["recordStage"]
+                "required": [
+                  "recordStage"
+                ]
               },
               "then": {
                 "properties": {
@@ -1702,7 +1713,9 @@
                     "pattern": "^absolute/"
                   }
                 },
-                "required": ["reportId"]
+                "required": [
+                  "reportId"
+                ]
               },
               "then": {
                 "properties": {
@@ -2260,7 +2273,9 @@
         "pageErrors",
         "networkFailures",
         "axeViolationIds",
-        "overflow"
+        "overflow",
+        "metaPath",
+        "metaSha256"
       ],
       "properties": {
         "scenarioId": {
@@ -2307,6 +2322,12 @@
         },
         "overflow": {
           "type": "boolean"
+        },
+        "metaPath": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "metaSha256": {
+          "$ref": "#/$defs/sha256"
         }
       },
       "additionalProperties": false
@@ -2329,7 +2350,10 @@
             "requestedScenarioIds",
             "producedScenarioIds",
             "captures",
-            "exactCoverage"
+            "exactCoverage",
+            "worktreeFingerprint",
+            "matrixFingerprint",
+            "coverage"
           ],
           "properties": {
             "artifactType": {
@@ -2376,7 +2400,17 @@
               }
             },
             "exactCoverage": {
-              "type": "boolean"
+              "const": true,
+              "$comment": "RATCHET, nao afrouxamento: artifact-contract.mjs ja exige === true em codigo; o schema mentia sobre a propria severidade dizendo apenas boolean."
+            },
+            "worktreeFingerprint": {
+              "$ref": "#/$defs/sha256"
+            },
+            "matrixFingerprint": {
+              "$ref": "#/$defs/sha256"
+            },
+            "coverage": {
+              "$ref": "#/$defs/exactCoverageLedger"
             }
           }
         }
@@ -3204,6 +3238,78 @@
         }
       ],
       "unevaluatedProperties": false
+    },
+    "exactCoverageLedger": {
+      "$comment": "A forma que analyzeExactCoverage produz (visual-contract.mjs). `invalidCaptures` e `orphanMetadata` sao fatos do DIRETORIO no instante da coleta — o contrato nao tem como reconstrui-los depois, entao ou entram no artefato ou se perdem.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expectedCount",
+        "actualCount",
+        "missing",
+        "extra",
+        "duplicateExpected",
+        "duplicateProduced",
+        "invalidExpected",
+        "invalidProduced",
+        "invalidCaptures",
+        "orphanMetadata",
+        "exact"
+      ],
+      "properties": {
+        "expectedCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actualCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "missing": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "extra": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "duplicateExpected": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "duplicateProduced": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "invalidExpected": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "invalidProduced": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "invalidCaptures": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "orphanMetadata": {
+          "$ref": "#/$defs/stringSet"
+        },
+        "exact": {
+          "const": true
+        }
+      }
+    },
+    "binaryEvidenceRef": {
+      "$comment": "Referencia a um BINARIO (PNG, heatmap): exatamente {path, sha256}, SEM artifactType. A ausencia e obrigatoria e mecanica — collectArtifactRefs so coleta objetos cujas chaves sejam artifactType+path+sha256, entao um ref de 3 chaves apontando para um PNG entraria no fechamento de referencia e readArtifactRecords estouraria tentando parsear a imagem como JSON.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
     }
   }
 }

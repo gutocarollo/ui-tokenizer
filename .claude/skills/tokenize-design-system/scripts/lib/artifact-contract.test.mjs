@@ -264,6 +264,15 @@ function capture(scenarioId = "S1") {
     networkFailures: [],
     axeViolationIds: [],
     overflow: false,
+    /*
+     * O SIDECAR passou a ser obrigatorio em 2026-08-01. `metaSha256` e o campo
+     * cuja ausencia transformava consoleErrors/pageErrors/networkFailures/
+     * axeViolationIds/overflow em alegacao NAO-FALSIFICAVEL: o contrato
+     * re-verifica os bytes do PNG e nao re-verificava nada do arquivo de
+     * metadados que carrega esses cinco.
+     */
+    metaPath: `assets/${scenarioId}.json`,
+    metaSha256: SOURCE_A,
   };
 }
 
@@ -409,6 +418,21 @@ function schemaFixtures() {
     producedScenarioIds: ["S1"],
     captures: [capture()],
     exactCoverage: true,
+  /*
+     * `coverage` e o razao do exactCoverage. `exactCoverage: true` prova apenas
+     * que requested == produced; `coverage` diz QUAIS faltaram, quais sobraram e
+     * — o que ninguem consegue reconstruir depois — quais capturas estavam
+     * invalidas e quais metadados ficaram orfaos no diretorio no instante da
+     * coleta.
+     */
+    coverage: {
+      expectedCount: 1, actualCount: 1,
+      missing: [], extra: [], duplicateExpected: [], duplicateProduced: [],
+      invalidExpected: [], invalidProduced: [], invalidCaptures: [], orphanMetadata: [],
+      exact: true,
+    },
+    matrixFingerprint: SOURCE_A,
+    worktreeFingerprint: SOURCE_A,
   });
   fixtures.set("mutation-manifest", {
     ...header("mutation-manifest", SOURCE_B),
@@ -1159,6 +1183,16 @@ test("final order binds matrix and checks before review and proof on one source"
     requestedScenarioIds: ["S1"],
     producedScenarioIds: ["S1"],
     captures: [capture()],
+    /* mesma exigencia da fixture de schema: o razao de cobertura e os dois
+       fingerprints entraram como obrigatorios em 2026-08-01 */
+    coverage: {
+      expectedCount: 1, actualCount: 1,
+      missing: [], extra: [], duplicateExpected: [], duplicateProduced: [],
+      invalidExpected: [], invalidProduced: [], invalidCaptures: [], orphanMetadata: [],
+      exact: true,
+    },
+    matrixFingerprint: SOURCE_A,
+    worktreeFingerprint: SOURCE_A,
     exactCoverage: true,
   });
   const finalChecks = writeArtifact(runRoot, "final/checks.json", {

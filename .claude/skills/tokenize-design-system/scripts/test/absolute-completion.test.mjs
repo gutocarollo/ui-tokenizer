@@ -442,6 +442,20 @@ function buildFixture({
   const pngPath = path.join(runRoot, "final/assets/root.png");
   mkdirSync(path.dirname(pngPath), { recursive: true });
   writeFileSync(pngPath, PNG_BYTES);
+  /*
+   * O SIDECAR de metadados, obrigatorio desde 2026-08-01. Ele carrega
+   * consoleErrors/pageErrors/networkFailures/axeViolationIds/overflow, e sem o
+   * `metaSha256` no manifesto esses cinco eram alegacao NAO-FALSIFICAVEL: o
+   * contrato re-verifica os bytes do PNG e nao re-verificava nada do sidecar.
+   * A fixture escreve o arquivo DE VERDADE e hasheia os bytes reais, porque
+   * fixture que inventa hash e a mesma classe de mentira que o campo existe para
+   * impedir.
+   */
+  const metaPath = path.join(runRoot, "final/assets/root.json");
+  writeFileSync(
+    metaPath,
+    JSON.stringify({ consoleErrors: [], pageErrors: [], networkFailures: [], axeViolationIds: [], overflow: false })
+  );
   const capture = {
     scenarioId: scenario.scenarioId,
     pngPath: "final/assets/root.png",
@@ -454,6 +468,8 @@ function buildFixture({
     networkFailures: [],
     axeViolationIds: [],
     overflow: false,
+    metaPath: "final/assets/root.json",
+    metaSha256: sha256File(metaPath),
   };
   const matrixPath = path.join(runRoot, "final/evidence-manifest.json");
   const matrix = {
@@ -468,6 +484,21 @@ function buildFixture({
     producedScenarioIds: [scenario.scenarioId],
     captures: [capture],
     exactCoverage: true,
+    /*
+     * Campos que passaram a ser obrigatorios em 2026-08-01, quando o schema do
+     * journal absorveu a forma REAL que o emissor produz. `coverage` e o razao
+     * do exactCoverage — este ultimo prova so que requested == produced, e
+     * `invalidCaptures`/`orphanMetadata` sao fatos do diretorio no instante da
+     * coleta que ninguem consegue reconstruir depois.
+     */
+    coverage: {
+      expectedCount: 1, actualCount: 1,
+      missing: [], extra: [], duplicateExpected: [], duplicateProduced: [],
+      invalidExpected: [], invalidProduced: [], invalidCaptures: [], orphanMetadata: [],
+      exact: true,
+    },
+    matrixFingerprint: sourceFingerprint,
+    worktreeFingerprint: sourceFingerprint,
   };
   writeJson(matrixPath, matrix);
   const matrixRef = artifactRef(matrixPath, context, "evidence-manifest");

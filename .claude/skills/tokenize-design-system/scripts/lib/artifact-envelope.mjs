@@ -22,6 +22,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import { fingerprintSourceRoots } from "./absolute-completion.mjs";
+
 /** sha256 de um arquivo — a mesma forma que o contrato usa para conferir refs. */
 export function sha256File(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
@@ -34,7 +36,7 @@ export function sha256File(filePath) {
  * emitido com header incompleto só quebra na transição, três camadas adiante,
  * e o erro aponta para o lugar errado.
  */
-export function envelopeFrom(runConfigPath) {
+export function envelopeFrom(runConfigPath, { applicationRoot = null } = {}) {
   let cfg;
   try {
     cfg = JSON.parse(readFileSync(runConfigPath, "utf8"));
@@ -71,6 +73,58 @@ export function envelopeFrom(runConfigPath) {
         toolchainFingerprint: cfg.toolchainFingerprint,
         generatedAt,
       };
+    },
+    /**
+     * O header de um artefato produzido DEPOIS de a fonte ter sido mutada.
+     *
+     * POR QUE NÃO DÁ PARA USAR `header()` NOS DOIS CASOS, e este é o furo que
+     * quase passou: `header()` devolve o `sourceFingerprint` ANCORADO, medido no
+     * início da corrida. O contrato (`lib/artifact-contract.mjs:934-969`) exige
+     * que o `evidence-manifest` de fase `after`, o `comparison`, o
+     * `visual-review`, o `deterministic-checks` de lote, o `adversarial-review` e
+     * o `acceptance` carreguem o fingerprint PÓS-MUTAÇÃO — senão emite
+     * *"<tipo> for <batch> is stale after mutation"*.
+     *
+     * Espalhar o header ancorado num manifesto `after` produz artefato **stale
+     * por construção**: ele passa em todos os schemas e reprova três camadas
+     * adiante, apontando para o lugar errado. É a falha que esta reconciliação
+     * existe para consertar, reintroduzida por baixo.
+     *
+     * O algoritmo é o MESMO do `anchor-run.mjs` — `fingerprintSourceRoots`, de
+     * `lib/absolute-completion.mjs:105`. Não há nada a reimplementar; há uma
+     * chamada a fazer com os argumentos certos.
+     *
+     * NA FASE `before` os dois têm de coincidir, e a divergência é ERRO: se a
+     * fonte já mudou antes da captura de referência, a comparação não tem base.
+     * `assertBase` existe para provar isso alto, em vez de deixar o par
+     * before/after nascer sobre chão movediço.
+     */
+    measuredHeader(artifactType, { assertBase = false } = {}) {
+      if (!applicationRoot) {
+        throw new Error(
+          "measuredHeader exige applicationRoot: envelopeFrom(path, { applicationRoot })"
+        );
+      }
+      const medido = fingerprintSourceRoots({
+        applicationRoot,
+        sourceRoots: cfg.sourceRoots ?? ["src"],
+      });
+      if (!medido.fingerprint) {
+        throw new Error(
+          `não foi possível medir a fonte em ${applicationRoot}` +
+            (medido.problems?.length ? `: ${medido.problems.join("; ")}` : "")
+        );
+      }
+      if (assertBase && medido.fingerprint !== cfg.sourceFingerprint) {
+        throw new Error(
+          `a fonte já divergiu da âncora antes da captura de referência\n` +
+            `  ancorado: ${cfg.sourceFingerprint}\n` +
+            `  medido:   ${medido.fingerprint}\n` +
+            `  Um par before/after sobre bases diferentes não compara nada. ` +
+            `Reancore (anchor-run.mjs) ou restaure a árvore.`
+        );
+      }
+      return { ...this.header(artifactType), sourceFingerprint: medido.fingerprint };
     },
     /** Referência a outro artefato, com o sha256 lido do disco AGORA. */
     ref(artifactType, filePath, { relativeTo = null } = {}) {

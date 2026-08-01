@@ -25,7 +25,7 @@ import {
   sha256Value,
   validateVisualReviewOutput,
   verifyEvidenceManifestFiles,
-  VISUAL_CONTRACT_VERSION,
+  ARTIFACT_SCHEMA_VERSION,
   VisualContractError,
 } from "./visual-contract.mjs";
 
@@ -149,7 +149,15 @@ test("manifest v2 recomputes full PNG hashes, bytes, dimensions, and all binding
     pixels: () => [12, 34, 56, 255],
   });
   const capture = evidence.manifest.captures[0];
-  assert.equal(evidence.manifest.schemaVersion, VISUAL_CONTRACT_VERSION);
+  /*
+   * A VERSAO NO ARTEFATO E A DO CONTRATO DO JOURNAL, nao a do motor.
+   * Atualizado 2026-08-01: este modulo carimbava `2.0.0` (a versao do proprio
+   * motor de contrato visual) contra o `const "1.0.0"` que o journal exige, e
+   * por isso TODO artefato visual era recusado na transicao. `VISUAL_CONTRACT_VERSION`
+   * sobrevive como versao do MOTOR e deixou de aparecer em artefato.
+   */
+  assert.equal(evidence.manifest.schemaVersion, ARTIFACT_SCHEMA_VERSION);
+  assert.equal(ARTIFACT_SCHEMA_VERSION, "1.0.0", "o artefato carrega a versao do contrato do journal");
   assert.match(capture.sha256, /^[a-f0-9]{64}$/);
   assert.equal(
     capture.sha256,
@@ -429,7 +437,7 @@ test("visual review input is non-empty and output is exact, bound, and non-blank
 
   const pair = comparison.pairs[0];
   const review = {
-    schemaVersion: VISUAL_CONTRACT_VERSION,
+    schemaVersion: ARTIFACT_SCHEMA_VERSION,
     artifactType: "visual-review",
     runId: comparison.runId,
     batchId: comparison.batchId,
@@ -514,7 +522,7 @@ test("compare CLI emits a pending review packet, then deterministically accepts 
   const reviewInput = JSON.parse(readFileSync(reviewInputPath, "utf8"));
   const pair = comparison.pairs[0];
   const review = {
-    schemaVersion: VISUAL_CONTRACT_VERSION,
+    schemaVersion: ARTIFACT_SCHEMA_VERSION,
     artifactType: "visual-review",
     runId: comparison.runId,
     batchId: comparison.batchId,
@@ -593,7 +601,7 @@ test("evidence manifest CLI writes only a full-hash exact-coverage v2 artifact",
   );
   assert.equal(result.status, 0, result.stderr);
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  assert.equal(manifest.schemaVersion, VISUAL_CONTRACT_VERSION);
+  assert.equal(manifest.schemaVersion, ARTIFACT_SCHEMA_VERSION);
   assert.equal(manifest.exactCoverage, true);
   assert.equal(manifest.captures[0].width, 2);
   assert.equal(manifest.captures[0].height, 3);
