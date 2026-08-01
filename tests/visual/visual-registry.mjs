@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
+
+import { resolveAppRoot } from "../../scripts/lib/app-roots.mjs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import {
@@ -12,9 +14,8 @@ import {
   NETWORK_FIXTURE_REGISTRY_FINGERPRINT,
 } from "./network-fixtures.mjs";
 
-const FRONTEND_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../.."
+const FRONTEND_ROOT = resolveAppRoot(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "../..")
 );
 const DEFAULT_WORKSPACE_SLUG = "glm-test";
 const DEFAULT_THREAD_SLUG = "5ee546b3-f567-41be-b8a9-5e3b52df6d5a";

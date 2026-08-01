@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import path from "node:path";
+
+import { resolveAppRoot, resolveRepoRoot } from "./lib/app-roots.mjs";
 import { fileURLToPath } from "node:url";
 import {
   analyzeRouteImpact,
@@ -10,9 +12,8 @@ import {
 import { discoverReadOnlyFixtures } from "./lib/read-only-fixtures.mjs";
 import { materializeVisualRegistry } from "../tests/visual/visual-registry.mjs";
 
-const FRONTEND_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  ".."
+const FRONTEND_ROOT = resolveAppRoot(
+  path.join(path.dirname(new URL(import.meta.url).pathname), "..")
 );
 
 function argumentValue(argv, name) {

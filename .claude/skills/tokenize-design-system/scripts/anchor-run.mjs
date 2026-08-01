@@ -147,11 +147,25 @@ const CONFIGS = [
   "tailwind.config.ts",
   "postcss.config.js",
 ];
+/*
+ * A CHAVE PRECISA DO PREFIXO `file:` — defeito meu, achado pelo mapeamento dos
+ * contratos de artefato em 2026-08-01.
+ *
+ * `evaluateLiveToolchain` (`lib/absolute-completion.mjs:153-159`) recusa
+ * qualquer chave sem ele: *"Toolchain fingerprint key is not live-verifiable;
+ * use file:<application-relative-path>"*. Eu escrevia `"package.json"` cru, e o
+ * predicado `process.fingerprints-current` acumulava esse problema em TODA
+ * corrida — silenciosamente, porque nada mais lê essas chaves.
+ *
+ * O prefixo não é decoração: ele é o que diz ao avaliador que a chave é um
+ * caminho RE-VERIFICÁVEL contra o disco, e não um rótulo livre. Sem ele o
+ * fingerprint da toolchain vira afirmação que ninguém pode reconferir.
+ */
 const configurationFingerprints = {};
 for (const rel of CONFIGS) {
   const p = path.join(ROOT, rel);
   if (!existsSync(p)) continue;
-  configurationFingerprints[rel] = createHash("sha256").update(readFileSync(p)).digest("hex");
+  configurationFingerprints[`file:${rel}`] = createHash("sha256").update(readFileSync(p)).digest("hex");
 }
 if (!Object.keys(configurationFingerprints).length) {
   falhar(

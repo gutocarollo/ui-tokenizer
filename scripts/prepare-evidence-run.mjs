@@ -2,6 +2,8 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+
+import { resolveAppRoot, resolveRepoRoot } from "./lib/app-roots.mjs";
 import { fileURLToPath } from "node:url";
 import console from "node:console";
 import process from "node:process";
@@ -12,11 +14,10 @@ import {
 } from "./lib/evidence-matrix.mjs";
 import { VisualContractError } from "./lib/visual-contract.mjs";
 
-const FRONTEND_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  ".."
+const FRONTEND_ROOT = resolveAppRoot(
+  path.join(path.dirname(new URL(import.meta.url).pathname), "..")
 );
-const REPO_ROOT = path.resolve(FRONTEND_ROOT, "..");
+const REPO_ROOT = resolveRepoRoot(FRONTEND_ROOT);
 
 function valueAfter(flag) {
   const index = process.argv.indexOf(flag);
