@@ -7,6 +7,19 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-08-01] artefato · lei
+
+- [`law/design_system_template.json`](law/design_system_template.json) — **versionado por decisão
+  do dono**. Estava no `.gitignore` desde que nasceu como rascunho gerado; deixou de ser rascunho
+  quando ganhou `$law`, `$forbidden` e `$validation` — virou o índice de completude do cookbook, e
+  dois docs versionados já o citavam. Ignorado, ele não sobrevivia a um clone e nenhum guard o
+  validava.
+- Auditado na entrada: **153 dos 370 nomes vinham do vocabulário velho** (26 com a anatomia
+  `.label`, 75 com a propriedade `.foreground-color`), porque ele foi escrito antes da decisão de
+  hoje. Convertidos pela mesma regra do cookbook — quando a parte É o texto a propriedade some,
+  quando a tinta é de outra parte ela vira `color`. Resultado: **370 nomes, 370 com nota 100**, e
+  os 75 tokens com estado têm todos o par base (§5.4), zero órfãos.
+
 ## [2026-08-01] pesquisa · lei
 
 - [`law/2026-08-01-ui-ux-pro-max-o-que-serve.md`](law/2026-08-01-ui-ux-pro-max-o-que-serve.md)

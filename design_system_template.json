@@ -1,0 +1,1555 @@
+{
+  "$artifact": "ui-tokenizer — coverage spine for a design system, expressed in the naming law",
+  "$version": "4.0.0",
+  "$note_on_schema_key": "v3.0.0 used `$schema` to hold a prose title. Editors resolve that key as a JSON Schema URI and report a load failure, so the prose moved to `$artifact`.",
+
+  "$what_this_is": [
+    "The COMPLETENESS INDEX of the cookbook, not a value catalogue.",
+    "Each key below is a SITUATION ('the background of the secondary button on hover').",
+    "Each value is the answer the law gives that situation — the token name.",
+    "Answering 'what value is it?' is the target project's job, in its own token file.",
+    "Reading rule: key = situacao (cookbook column 1), value = token pela lei (column 3)."
+  ],
+
+  "$law": {
+    "grammar": "entity[.variant][.anatomy][.property][.state]",
+    "source_of_truth": "docs/law/GRAMMAR.md — §4.1 entities, §4.2 anatomy, §4.3 properties, §4.4 variants, §4.5 states",
+    "engine_mirror": ".claude/skills/tokenize-design-system/reference/law.md",
+    "situations": "docs/law/cookbook.md — 712 measured situations, 398 distinct names",
+    "state_omission": "An omitted state means default. Writing .default is forbidden (§4.5).",
+    "property_omission": "Anatomy that permits exactly one PAINT property omits it: button.label, field.placeholder, menu.divider (§7.2). A geometry or type property is never implied and is always written: button.label.font-weight.",
+    "variant_position": "The variant qualifies the ENTITY, never the property: button.secondary.border-color, never button.border-color.secondary (§6, ORDER CORRECTED 2026-08-01)."
+  },
+
+  "$forbidden": {
+    "one_way_rule": "surface, semantic and content are SOURCE, never TARGET. They may appear only inside an old_name field — never as the name of a key, family, section, variable or concept (GRAMMAR.md §3, §3.1 and the FRAMING extension of 2026-07-31).",
+    "words": ["surface", "semantic", "content"],
+    "generic_layer_names": "layer1..layerN, deep, raised, sunken, canvas, panel — they carry no information and wear a semantic costume (§2). A layer is an elevation METADATA, never a name.",
+    "raw_pigment_as_head": "pink, green, blue, red, yellow — legal only inside the primitive ramps of 04_COLORS, which are never consumed directly and never head a token (§5.5).",
+    "rank_as_head": "primary, secondary, tertiary alone. A rank is a variant of an entity, not an entity."
+  },
+
+  "$provenance": {
+    "descends_from": "nextlevelbuilder/ui-ux-pro-max (MIT, 112k stars) via the v3.0.0 MakersHub template",
+    "verdict": "docs/law/2026-08-01-ui-ux-pro-max-o-que-serve.md — COMPLEMENTAR: it answers VALUE, we answer NAME",
+    "adopted": [
+      "the coverage spine: 24 sections as the matrix entity x variant x size x state",
+      "the interaction-state checklist: every interactive entity declares default/hover/active/focus/disabled, or says why not",
+      "the container/label pair as a checklist (its X + On X, Material lineage)",
+      "the old-name -> law-name bridge, which is the cookbook's migration column"
+    ],
+    "rejected": [
+      "its vocabulary: surface, on-surface, semantic tokens, danger, accent, tertiary. A 112k-star source recommending the words we ban is DATA, not authority.",
+      "its ownerless tier: --color-primary scores 35/100 in our oracle (NO OWNER)",
+      "its organising axis (business vertical) instead of physical entity"
+    ],
+    "licence": "MIT. Nothing of its CODE has been ported to date; only structure. A future port carries a credit header and a NOTICE entry."
+  },
+
+  "$validation": {
+    "every_dotted_value_is_a_token": "Any value matching entity[.segment]+ is submitted to the same oracle that judges a production token.",
+    "expected": "score 100 for every one of them — an exception without a written reason is a failure, not a licence.",
+    "measured_on_2026-08-01": "550 token-shaped values, 370 distinct, 550 at score 100, 0 rejected — judged by scoreName with the vocabulary read from GRAMMAR.md. 272 of the 370 are names the cookbook already teaches; the other 98 are geometry and type names that only became legal when §4.3 gained spacing and typography.",
+    "gap_no_executable_guard": "There is no validate-template.mjs yet. validate-cookbook.mjs judges cookbook.md, and ds-naming-law.py scans source, CSS and DTCG token files — neither reads this file. Until one exists, the numbers above were produced by an ad-hoc run and this file can drift back exactly as v3.0.0 did.",
+    "law_gap_marker": "A value starting with $law-gap: is a situation the law cannot name yet. It is DECLARED, never guessed (§5 rule 5)."
+  },
+
+  "01_LAYOUT": {
+    "$description": "Structural decisions. Since 2026-08-01 geometry properties (padding, margin, gap, row-gap, column-gap, border-radius) are IN the law (§4.3), so most of this section now has real token names.",
+
+    "breakpoints": {
+      "$description": "Viewport widths at which the layout changes. A breakpoint is a MEASUREMENT, not a token — it has no entity and paints nothing.",
+      "xs": "TODO: e.g., 375px (mobile portrait)",
+      "sm": "TODO: e.g., 640px (mobile landscape)",
+      "md": "TODO: e.g., 768px (tablet portrait)",
+      "lg": "TODO: e.g., 1024px (tablet landscape / small desktop)",
+      "xl": "TODO: e.g., 1280px (desktop)",
+      "2xl": "TODO: e.g., 1440px (wide desktop)",
+      "3xl": "TODO: e.g., 1920px (ultrawide)"
+    },
+
+    "grid": {
+      "$description": "Page-level grid. Column count and max width are measurements; the gutter is a real gap property owned by the page.",
+      "columns": "TODO: e.g., 12",
+      "gutter": "page.column-gap",
+      "margin": "page.padding",
+      "max_width": "TODO: e.g., 1440px (measurement — no CSS property in §4.3 names a max-width)"
+    },
+
+    "max_widths": {
+      "$description": "Width ceilings per region. Renamed from the v3 key 'content_areas' — the word is banned as a family name (§3.1 FRAMING).",
+      "$note": "max-width is not a §4.3 property, so these stay measurements. They are listed here because the coverage spine asks 'did you decide the page's measure?'.",
+      "page": "TODO: e.g., 1440px",
+      "page_beside_sidebar": "TODO: e.g., 1200px",
+      "text_block": "TODO: e.g., 75ch (readable line length)",
+      "modal_sm": "TODO: e.g., 480px",
+      "modal_md": "TODO: e.g., 640px",
+      "modal_lg": "TODO: e.g., 800px",
+      "modal_xl": "TODO: e.g., 1000px",
+      "old_name": "content_areas / page_max_width / content_max_width / text_max_width / modal_max_width_* (v3.0.0)"
+    },
+
+    "sidebar": {
+      "width_expanded": "TODO: e.g., 240px",
+      "width_collapsed": "TODO: e.g., 64px",
+      "breakpoint_collapse": "TODO: at what breakpoint does the sidebar collapse? e.g., lg",
+      "padding": "sidebar.padding",
+      "background": "sidebar.background-color",
+      "border": "sidebar.border-color",
+      "text": "sidebar.foreground-color",
+      "separator": "sidebar.divider"
+    },
+
+    "spacing_scale": {
+      "$description": "The primitive spacing ramp. PRIMITIVE TIER: raw multiples of a base unit, referenced by the tokens below, never typed in a component.",
+      "$tier": "primitive",
+      "base_unit": "KEEP: 4px",
+      "0": "KEEP: 0px",
+      "0.5": "TODO: e.g., 2px",
+      "1": "KEEP: 4px",
+      "1.5": "TODO: e.g., 6px",
+      "2": "KEEP: 8px",
+      "3": "TODO: e.g., 12px",
+      "4": "KEEP: 16px",
+      "5": "TODO: e.g., 20px",
+      "6": "KEEP: 24px",
+      "8": "KEEP: 32px",
+      "10": "KEEP: 40px",
+      "12": "KEEP: 48px",
+      "16": "KEEP: 64px",
+      "20": "TODO: e.g., 80px",
+      "24": "TODO: e.g., 96px"
+    },
+
+    "spacing_tokens": {
+      "$description": "Spacing by ENTITY. Renamed from the v3 key 'semantic_spacing' — the word named an architectural tier and is banned as a name (§3).",
+      "$note": "Each of these aliases one step of spacing_scale. The entity is what makes the decision reviewable: 'the card is tighter' is a change to card.padding, not to a global number.",
+      "page_padding": "page.padding",
+      "page_gap": "page.gap",
+      "card_padding": "card.padding",
+      "card_gap": "card.gap",
+      "card_element_gap": "card.row-gap",
+      "modal_padding": "modal.padding",
+      "modal_header_padding": "modal.header.padding",
+      "sidebar_padding": "sidebar.padding",
+      "toolbar_gap": "toolbar.gap",
+      "table_cell_padding": "data-table.cell.padding",
+      "table_header_padding": "data-table.header.padding",
+      "list_row_padding": "list-row.padding",
+      "form_field_gap": "field.gap",
+      "form_label_gap": "field.label.margin",
+      "button_padding": "button.padding",
+      "badge_padding": "badge.padding",
+      "pill_padding": "pill.padding",
+      "toast_padding": "toast.padding",
+      "tooltip_padding": "tooltip.padding",
+      "menu_row_padding": "menu.row.padding",
+      "icon_label_gap": "button.icon.margin",
+      "$law_gap_density": "$law-gap: card_padding_compact / card_padding_spacious and the three button sizes are a DENSITY axis. §4.4 variants are roles (primary..info), not sizes, so 'compact', 'spacious', 'sm', 'md', 'lg' have no slot. Same family as the pending decision in cookbook.md (LAW GAP: variants outside the closed §4.4 vocabulary). Owner decision: amend §4.4 with a size axis, or keep density outside the token system."
+    },
+
+    "aspect_ratios": {
+      "$description": "Measurements for media containers. aspect-ratio is not a §4.3 property.",
+      "chart_default": "TODO: e.g., 16/9",
+      "chart_compact": "TODO: e.g., 21/9",
+      "card_hero": "TODO: e.g., 4/3",
+      "avatar": "TODO: e.g., 1/1",
+      "thumbnail": "TODO: e.g., 1/1",
+      "banner": "TODO: e.g., 4/1"
+    }
+  },
+
+  "02_TYPOGRAPHY": {
+    "$description": "Two different things live here. The type SCALE is a primitive ramp (a measurement). The type DECISIONS of each entity are tokens, because font-weight, line-height and letter-spacing entered §4.3 on 2026-08-01.",
+
+    "font_families": {
+      "$tier": "primitive",
+      "primary": "KEEP: 'Inter', sans-serif",
+      "secondary": "TODO: a second family, or 'same as primary'",
+      "monospace": "TODO: for code, ids, aligned figures. e.g., 'JetBrains Mono'",
+      "display": "TODO: for hero text, or 'same as primary'"
+    },
+
+    "font_weights": {
+      "$tier": "primitive",
+      "regular": "KEEP: 400",
+      "medium": "KEEP: 500",
+      "semibold": "KEEP: 600",
+      "bold": "KEEP: 700"
+    },
+
+    "type_scale": {
+      "$description": "Primitive ramp: size + lineHeight + letterSpacing + weight per step. An entity REFERENCES a step; it does not restate the numbers.",
+      "$tier": "primitive",
+
+      "display_xl": { "$use": "Hero banners, marketing, splash", "size": "TODO: e.g., 64px", "lineHeight": "TODO: e.g., 72px", "letterSpacing": "TODO: e.g., -1.5px", "weight": "TODO: e.g., bold (700)", "tailwind": "TODO: e.g., text-[64px]" },
+      "display_lg": { "$use": "Landing page titles", "size": "TODO: e.g., 56px", "lineHeight": "TODO: e.g., 64px", "letterSpacing": "TODO: e.g., -1px", "weight": "TODO: e.g., bold (700)", "tailwind": "TODO" },
+      "heading_1": { "$use": "Main page title (one per page)", "size": "KEEP: 48px", "lineHeight": "KEEP: 58px", "letterSpacing": "TODO: e.g., -0.5px", "weight": "TODO: e.g., bold (700)", "tailwind": "text-5xl" },
+      "heading_2": { "$use": "Section titles within a page", "size": "KEEP: 36px", "lineHeight": "KEEP: 46px", "letterSpacing": "TODO: e.g., -0.25px", "weight": "TODO: e.g., bold (700)", "tailwind": "text-4xl" },
+      "heading_3": { "$use": "Card titles, dialog titles, panel headers", "size": "KEEP: 30px", "lineHeight": "KEEP: 40px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., bold (700)", "tailwind": "text-3xl" },
+      "heading_4": { "$use": "Sub-section titles, accordion headers, tab labels", "size": "KEEP: 24px", "lineHeight": "KEEP: 34px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., semibold (600)", "tailwind": "text-2xl" },
+      "heading_5": { "$use": "Small section headers, sidebar group titles, stat labels", "size": "KEEP: 18px", "lineHeight": "KEEP: 28px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., semibold (600)", "tailwind": "text-lg" },
+      "heading_6": { "$use": "Smallest heading, column headers, form section titles", "size": "KEEP: 16px", "lineHeight": "KEEP: 26px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., semibold (600)", "tailwind": "text-base font-semibold" },
+      "subtitle": { "$use": "Secondary line below a heading", "size": "KEEP: 18px", "lineHeight": "KEEP: 28px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., regular (400)", "tailwind": "text-lg" },
+      "body_large": { "$use": "Feature descriptions, modal body", "size": "KEEP: 16px", "lineHeight": "KEEP: 26px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., regular (400)", "tailwind": "text-base" },
+      "body": { "$use": "Default paragraphs and list items", "size": "KEEP: 14px", "lineHeight": "KEEP: 24px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., regular (400)", "tailwind": "text-sm" },
+      "body_small": { "$use": "Dense areas, table cells, sidebar items", "size": "KEEP: 12px", "lineHeight": "KEEP: 22px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., regular (400)", "tailwind": "text-xs" },
+      "caption": { "$use": "Helper text, timestamps, metadata, footnotes", "size": "TODO: e.g., 11px", "lineHeight": "TODO: e.g., 16px", "letterSpacing": "TODO: e.g., 0.2px", "weight": "TODO: e.g., regular (400)", "tailwind": "TODO" },
+      "overline": { "$use": "Uppercase label above a heading", "size": "TODO: e.g., 11px", "lineHeight": "TODO: e.g., 16px", "letterSpacing": "TODO: e.g., 1px", "weight": "TODO: e.g., semibold (600)", "textTransform": "uppercase", "tailwind": "TODO" },
+      "label": { "$use": "Form labels, button text, badge text, nav items", "size": "KEEP: 14px", "lineHeight": "KEEP: 24px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., semibold (600)", "tailwind": "text-sm font-semibold" },
+      "label_small": { "$use": "Tag text, compact labels", "size": "KEEP: 12px", "lineHeight": "KEEP: 22px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., medium (500)", "tailwind": "text-xs font-medium" },
+      "code": { "$use": "Inline code, api keys, ids", "size": "TODO: e.g., 13px", "lineHeight": "TODO: e.g., 20px", "letterSpacing": "TODO: e.g., 0px", "weight": "TODO: e.g., regular (400)", "fontFamily": "TODO: the monospace family above", "tailwind": "TODO" }
+    },
+
+    "type_tokens": {
+      "$description": "Type decisions that belong to an entity. These are real tokens: §4.3 carries font-weight, line-height and letter-spacing since 2026-08-01.",
+      "$note": "A paint property is implied by a text anatomy and omitted (button.label); a TYPE property never is, so it is always written (§7.2, SCOPED 2026-08-01).",
+      "button_label_weight": "button.label.font-weight",
+      "field_label_weight": "field.label.font-weight",
+      "field_placeholder_line_height": "field.placeholder.line-height",
+      "data_table_header_weight": "data-table.header.font-weight",
+      "card_label_weight": "card.label.font-weight",
+      "card_helper_line_height": "card.helper.line-height",
+      "code_block_line_height": "code-block.line-height",
+      "markdown_line_height": "markdown.line-height",
+      "stat_label_letter_spacing": "stat.label.letter-spacing",
+      "nav_item_label_weight": "nav-item.label.font-weight",
+      "$law_gap_font_size": "$law-gap: font-size and font-family are NOT in §4.3 — the sixteen properties are seven paint, six geometry and three type, and size/family are in none of them. Every size decision therefore lives in type_scale above as a primitive step. Owner decision: extend §4.3 with font-size/font-family, or keep the scale-reference model."
+    },
+
+    "foreground_colors": {
+      "$description": "The v3 key 'text_colors' is the exact defect §3.1 bans: primary/secondary/tertiary is a RANK axis and success/error/link is a ROLE axis, in one flat family with no entity.",
+      "$measured": "content-primary had 1,647 uses across 26 different entities — changing the button's text changed the modal, the card and the field (GRAMMAR.md §3.1).",
+      "$rule": "There is no global text-colour token. Each entity owns its own text.",
+      "migration": [
+        { "old_name": "text_colors.primary  (theme.text.layer1)", "law_names": ["page.foreground-color", "card.label", "modal.header.foreground-color", "data-table.primary.cell.foreground-color"] },
+        { "old_name": "text_colors.secondary  (theme.text.layer2)", "law_names": ["card.helper", "data-table.secondary.cell.foreground-color", "menu.row.foreground-color", "nav-item.foreground-color"] },
+        { "old_name": "text_colors.tertiary  (theme.text.layer3)", "law_names": ["field.placeholder", "prompt.placeholder", "chat-message.helper", "modal.helper"] },
+        { "old_name": "text_colors.disabled  (theme.text.layer4)", "law_names": ["menu.row.foreground-color.disabled", "nav-item.foreground-color.disabled", "button.primary.label.disabled"] },
+        { "old_name": "text_colors.inverse  (theme.white)", "law_names": ["button.primary.label", "badge.destructive.foreground-color", "banner.destructive.foreground-color"] },
+        { "old_name": "text_colors.brand  (theme.pink.medium)", "law_names": ["button.primary.label", "nav-item.foreground-color.selected"] },
+        { "old_name": "text_colors.success  (theme.green.dark)", "law_names": ["stat.success.foreground-color", "badge.success.foreground-color"] },
+        { "old_name": "text_colors.warning  (theme.yellow.darker)", "law_names": ["stat.warning.foreground-color", "badge.warning.foreground-color"] },
+        { "old_name": "text_colors.error  (theme.red.dark)", "law_names": ["field.helper.invalid", "stat.destructive.foreground-color", "badge.destructive.foreground-color"] },
+        { "old_name": "text_colors.info  (theme.blue.dark)", "law_names": ["banner.info.label", "prompt.info.header.foreground-color"] }
+      ],
+      "$law_gap_link": "$law-gap: a hyperlink has no entity in §4.1 and 'visited' has no state in §4.5. citation is the closest listed entity but a link inside prose is not a citation. Owner decision: admit a 'link' entity with call-site evidence (§5.5 admission rule), or resolve links as markdown.foreground-color."
+    },
+
+    "text_decoration": {
+      "underline": "TODO: 'none' | 'underline' | 'underline on hover only' (text-decoration is not a §4.3 property — this is a rule, not a token)",
+      "strikethrough": "TODO: where struck-through text appears (pricing, deleted rows)"
+    },
+
+    "text_truncation": {
+      "$description": "Overflow behaviour in constrained space. A rule, not a token.",
+      "single_line": "TODO: e.g., truncate with an ellipsis",
+      "multi_line_max": "TODO: e.g., 3 lines then ellipsis (line-clamp-3)",
+      "tooltip_on_truncate": "TODO: true/false — reveal the full string on hover?"
+    }
+  },
+
+  "03_NUMBERS": {
+    "$description": "How figures are rendered. Formatting is a rule; the colour of a figure is a token owned by the entity that renders it — usually stat or data-table.",
+
+    "locale": "TODO: e.g., pt-BR",
+    "currency": "TODO: e.g., BRL (R$)",
+    "currency_symbol_position": "TODO: e.g., prefix (R$ 1.234,56)",
+    "decimal_separator": "TODO: e.g., comma (,)",
+    "thousands_separator": "TODO: e.g., period (.)",
+
+    "formats": {
+      "currency_full": { "$use": "Totals, portfolio values, stat cards", "example": "TODO: e.g., R$ 1.234.567,89", "decimals": "TODO: e.g., 2", "type_step": "TODO: a step of type_scale (e.g., heading_4)" },
+      "currency_compact": { "$use": "Charts, dense tables", "example": "TODO: e.g., R$ 1,2M | R$ 345K", "thresholds": { "thousands": "TODO: e.g., K", "millions": "TODO: e.g., M", "billions": "TODO: e.g., B" } },
+      "percentage": { "$use": "Returns, allocation, progress", "example": "TODO: e.g., 12,34%", "decimals": "TODO: e.g., 2", "show_sign": "TODO: true/false" },
+      "percentage_compact": { "$use": "Badges, small indicators", "example": "TODO: e.g., 12%", "decimals": "TODO: e.g., 0" },
+      "integer": { "$use": "Counts, quantities, rankings", "example": "TODO: e.g., 1.234", "use_thousands_separator": "TODO: true/false" },
+      "decimal": { "$use": "Scores, rates, coefficients", "example": "TODO: e.g., 1.234,56", "decimals": "TODO: e.g., 2" },
+      "basis_points": { "$use": "Financial basis points", "example": "TODO: e.g., 125 bps", "suffix": "TODO: e.g., bps" },
+      "shares_units": { "$use": "Share quantities, fund units", "example": "TODO: e.g., 1.234,567890", "decimals": "TODO: e.g., 6" }
+    },
+
+    "number_tokens": {
+      "$description": "The colour of a figure. Direction (gain/loss) maps onto the §4.4 roles success and destructive; there is no separate 'positive/negative' axis in the law.",
+      "positive": "stat.success.foreground-color",
+      "negative": "stat.destructive.foreground-color",
+      "attention": "stat.warning.foreground-color",
+      "neutral": "data-table.secondary.cell.foreground-color",
+      "emphasised": "data-table.primary.cell.foreground-color",
+      "old_name": "number_colors.positive|negative|neutral|highlight|muted (theme.green.dark / theme.red.dark / theme.text.layer2|3 in v3.0.0)"
+    },
+
+    "number_indicators": {
+      "$description": "The glyph beside a figure. Icon CHOICE is a rule; icon COLOUR is the token in the same row above.",
+      "positive_prefix": "TODO: e.g., +",
+      "negative_prefix": "TODO: e.g., - (or the natural minus)",
+      "positive_icon": "TODO: e.g., arrow-up",
+      "negative_icon": "TODO: e.g., arrow-down",
+      "neutral_icon": "TODO: e.g., minus, or none",
+      "icon_colour": "stat.icon.foreground-color"
+    },
+
+    "stat_display": {
+      "$description": "Renamed from 'kpi_display' — stat is the §4.1 entity for a single measured figure.",
+      "value_type_step": "TODO: a step of type_scale (e.g., heading_3)",
+      "label_type_step": "TODO: e.g., label_small",
+      "delta_type_step": "TODO: e.g., label_small",
+      "unit_type_step": "TODO: e.g., caption",
+      "unit_position": "TODO: prefix for currency, suffix for percentage",
+      "value_colour": "stat.foreground-color",
+      "label_colour": "stat.label",
+      "icon_background": "stat.icon.background-color",
+      "border": "stat.border-color",
+      "border_hover": "stat.border-color.hover"
+    }
+  },
+
+  "04_COLORS": {
+    "$description": "Two tiers, and the difference is the whole point. PRIMITIVE ramps are raw pigment and are never consumed by a component. ROLE tokens are law names and are the only thing a component may type.",
+
+    "primitive_ramps": {
+      "$tier": "primitive",
+      "$rule": "A pigment name is legal HERE and nowhere else. It may never head a token (§5.5) and never appear in a class, a custom property, or a component.",
+      "$description": "Fill hex values for the LIGHT theme first; other themes adapt these.",
+
+      "brand": { "darker": "KEEP: #56061A", "dark": "KEEP: #9E0A30", "medium": "KEEP: #E60F46", "light": "KEEP: #F23666", "lighter": "KEEP: #F77E9D" },
+      "success": { "darker": "KEEP: #1E7E34", "dark": "KEEP: #28A745", "medium": "KEEP: #34C759", "light": "KEEP: #6FDC8C", "lighter": "KEEP: #A8E6C1", "softest": "TODO: e.g., #ECFDF5 (the tint behind a success banner)" },
+      "warning": { "darker": "KEEP: #C18E13", "dark": "KEEP: #E5A617", "medium": "KEEP: #F5B91C", "light": "KEEP: #FFD966", "lighter": "KEEP: #FFEFC2", "softest": "TODO: e.g., #FFFBEB" },
+      "destructive": { "darker": "KEEP: #7D1F1F", "dark": "KEEP: #DC2626", "medium": "KEEP: #EF4444", "light": "KEEP: #F87171", "lighter": "KEEP: #FCA5A5", "softest": "TODO: e.g., #FEF2F2" },
+      "info": { "darker": "KEEP: #1E3A8A", "dark": "KEEP: #2563EB", "medium": "KEEP: #3B82F6", "light": "KEEP: #60A5FA", "lighter": "KEEP: #93C5FD", "softest": "TODO: e.g., #EFF6FF" },
+      "neutral": { "900": "TODO: e.g., #212529", "800": "TODO: e.g., #343A40", "700": "TODO: e.g., #495057", "600": "TODO: e.g., #6C757D", "500": "TODO: e.g., #A9A9A9", "400": "TODO: e.g., #CED4DA", "300": "TODO: e.g., #E4E4E4", "200": "TODO: e.g., #F1F1F1", "100": "TODO: e.g., #F7F7F7", "50": "TODO: e.g., #FAFAFA", "white": "KEEP: #FFFFFF", "black": "KEEP: #000000" },
+      "extended": {
+        "$use": "Extra hues for charts and categories, never for roles",
+        "purple": { "darker": "KEEP: #6B21A8", "dark": "KEEP: #8B5CF6", "medium": "KEEP: #A78BFA", "light": "KEEP: #C4B5FD", "lighter": "KEEP: #DDD6FE" },
+        "cyan": { "darker": "KEEP: #0E7490", "dark": "KEEP: #06B6D4", "medium": "KEEP: #22D3EE", "light": "KEEP: #67E8F9", "lighter": "KEEP: #A5F3FC" },
+        "orange": { "darker": "TODO: e.g., #C2410C", "dark": "TODO: e.g., #EA580C", "medium": "TODO: e.g., #F97316", "light": "TODO: e.g., #FB923C", "lighter": "TODO: e.g., #FDBA74" },
+        "teal": { "darker": "TODO: e.g., #115E59", "dark": "TODO: e.g., #0D9488", "medium": "TODO: e.g., #14B8A6", "light": "TODO: e.g., #2DD4BF", "lighter": "TODO: e.g., #99F6E4" },
+        "indigo": { "darker": "TODO: e.g., #3730A3", "dark": "TODO: e.g., #4F46E5", "medium": "TODO: e.g., #6366F1", "light": "TODO: e.g., #818CF8", "lighter": "TODO: e.g., #C7D2FE" }
+      },
+      "renamed_from_v3": "the family 'semantic' (a tier name, banned by §3) became these ramps; 'error' became 'destructive', the word §4.4 actually carries; the per-ramp 'surface' key became 'softest'."
+    },
+
+    "elevation_migration": {
+      "$description": "The v3 blocks background_layers / border_layers / text_layers / hover_layers are the defect §2 is about. layer5 and surface.deep carry the SAME information — none — and were consumed by entities that share no role.",
+      "$rule": "Elevation is METADATA of a value, never a name. The entity that renders the pixel is the name.",
+      "background": [
+        { "old_name": "background.layer1 (#F1F1F1) — page background", "law_name": "page.background-color" },
+        { "old_name": "background.layer2 (#FFFFFF) — card and panel fills", "law_name": "card.background-color" },
+        { "old_name": "background.layer3 (#F7F7F7) — nested block inside a card", "law_name": "card.header.background-color" },
+        { "old_name": "background.layer4 (#FFFFFF) — popovers and floating panels", "law_name": "popover.background-color" },
+        { "old_name": "background.layer5 (#F7F7F7) — the highest content plane", "law_name": "menu.background-color" },
+        { "old_name": "background.layer6 (#E4E4E4) — active/selected fill", "law_name": "list-row.background-color.selected" }
+      ],
+      "border": [
+        { "old_name": "border.layer1 (#D5D5D5) — prominent", "law_name": "card.border-color" },
+        { "old_name": "border.layer2 (#BEBEBE) — standard", "law_name": "field.border-color" },
+        { "old_name": "border.layer3 (#DEDEDE) — medium", "law_name": "menu.border-color" },
+        { "old_name": "border.layer4 (#E8E8E8) — soft", "law_name": "toolbar.border-color" },
+        { "old_name": "border.layer5 (#CACACA) — strong emphasis", "law_name": "data-table.header.border-color" },
+        { "old_name": "border.lightest (#EBEBEB) — barely visible separator", "law_name": "divider.border-color" }
+      ],
+      "text": [
+        { "old_name": "text.layer1 (#000000)", "law_name": "page.foreground-color" },
+        { "old_name": "text.layer2 (#4A4A4A)", "law_name": "card.helper" },
+        { "old_name": "text.layer3 (#5C5C5C)", "law_name": "field.placeholder" },
+        { "old_name": "text.layer4 (#8A8A8A)", "law_name": "menu.row.foreground-color.disabled" }
+      ],
+      "hover": [
+        { "old_name": "hover.lighter (#F2F2F2)", "law_name": "list-row.background-color.hover" },
+        { "old_name": "hover.light (#EAEAEA)", "law_name": "menu.row.background-color.hover" },
+        { "old_name": "hover.medium (#E2E2E2)", "law_name": "select.background-color.hover" },
+        { "old_name": "hover.dark (#DCDCDC)", "law_name": "button.secondary.background-color.hover" },
+        { "old_name": "hover.darker (#D0D0D0)", "law_name": "button.secondary.background-color.active" }
+      ],
+      "$warning": "One old layer maps to MANY law names — that is the point, not an accident. Two entities that share a hex today are still two contracts (§5 rule 1). The single law name listed per row is the FIRST consumer to migrate; the cookbook holds the full list per situation."
+    },
+
+    "focus_ring": {
+      "$description": "A cross-cutting decision with no parent component — a legitimate global entity under §5.5. One token, N consumers, instead of button.outline-color.focus + field.outline-color.focus + ...",
+      "colour": "focus-ring.outline-color",
+      "shadow_form": "focus-ring.box-shadow",
+      "colour_when_selected": "focus-ring.outline-color.selected",
+      "width": "TODO: e.g., 2px",
+      "offset": "TODO: e.g., 2px",
+      "$law_gap_geometry": "$law-gap: outline-width and outline-offset are not in §4.3 (which carries outline-color only). They stay measurements until the owner extends the property list."
+    },
+
+    "selection": {
+      "$description": "A selected row/item. selected is a real §4.5 state, so this is a state token on the entity that is selected — never a global 'selection' colour.",
+      "row_background": "list-row.background-color.selected",
+      "row_background_base": "list-row.background-color",
+      "table_row_background": "data-table.row.background-color.selected",
+      "table_row_background_base": "data-table.row.background-color",
+      "card_outline": "card.outline-color.selected",
+      "card_outline_base": "card.outline-color",
+      "nav_item_background": "nav-item.background-color.selected",
+      "nav_item_background_base": "nav-item.background-color"
+    },
+
+    "chart_palettes": {
+      "$tier": "primitive",
+      "$description": "Ordered sequences for data series. These are VALUES indexed by position, not roles.",
+      "$law_gap": "$law-gap: a cyclic N-slot palette has no token model — DTCG models one token, not an array, and a series index is not a §4.4 variant. Registered in cookbook.md (LAW GAP: 'Paleta cíclica indexada para N valores dinâmicos'). Until the owner decides, a chart series is resolved at implementation level, not by a token per slot.",
+      "categorical": { "$use": "Distinct series, up to 8-10 visually separable", "1": "TODO: e.g., #2563EB", "2": "TODO: e.g., #E60F46", "3": "TODO: e.g., #22C55E", "4": "TODO: e.g., #F59E0B", "5": "TODO: e.g., #8B5CF6", "6": "TODO: e.g., #06B6D4", "7": "TODO: e.g., #F97316", "8": "TODO: e.g., #EC4899" },
+      "sequential": { "$use": "One metric, low to high (heat maps, density)", "lightest": "TODO: e.g., #DBEAFE", "light": "TODO: e.g., #93C5FD", "medium": "TODO: e.g., #3B82F6", "dark": "TODO: e.g., #1D4ED8", "darkest": "TODO: e.g., #1E3A8A" },
+      "diverging": { "$use": "Negative to positive around a midpoint", "negative_strong": "TODO: e.g., #DC2626", "negative_light": "TODO: e.g., #FCA5A5", "midpoint": "TODO: e.g., #F5F5F5", "positive_light": "TODO: e.g., #A8E6C1", "positive_strong": "TODO: e.g., #28A745" },
+      "financial": { "$use": "Domain series with a fixed meaning", "gain": "TODO: e.g., #22C55E", "loss": "TODO: e.g., #EF4444", "benchmark": "TODO: e.g., #6B7280", "target": "TODO: e.g., #F59E0B", "actual": "TODO: e.g., #2563EB" }
+    },
+
+    "domain_categories": {
+      "$description": "Colour that identifies a BUSINESS CATEGORY, not a UI role. Renamed from 'data_status' and 'segment_colors'.",
+      "$law_gap": "$law-gap: §4.4 has seven roles of severity/emphasis and no slot for a category enum. Mapping active->success or overdue->destructive would be INFERENCE from the hue, which §5 rule 5 forbids. Registered in cookbook.md (LAW GAP: 'Categorias de domínio sem papel de severidade') with the same pending owner decision: give the law a named-category mechanism, or resolve categories at implementation level with an explicit map.",
+      "pending_examples": ["active", "inactive", "pending", "overdue", "completed", "cancelled", "draft", "digital", "signature", "exclusive", "unique", "private"],
+      "old_name": "data_status.* and segment_colors.* (v3.0.0, values var(--good)/var(--info)/var(--bad)/var(--warn))"
+    }
+  },
+
+  "05_ICONOGRAPHY": {
+    "$description": "icon is an ANATOMY (§4.2), never an entity. There is no global icon colour: an icon is always some entity's icon.",
+
+    "icon_library": "TODO: which set? e.g., 'Lucide React', 'Heroicons', 'custom SVGs'",
+    "fallback_library": "TODO: secondary set when the primary lacks a glyph",
+
+    "sizes": {
+      "$tier": "primitive",
+      "xs": "KEEP: 12px (w-3 h-3) — inline with caption text, status dots",
+      "sm": "KEEP: 16px (w-4 h-4) — inline with body text, button icons, table actions",
+      "md": "TODO: e.g., 20px (w-5 h-5) — navigation items, field icons",
+      "lg": "KEEP: 24px (w-6 h-6) — standalone icons, card headers, toolbar",
+      "xl": "TODO: e.g., 32px (w-8 h-8) — feature icons, empty states",
+      "2xl": "TODO: e.g., 48px (w-12 h-12) — hero icons, onboarding"
+    },
+
+    "icon_tokens": {
+      "$description": "One row per entity that renders an icon. The v3 block 'icon_colors' had a single global default/muted/active family — the ownerless pattern §3.1 bans.",
+      "button_primary": "button.primary.icon",
+      "button_secondary": "button.secondary.icon",
+      "button_destructive": "button.destructive.icon.foreground-color",
+      "nav_item": "nav-item.icon.foreground-color",
+      "nav_item_hover": "nav-item.icon.foreground-color.hover",
+      "nav_item_selected": "nav-item.icon.foreground-color.selected",
+      "sidebar": "sidebar.icon.foreground-color",
+      "sidebar_hover": "sidebar.icon.foreground-color.hover",
+      "menu_row": "menu.row.foreground-color",
+      "list_row": "list-row.icon.foreground-color",
+      "card": "card.icon.foreground-color",
+      "card_disabled": "card.icon.foreground-color.disabled",
+      "badge": "badge.icon.foreground-color",
+      "pill": "pill.icon.foreground-color",
+      "search": "search.icon.foreground-color",
+      "toast_success": "toast.success.icon.foreground-color",
+      "toast_warning": "toast.warning.icon.foreground-color",
+      "toast_destructive": "toast.destructive.icon.foreground-color",
+      "toast_info": "toast.info.icon.foreground-color",
+      "banner_info": "banner.info.icon.foreground-color",
+      "modal_success": "modal.success.icon.foreground-color",
+      "modal_warning": "modal.warning.icon.foreground-color",
+      "modal_destructive": "modal.destructive.icon.foreground-color",
+      "empty_state": "empty-state.icon.foreground-color",
+      "stat": "stat.icon.foreground-color",
+      "old_name": "icon_colors.default|muted|active|success|warning|error|info|inverse|disabled (theme.text.layer2|3 / theme.pink.medium in v3.0.0)"
+    },
+
+    "icon_containers": {
+      "$description": "The coloured disc or square behind an icon. The container is the ENTITY's icon background, not a component of its own.",
+      "card": "card.icon.background-color",
+      "card_hover": "card.icon.background-color.hover",
+      "modal": "modal.icon.background-color",
+      "empty_state": "empty-state.icon.background-color",
+      "stat": "stat.icon.background-color",
+      "sidebar": "sidebar.icon.background-color",
+      "radius": "card.icon.border-radius",
+      "padding": "card.icon.padding",
+      "sizes": { "sm": "TODO: e.g., 32px", "md": "TODO: e.g., 40px", "lg": "TODO: e.g., 48px" }
+    },
+
+    "icon_naming_convention": "TODO: e.g., 'icons-{size}-{name}.svg'",
+    "viewBox": "TODO: e.g., '0 0 24 24'",
+    "stroke_width": "TODO: e.g., 1.5px or 2px"
+  },
+
+  "06_AVATARS": {
+    "$description": "avatar is a §4.1 entity.",
+
+    "sizes": {
+      "xs": "TODO: e.g., 24px (dense lists)",
+      "sm": "TODO: e.g., 32px (table cells, chat messages)",
+      "md": "TODO: e.g., 40px (card headers, comments)",
+      "lg": "TODO: e.g., 48px (profile headers)",
+      "xl": "TODO: e.g., 64px (profile pages, modals)",
+      "2xl": "TODO: e.g., 96px (hero profile)"
+    },
+
+    "shape": "avatar.border-radius",
+
+    "fallback": {
+      "$description": "What renders when there is no image.",
+      "type": "TODO: 'initials' or 'icon'",
+      "initials_colour": "avatar.label",
+      "initials_background": "avatar.background-color",
+      "initials_max_chars": "TODO: e.g., 2",
+      "initials_weight": "avatar.label.font-weight",
+      "initials_font_size_ratio": "TODO: e.g., 0.4 (of the avatar size)",
+      "background_generation": "TODO: 'hash from name' (stable per person) or 'random from palette'",
+      "fallback_palette": "$law-gap: an index-into-N palette, the same gap as chart_palettes above — a slot per person has no token model. List the hexes in the primitive ramps and select at implementation level."
+    },
+
+    "border": {
+      "show_border": "TODO: true/false",
+      "colour": "avatar.border-color",
+      "width": "TODO: e.g., 2px"
+    },
+
+    "status_indicator": {
+      "$description": "The presence dot. on and off are real §4.5 states; busy and away are not.",
+      "show": "TODO: true/false",
+      "base": "avatar.indicator.background-color",
+      "online": "avatar.indicator.background-color.on",
+      "offline": "avatar.indicator.background-color.off",
+      "$law_gap_presence": "$law-gap: 'busy' and 'away' are presence values with no state in §4.5, and they are not severity roles either. Same family as the domain_categories gap. Owner decision required before they get a name.",
+      "size_ratio": "TODO: e.g., 0.25 (of the avatar size)",
+      "position": "TODO: e.g., bottom-right",
+      "ring_width": "TODO: e.g., 2px (contrast ring around the dot)"
+    },
+
+    "group": {
+      "$description": "Overlapping avatars (assignees, participants).",
+      "overlap": "TODO: e.g., -8px",
+      "max_visible": "TODO: e.g., 4",
+      "overflow_counter_background": "badge.background-color",
+      "overflow_counter_label": "badge.label"
+    }
+  },
+
+  "07_BORDERS": {
+    "$description": "border-color is paint; border-radius is geometry. Both are §4.3 properties, so both are nameable.",
+
+    "width": {
+      "$tier": "primitive",
+      "$note": "border-width is NOT in §4.3. These stay measurements.",
+      "none": "0px",
+      "thin": "TODO: e.g., 1px (the default)",
+      "medium": "TODO: e.g., 2px (focus, emphasis)",
+      "thick": "TODO: e.g., 3px (active indicator)"
+    },
+
+    "style": {
+      "$note": "border-style is not in §4.3 either — a rule, not a token.",
+      "solid": "TODO: where? (cards, fields, buttons)",
+      "dashed": "TODO: where? (upload areas, empty states)",
+      "dotted": "TODO: where? (optional)"
+    },
+
+    "radius_scale": {
+      "$tier": "primitive",
+      "none": "KEEP: 0px",
+      "sm": "KEEP: 8px (buttons, fields, triggers, badges)",
+      "md": "KEEP: 12px (cards, containers, dropdowns)",
+      "lg": "KEEP: 16px (modals, dialogs)",
+      "xl": "KEEP: 24px (page containers, hero sections)",
+      "full": "KEEP: 9999px (pills, circles)"
+    },
+
+    "radius_tokens": {
+      "$description": "border-radius entered §4.3 on 2026-08-01, so a corner is now a real token instead of a raw class.",
+      "button": "button.border-radius",
+      "field": "field.border-radius",
+      "select": "select.border-radius",
+      "card": "card.border-radius",
+      "modal": "modal.border-radius",
+      "menu": "menu.border-radius",
+      "popover": "popover.border-radius",
+      "tooltip": "tooltip.border-radius",
+      "badge": "badge.border-radius",
+      "pill": "pill.border-radius",
+      "toast": "toast.border-radius",
+      "avatar": "avatar.border-radius",
+      "skeleton": "skeleton.border-radius"
+    },
+
+    "dividers": {
+      "$description": "The hairline. A cross-cutting decision, so it is the global entity divider (§5.5) — one token, N consumers, instead of menu.divider + data-table.divider + modal.divider for one decision.",
+      "colour": "divider.border-color",
+      "inside_a_table": "data-table.divider",
+      "inside_the_sidebar": "sidebar.divider",
+      "thickness": "TODO: e.g., 1px",
+      "style": "TODO: e.g., solid",
+      "spacing_above": "TODO: e.g., 16px",
+      "spacing_below": "TODO: e.g., 16px"
+    }
+  },
+
+  "08_SHADOWS": {
+    "$description": "box-shadow IS a §4.3 paint property, so a shadow is a token like any other. The ramp below is primitive; the tokens reference it.",
+
+    "shadow_scale": {
+      "$tier": "primitive",
+      "none": "none",
+      "xs": "TODO: e.g., 0px 1px 2px 0px rgba(0,0,0,0.05)",
+      "sm": "KEEP: 0px 2px 4px 0px rgba(33,37,41,0.08)",
+      "md": "KEEP: 0px 4px 8px 0px rgba(33,37,41,0.12)",
+      "lg": "KEEP: 0px 8px 16px 0px rgba(33,37,41,0.16)",
+      "xl": "TODO: e.g., 0px 16px 32px 0px rgba(33,37,41,0.20)",
+      "2xl": "TODO: e.g., 0px 24px 48px 0px rgba(33,37,41,0.24)",
+      "inner": "TODO: e.g., inset 0px 2px 4px 0px rgba(0,0,0,0.06)"
+    },
+
+    "shadow_tokens": {
+      "card": "card.box-shadow",
+      "card_hover": "card.box-shadow.hover",
+      "menu": "menu.box-shadow",
+      "modal": "modal.box-shadow",
+      "toast": "toast.box-shadow",
+      "tooltip": "tooltip.box-shadow",
+      "field": "field.box-shadow",
+      "checkbox": "checkbox.box-shadow",
+      "radio": "radio.box-shadow",
+      "toggle_thumb": "toggle.thumb.box-shadow",
+      "focus_ring": "focus-ring.box-shadow",
+      "old_name": "shadow.secondary (v3.0.0, 'secondary buttons') — a shadow named after a variant with no entity; it is button.box-shadow, and if it really is variant-specific, button.secondary.box-shadow"
+    }
+  },
+
+  "09_LOGO": {
+    "$description": "logo is a §4.1 entity. Most rows here are brand rules rather than tokens.",
+
+    "variants": {
+      "$note": "These are ASSET variants, not §4.4 role variants — they never enter a token name.",
+      "full": "TODO: symbol plus wordmark (default)",
+      "icon_only": "TODO: just the mark",
+      "text_only": "TODO: just the wordmark",
+      "monochrome": "TODO: single-colour version"
+    },
+
+    "sizes": {
+      "favicon": "TODO: e.g., 16px, 32px",
+      "nav_icon": "TODO: e.g., 24px or 32px (collapsed sidebar)",
+      "nav_full": "TODO: e.g., 120px width (expanded sidebar)",
+      "page_header": "TODO: e.g., 160px width",
+      "splash": "TODO: e.g., 240px width"
+    },
+
+    "tokens": {
+      "mark_fill": "logo.fill",
+      "wordmark_colour": "logo.foreground-color"
+    },
+
+    "clear_space": "TODO: minimum breathing room (e.g., the height of the mark)",
+    "min_size": "TODO: smallest allowed rendering",
+    "backgrounds_allowed": "TODO: which backgrounds may carry the logo?",
+    "backgrounds_forbidden": "TODO: which must be avoided?"
+  },
+
+  "10_BUTTONS": {
+    "$description": "The reference entity. Every variant here is a §4.4 role and every state a §4.5 state — nothing invented.",
+
+    "variants": {
+      "$vocabulary": "§4.4 closed list: primary, secondary, ghost, destructive, success, warning, info",
+      "primary": "button.primary.background-color",
+      "secondary": "button.secondary.background-color",
+      "ghost": "button.ghost.background-color",
+      "destructive": "button.destructive.background-color",
+      "success": "button.success.background-color",
+      "warning": "button.warning.background-color",
+      "info": "button.info.background-color",
+      "old_name": "types.primary|secondary|tertiary|danger (v3.0.0). 'danger' is 'destructive' in the law; 'tertiary' has no slot at all.",
+      "$law_gap_tertiary": "$law-gap: 'tertiary', 'outline', 'link', 'subtle', 'accent' and the four soft variants are used in real code and are outside §4.4. Enumerated with path:line in cookbook.md chapter 1 (LAW GAP block). Owner decision: amend §4.4, or fold each one into a listed role."
+    },
+
+    "states": {
+      "$checklist": "Every interactive entity declares these five, or says why one does not exist. Adopted from ui-ux-pro-max; expressed in §4.5 vocabulary.",
+      "$note": "Figma and much source code call the pressed state 'Press'. The law says active. loading is also a §4.5 state and applies wherever the button can be busy.",
+      "default": "button.primary.background-color",
+      "hover": "button.primary.background-color.hover",
+      "active": "button.primary.background-color.active",
+      "focus": "focus-ring.outline-color",
+      "disabled": "button.primary.background-color.disabled",
+      "loading": "button.primary.background-color.loading",
+      "old_name": "states: [default, hover, press, focus, disabled] (v3.0.0 — 'press' is not a §4.5 state)"
+    },
+
+    "anatomy": {
+      "$description": "A button has more than one addressable part, so anatomy is written (§4.2). label and icon are single-paint-property anatomies, so the paint property is omitted (§7.2).",
+      "container_background": "button.primary.background-color",
+      "container_border": "button.secondary.border-color",
+      "label": "button.primary.label",
+      "label_hover": "button.primary.label.hover",
+      "label_disabled": "button.primary.label.disabled",
+      "icon": "button.primary.icon",
+      "icon_hover": "button.primary.icon.hover",
+      "icon_disabled": "button.primary.icon.disabled",
+      "padding": "button.padding",
+      "radius": "button.border-radius",
+      "icon_gap": "button.gap"
+    },
+
+    "sizes": {
+      "$note": "Density is not a §4.4 axis — see the law gap in 01_LAYOUT.spacing_tokens. Sizes stay measurements until the owner rules.",
+      "small": "KEEP: px-1.5 py-1.5, text-xs",
+      "medium": "KEEP: px-2 py-2, text-sm",
+      "large": "KEEP: px-2.5 py-2.5, text-base",
+      "min_height": "TODO: e.g., 32px / 36px / 44px (touch target)",
+      "min_width": "TODO: e.g., 64px"
+    },
+
+    "transition": "KEEP: 400ms ease-in-out",
+
+    "icon_button": {
+      "$description": "A button whose only child is an icon. Same entity, same tokens — the label is simply absent.",
+      "sizes": { "sm": "TODO: e.g., 28px", "md": "TODO: e.g., 36px", "lg": "TODO: e.g., 44px" },
+      "radius": "button.border-radius"
+    },
+
+    "button_group": {
+      "$description": "Adjacent buttons (segmented control).",
+      "gap": "toolbar.gap",
+      "shared_radius": "TODO: e.g., 8px on the outer corners only"
+    },
+
+    "loading_state": {
+      "background": "button.primary.background-color.loading",
+      "label": "button.primary.label.loading",
+      "show_spinner": "TODO: true/false",
+      "disable_on_loading": "TODO: true/false",
+      "$law_gap_loader": "$law-gap: the spinner inside a button is a third part next to label and icon, and §4.2 lists neither 'loader' nor 'spinner'. Measured in the Figma extraction (DESIGN_TOKENS/10-buttons.json:134-141, a distinct loaderColor) and registered in cookbook.md chapter 1."
+    },
+
+    "$law_gap_opacity": "$law-gap: the disabled state is implemented with opacity in real code (disabled:opacity-50; 0.4 in the other product) and 'opacity' is not a §4.3 property. Registered in cookbook.md chapter 1."
+  },
+
+  "11_FILTERS": {
+    "$description": "A filter bar is a toolbar; a filter chip is a pill; the active-count badge is a badge. All three are §4.1 entities.",
+
+    "filter_bar": {
+      "background": "toolbar.background-color",
+      "border": "toolbar.border-color",
+      "padding": "toolbar.padding",
+      "gap": "toolbar.gap",
+      "radius": "toolbar.border-radius",
+      "leading_slot": "toolbar.prefix.background-color",
+      "trailing_slot": "toolbar.suffix.background-color",
+      "position": "TODO: sticky below the nav, or inline in the page?"
+    },
+
+    "filter_chip": {
+      "$description": "Renamed to the pill entity. The three v3 'states' map onto §4.5 exactly: default / selected / hover.",
+      "default_background": "pill.background-color",
+      "default_label": "pill.label",
+      "hover_background": "pill.background-color.hover",
+      "selected_background": "pill.success.background-color",
+      "icon": "pill.icon.foreground-color",
+      "remove_button": "pill.suffix.background-color",
+      "remove_button_hover": "pill.suffix.background-color.hover",
+      "radius": "pill.border-radius",
+      "padding": "pill.padding",
+      "type_step": "TODO: a step of type_scale (e.g., label_small)"
+    },
+
+    "active_filter_count": {
+      "background": "badge.primary.background-color",
+      "label": "badge.label",
+      "size": "TODO: e.g., 18px circle",
+      "type_step": "TODO: e.g., 10px bold"
+    }
+  },
+
+  "12_NAVIGATION": {
+    "$description": "sidebar, nav-item and toolbar are §4.1 entities. Tabs, breadcrumbs and pagination are NOT — they are declared gaps, not guesses.",
+
+    "sidebar": {
+      "background": "sidebar.background-color",
+      "border": "sidebar.border-color",
+      "text": "sidebar.foreground-color",
+      "secondary_region_background": "sidebar.secondary.background-color",
+      "scrim_when_overlaying": "sidebar.backdrop",
+      "section_separator": "sidebar.divider",
+      "padding": "sidebar.padding",
+      "collapse_animation": "TODO: e.g., 200ms ease-in-out",
+
+      "nav_item": {
+        "$checklist": "the five interaction states, in §4.5 vocabulary",
+        "background": "nav-item.background-color",
+        "background_hover": "nav-item.background-color.hover",
+        "background_active": "nav-item.background-color.active",
+        "background_selected": "nav-item.background-color.selected",
+        "label": "nav-item.foreground-color",
+        "label_hover": "nav-item.foreground-color.hover",
+        "label_selected": "nav-item.foreground-color.selected",
+        "label_disabled": "nav-item.foreground-color.disabled",
+        "icon": "nav-item.icon.foreground-color",
+        "icon_hover": "nav-item.icon.foreground-color.hover",
+        "icon_selected": "nav-item.icon.foreground-color.selected",
+        "selected_marker": "nav-item.indicator.background-color",
+        "selected_marker_active": "nav-item.indicator.background-color.active",
+        "expand_caret": "nav-item.caret",
+        "expand_caret_selected": "nav-item.caret.selected",
+        "border": "nav-item.border-color",
+        "border_disabled": "nav-item.border-color.disabled",
+        "focus": "focus-ring.outline-color",
+        "padding": "nav-item.padding",
+        "radius": "nav-item.border-radius",
+        "icon_gap": "nav-item.gap",
+        "label_weight": "nav-item.label.font-weight"
+      },
+
+      "section_heading": {
+        "type_step": "TODO: e.g., overline (uppercase small text)",
+        "colour": "sidebar.foreground-color"
+      }
+    },
+
+    "topbar": {
+      "$description": "A horizontal bar of controls across the top. Resolved as toolbar — the §4.1 entity for a strip of controls.",
+      "background": "toolbar.background-color",
+      "border": "toolbar.border-color",
+      "padding": "toolbar.padding",
+      "height": "TODO: e.g., 56px or 64px"
+    },
+
+    "tabs": {
+      "$law_gap": "$law-gap: 'tab' is not in §4.1 and the cookbook has no situation for it in 712 measured rows. nav-item is the nearest listed entity but a tab switches a panel inside a page while a nav-item navigates — different contracts. Admitting an entity requires call-site evidence in the same change (§5.5). Do not name a tab until then.",
+      "underline_when_selected": "$law-gap: same gap — the indicator has no entity to hang from.",
+      "gap_between_tabs": "TODO: e.g., 24px",
+      "padding": "TODO: e.g., 8px 0px"
+    },
+
+    "breadcrumbs": {
+      "$law_gap": "$law-gap: no entity in §4.1, no situation in the cookbook. Same admission rule as tabs.",
+      "separator": "TODO: e.g., '/' or a chevron",
+      "max_items_before_collapse": "TODO: e.g., 4"
+    },
+
+    "pagination": {
+      "$law_gap": "$law-gap: no entity in §4.1. It also appears in real code as a button variant named 'pagination', itself a §4.4 gap registered in cookbook.md chapter 1.",
+      "style": "TODO: 'numbered' | 'prev/next' | 'load more'",
+      "button_size": "TODO: e.g., 32px",
+      "gap": "TODO: e.g., 4px"
+    }
+  },
+
+  "13_FORMS": {
+    "$description": "field, select, checkbox, radio, toggle and slider are §4.1 entities. Note field.placeholder and field.helper omit the paint property (§7.2).",
+
+    "text_field": {
+      "$checklist": "the five interaction states, plus invalid, which is a real §4.5 state",
+      "background": "field.background-color",
+      "border": "field.border-color",
+      "border_focus": "field.border-color.focus",
+      "border_invalid": "field.border-color.invalid",
+      "text": "field.foreground-color",
+      "placeholder": "field.placeholder",
+      "label": "field.label",
+      "helper": "field.helper",
+      "helper_invalid": "field.helper.invalid",
+      "focus_ring": "focus-ring.outline-color",
+      "shadow_form_of_the_ring": "field.box-shadow",
+      "radius": "field.border-radius",
+      "padding": "field.padding",
+      "sizes": { "sm": "TODO: height, padding, font size", "md": "KEEP: px-4 py-2 text-sm", "lg": "KEEP: px-4 py-3 text-base" },
+      "$law_gap_readonly": "$law-gap: 'readonly' is not a §4.5 state. Nearest legal expression is disabled, but the two differ (readonly is focusable and copyable). Owner decision before it gets a name.",
+      "$law_gap_disabled_opacity": "$law-gap: the disabled field is drawn with opacity 0.5 in the source template and opacity is not a §4.3 property — same gap as 10_BUTTONS."
+    },
+
+    "textarea": {
+      "$description": "Same entity as text_field, different geometry.",
+      "inherits": "every token of text_field",
+      "min_height": "TODO: e.g., 80px (3 lines)",
+      "max_height": "TODO: e.g., 240px",
+      "resize": "TODO: 'vertical' | 'none' | 'both'"
+    },
+
+    "select": {
+      "trigger_background": "select.background-color",
+      "trigger_background_hover": "select.background-color.hover",
+      "trigger_background_selected": "select.background-color.selected",
+      "trigger_border": "select.border-color",
+      "trigger_text": "select.foreground-color",
+      "caret": "select.caret",
+      "caret_selected": "select.caret.selected",
+      "panel_background": "select.container.background-color",
+      "option_background": "select.row.background-color",
+      "option_background_hover": "select.row.background-color.hover",
+      "option_background_focus": "select.row.background-color.focus",
+      "option_background_selected": "select.row.background-color.selected",
+      "option_text": "select.row.foreground-color",
+      "option_text_focus": "select.row.foreground-color.focus",
+      "separator": "divider.border-color",
+      "panel_shadow": "menu.box-shadow",
+      "radius": "select.border-radius",
+      "option_padding": "select.row.padding",
+      "panel_max_height": "TODO: e.g., 300px",
+      "search_inside_panel": "search.background-color"
+    },
+
+    "checkbox": {
+      "background": "checkbox.background-color",
+      "background_checked": "checkbox.background-color.checked",
+      "background_hover": "checkbox.background-color.hover",
+      "border": "checkbox.border-color",
+      "border_checked": "checkbox.border-color.checked",
+      "focus_shadow": "checkbox.box-shadow",
+      "checkmark": "checkbox.icon.foreground-color",
+      "radius": "checkbox.border-radius",
+      "size_sm": "KEEP: 16px",
+      "size_md": "KEEP: 20px",
+      "indeterminate_icon": "TODO: e.g., a horizontal dash",
+      "$law_gap_indeterminate": "$law-gap: 'indeterminate' is a real tri-state of a checkbox and is not in §4.5 (which has checked, on, off). Owner decision."
+    },
+
+    "radio": {
+      "background": "radio.background-color",
+      "background_selected": "radio.background-color.selected",
+      "ring": "radio.outline-color",
+      "ring_selected": "radio.outline-color.selected",
+      "shadow": "radio.box-shadow",
+      "shadow_selected": "radio.box-shadow.selected",
+      "dot": "radio.icon.foreground-color",
+      "dot_selected": "radio.icon.foreground-color.selected",
+      "size": "TODO: e.g., 20px",
+      "dot_size": "TODO: e.g., 10px"
+    },
+
+    "toggle_switch": {
+      "track": "toggle.track.background-color",
+      "track_on": "toggle.track.background-color.on",
+      "track_checked": "toggle.track.background-color.checked",
+      "thumb": "toggle.thumb.background-color",
+      "thumb_shadow": "toggle.thumb.box-shadow",
+      "label": "toggle.label",
+      "label_selected": "toggle.label.selected",
+      "helper": "toggle.helper",
+      "width": "TODO: e.g., 44px",
+      "height": "TODO: e.g., 24px",
+      "thumb_size": "TODO: e.g., 20px",
+      "transition": "TODO: e.g., 200ms ease"
+    },
+
+    "slider": {
+      "track": "slider.track.background-color",
+      "filled_track": "slider.indicator.background-color",
+      "thumb": "slider.thumb.background-color",
+      "thumb_focus_ring": "focus-ring.outline-color"
+    },
+
+    "date_picker": {
+      "$law_gap": "$law-gap: a calendar has no entity in §4.1 and no situation in the cookbook. Its TRIGGER is a field and its PANEL is a popover — those two parts are nameable today; the grid of days is not.",
+      "trigger": "field.background-color",
+      "panel_background": "popover.background-color",
+      "panel_shadow": "menu.box-shadow",
+      "selected_day": "$law-gap: no entity for a day cell",
+      "range_fill": "$law-gap: no entity for a day range"
+    },
+
+    "file_upload": {
+      "$description": "The uploaded item IS the §4.1 entity attachment. The drop zone that receives it is not.",
+      "attachment_background": "attachment.background-color",
+      "attachment_label": "attachment.label",
+      "attachment_remove_button": "attachment.suffix.background-color",
+      "attachment_remove_button_hover": "attachment.suffix.background-color.hover",
+      "dropzone": "$law-gap: a drop zone has no entity in §4.1 and no situation in the cookbook. empty-state is the nearest listed entity but a drop zone is an input, not an absence of data.",
+      "dropzone_border_style": "TODO: e.g., dashed"
+    },
+
+    "form_layout": {
+      "label_position": "TODO: 'top' or 'left'",
+      "required_indicator": "TODO: e.g., '*' after the label, coloured field.helper.invalid",
+      "field_gap": "field.gap",
+      "label_to_field_gap": "field.label.margin",
+      "helper_gap": "field.helper.margin"
+    }
+  },
+
+  "14_CARDS": {
+    "$description": "card is a §4.1 entity; stat is the entity for a single measured figure inside one.",
+
+    "variants": {
+      "$note": "flat / elevated / outlined / interactive are ELEVATION and BEHAVIOUR, not §4.4 roles. They are expressed by WHICH property the card sets, not by a variant segment.",
+      "flat": { "background": "card.background-color", "border": "card.border-color", "shadow": "none" },
+      "elevated": { "background": "card.background-color", "border": "card.border-color", "shadow": "card.box-shadow" },
+      "outlined": { "background": "TODO: transparent", "border": "card.border-color", "shadow": "none" },
+      "interactive": { "background_hover": "card.background-color.hover", "shadow_hover": "card.box-shadow.hover", "outline_selected": "card.outline-color.selected", "outline_base": "card.outline-color", "cursor": "pointer", "transition": "TODO: e.g., 200ms ease" },
+      "role_variants": { "$note": "these ARE §4.4 roles and do enter the name", "destructive": "card.destructive.background-color", "primary_border": "card.primary.border-color" },
+      "old_name": "variants.flat|elevated|outlined|interactive (v3.0.0) — kept as GROUPING labels here, never as a token segment"
+    },
+
+    "sizes": { "compact": "KEEP: p-2", "default": "KEEP: p-4", "spacious": "KEEP: p-6" },
+
+    "tokens": {
+      "background": "card.background-color",
+      "background_hover": "card.background-color.hover",
+      "background_checked": "card.background-color.checked",
+      "border": "card.border-color",
+      "title": "card.label",
+      "body_text": "card.helper",
+      "scrim_over_the_card": "card.backdrop",
+      "status_marker": "card.indicator.background-color",
+      "status_marker_label": "card.indicator.foreground-color",
+      "padding": "card.padding",
+      "radius": "card.border-radius",
+      "gap": "card.gap"
+    },
+
+    "card_header": {
+      "background": "card.header.background-color",
+      "title": "card.header.foreground-color",
+      "border_bottom": "divider.border-color",
+      "padding": "card.header.padding",
+      "actions_gap": "card.header.gap",
+      "title_type_step": "TODO: a step of type_scale (e.g., heading_5)"
+    },
+
+    "card_footer": {
+      "border_top": "divider.border-color",
+      "padding": "card.padding",
+      "alignment": "TODO: e.g., right"
+    },
+
+    "stat_card": {
+      "$description": "Renamed from kpi_card — stat is the §4.1 entity.",
+      "value": "stat.foreground-color",
+      "label": "stat.label",
+      "delta_positive": "stat.success.foreground-color",
+      "delta_negative": "stat.destructive.foreground-color",
+      "icon": "stat.icon.foreground-color",
+      "icon_background": "stat.icon.background-color",
+      "border": "stat.border-color",
+      "border_hover": "stat.border-color.hover",
+      "delta_position": "TODO: 'beside value' or 'below value'",
+      "sparkline_height": "TODO: e.g., 32px"
+    }
+  },
+
+  "15_CHARTS": {
+    "$description": "chart is a §4.1 entity, and a chart tooltip is the tooltip entity. Its internal furniture (axis, gridline, legend) has no anatomy in §4.2 — declared, not guessed.",
+
+    "general": {
+      "background": "TODO: transparent (inherits the card)",
+      "font_family": "TODO: primary, or monospace for axis figures",
+      "font_size_axis": "TODO: e.g., 11px",
+      "font_size_label": "TODO: e.g., 12px",
+      "font_size_tooltip": "TODO: e.g., 12px"
+    },
+
+    "series": {
+      "line_or_outline": "chart.stroke",
+      "area_or_bar_fill": "chart.fill",
+      "series_destructive": "chart.destructive.stroke",
+      "series_warning": "chart.warning.stroke",
+      "series_success": "chart.success.stroke",
+      "series_info": "chart.info.stroke",
+      "$note": "A series with a ROLE (loss, target breached) uses a §4.4 variant. A series that is merely the third one in an arbitrary list does not — see the chart_palettes law gap in 04_COLORS."
+    },
+
+    "axis": {
+      "$law_gap": "$law-gap: 'axis', 'tick' and 'gridline' are not in §4.2 and the cookbook has no situation for them. The nearest legal name for a gridline is the global divider.border-color, but a gridline is drawn by the chart, not a separator between blocks — asserting the equivalence would be a guess (§5 rule 5).",
+      "line_width": "TODO: e.g., 1px",
+      "tick_length": "TODO: e.g., 4px",
+      "label_type_step": "TODO: e.g., caption"
+    },
+
+    "grid": {
+      "$law_gap": "$law-gap: same gap as axis above.",
+      "style": "TODO: dashed or solid",
+      "width": "TODO: e.g., 1px"
+    },
+
+    "tooltip": {
+      "background": "tooltip.background-color",
+      "border": "tooltip.border-color",
+      "text": "tooltip.foreground-color",
+      "shadow": "tooltip.box-shadow",
+      "outline": "tooltip.outline-color",
+      "radius": "tooltip.border-radius",
+      "padding": "tooltip.padding"
+    },
+
+    "legend": {
+      "$description": "The legend's TEXT belongs to the block that carries it, usually the card.",
+      "text": "card.helper",
+      "swatch": "$law-gap: a legend swatch shows a series colour; it has no anatomy of its own in §4.2 and inherits the chart_palettes gap.",
+      "position": "TODO: 'top' | 'bottom' | 'right'",
+      "dot_size": "TODO: e.g., 8px",
+      "gap_between_items": "TODO: e.g., 16px"
+    },
+
+    "bar_chart": { "bar_radius": "chart.border-radius", "bar_gap_ratio": "TODO: e.g., 0.3", "min_bar_width": "TODO: e.g., 8px" },
+    "line_chart": { "line_width": "TODO: e.g., 2px", "dot_size": "TODO: e.g., 4px (6px on hover)", "area_opacity": "TODO: e.g., 0.1", "curve_type": "TODO: 'monotone' | 'linear' | 'natural'" },
+    "pie_donut": { "inner_radius_ratio": "TODO: e.g., 0.6 for a donut, 0 for a pie", "segment_gap_stroke": "chart.stroke", "label_position": "TODO: 'outside' | 'inside' | 'center'" },
+    "reference_lines": { "$description": "Benchmark, target and average lines.", "line": "chart.stroke", "label_text": "card.helper", "style": "TODO: e.g., dashed", "width": "TODO: e.g., 1px" }
+  },
+
+  "16_TABLES": {
+    "$description": "data-table is a §4.1 entity with header, row, cell, thumb, handle and divider as anatomy. list-row is a separate entity for a non-tabular list.",
+
+    "header": {
+      "background": "data-table.header.background-color",
+      "text": "data-table.header.foreground-color",
+      "text_emphasised": "data-table.primary.header.foreground-color",
+      "text_muted": "data-table.secondary.header.foreground-color",
+      "border_bottom": "data-table.header.border-color",
+      "padding": "data-table.header.padding",
+      "weight": "data-table.header.font-weight",
+      "sort_icon": "data-table.header.foreground-color",
+      "sticky": "TODO: true/false"
+    },
+
+    "row": {
+      "$checklist": "default / hover / selected are all real §4.5 states",
+      "background": "data-table.row.background-color",
+      "background_hover": "data-table.row.background-color.hover",
+      "background_selected": "data-table.row.background-color.selected",
+      "cell_background": "data-table.cell.background-color",
+      "cell_text": "data-table.primary.cell.foreground-color",
+      "cell_text_muted": "data-table.secondary.cell.foreground-color",
+      "status_icon": "data-table.success.icon.foreground-color",
+      "row_separator": "data-table.divider",
+      "padding": "data-table.cell.padding",
+      "min_height": "TODO: e.g., 44px (touch target)",
+      "$law_gap_striped": "$law-gap: zebra striping ('even' / 'odd') is a POSITION in a list, and position answers no §4 slot — the same reason 'layer' is banned. Owner decision: leave striping to implementation, or admit a positional axis."
+    },
+
+    "cell": {
+      "alignment": { "text": "TODO: left", "number": "TODO: right", "status": "TODO: center", "actions": "TODO: right" },
+      "type_step": "TODO: a step of type_scale (e.g., body_small)",
+      "number_font": "TODO: monospace for aligned decimals, or the same as body"
+    },
+
+    "column_resize": {
+      "grip": "data-table.handle.background-color",
+      "scroll_thumb": "data-table.thumb.background-color",
+      "scroll_thumb_active": "data-table.thumb.background-color.active"
+    },
+
+    "expandable_row": {
+      "expanded_background": "data-table.row.background-color.selected",
+      "caret": "card.caret",
+      "inner_padding": "data-table.cell.padding"
+    },
+
+    "list_row": {
+      "$description": "A non-tabular row (inbox, results, settings list). Separate §4.1 entity.",
+      "background": "list-row.background-color",
+      "background_hover": "list-row.background-color.hover",
+      "background_selected": "list-row.background-color.selected",
+      "background_on": "list-row.background-color.on",
+      "label": "list-row.label",
+      "label_hover": "list-row.label.hover",
+      "icon": "list-row.icon.foreground-color",
+      "status_marker_success": "list-row.success.indicator.background-color",
+      "status_marker_warning": "list-row.warning.indicator.background-color",
+      "status_marker_destructive": "list-row.destructive.indicator.background-color",
+      "status_marker_info": "list-row.info.indicator.background-color",
+      "padding": "list-row.padding"
+    },
+
+    "empty_table": {
+      "background": "empty-state.background-color",
+      "text": "empty-state.foreground-color",
+      "icon": "empty-state.icon.foreground-color",
+      "icon_background": "empty-state.icon.background-color",
+      "icon_size": "TODO: e.g., 48px"
+    }
+  },
+
+  "17_MODALS_POPUPS": {
+    "$description": "modal, drawer, popover, tooltip, menu and overlay are all §4.1 entities. backdrop is a single-paint anatomy, so modal.backdrop omits the property (§7.2).",
+
+    "modal": {
+      "backdrop": "modal.backdrop",
+      "background": "modal.background-color",
+      "border": "modal.border-color",
+      "shadow": "modal.box-shadow",
+      "text": "modal.foreground-color",
+      "helper_text": "modal.helper",
+      "header_background": "modal.header.background-color",
+      "header_title": "modal.header.foreground-color",
+      "close_button_background": "modal.icon.background-color",
+      "close_button_background_hover": "modal.icon.background-color.hover",
+      "close_button_icon": "modal.icon.foreground-color",
+      "close_button_icon_hover": "modal.icon.foreground-color.hover",
+      "radius": "modal.border-radius",
+      "padding": "modal.padding",
+      "header_padding": "modal.header.padding",
+      "sizes": { "sm": "TODO: max-width 480px", "md": "TODO: max-width 640px", "lg": "TODO: max-width 800px", "xl": "TODO: max-width 1000px", "fullscreen": "TODO: 100vw x 100vh with safe area" },
+      "backdrop_blur": "TODO: e.g., 4px, or none",
+      "animation_enter": "TODO: e.g., fadeIn 200ms + slideUp 200ms",
+      "animation_exit": "TODO: e.g., fadeOut 150ms + slideDown 150ms"
+    },
+
+    "confirmation_dialog": {
+      "$description": "A destructive confirmation is the modal entity carrying the destructive role.",
+      "icon": "modal.destructive.icon.foreground-color",
+      "icon_background": "modal.destructive.icon.background-color",
+      "title": "modal.destructive.header.foreground-color",
+      "confirm_button": "button.destructive.background-color",
+      "cancel_button": "button.secondary.background-color",
+      "info_variant_icon": "modal.info.icon.foreground-color",
+      "info_variant_icon_background": "modal.info.icon.background-color",
+      "success_variant_icon": "modal.success.icon.foreground-color",
+      "warning_variant_icon": "modal.warning.icon.foreground-color"
+    },
+
+    "drawer": {
+      "$description": "A side panel. Its scrim is the overlay entity.",
+      "background": "drawer.background-color",
+      "border": "drawer.border-color",
+      "shadow": "drawer.box-shadow",
+      "scrim": "overlay.background-color",
+      "width": "TODO: e.g., 400px (600px wide variant)",
+      "position": "TODO: e.g., right",
+      "animation": "TODO: e.g., slideIn from the right, 300ms"
+    },
+
+    "popover": {
+      "background": "popover.background-color",
+      "border": "popover.border-color",
+      "shadow": "popover.box-shadow",
+      "radius": "popover.border-radius",
+      "padding": "popover.padding",
+      "max_width": "TODO: e.g., 320px",
+      "arrow_size": "TODO: e.g., 8px"
+    },
+
+    "menu": {
+      "$description": "The list of actions inside a popover. Distinct §4.1 entity because its rows have their own contract.",
+      "background": "menu.background-color",
+      "border": "menu.border-color",
+      "shadow": "menu.box-shadow",
+      "text": "menu.foreground-color",
+      "group_label": "menu.label",
+      "row_background": "menu.row.background-color",
+      "row_background_hover": "menu.row.background-color.hover",
+      "row_background_focus": "menu.row.background-color.focus",
+      "row_text": "menu.row.foreground-color",
+      "row_text_hover": "menu.row.foreground-color.hover",
+      "row_text_focus": "menu.row.foreground-color.focus",
+      "row_text_disabled": "menu.row.foreground-color.disabled",
+      "destructive_row_background": "menu.destructive.row.background-color",
+      "destructive_row_background_hover": "menu.destructive.row.background-color.hover",
+      "destructive_row_text": "menu.destructive.row.foreground-color",
+      "separator": "divider.border-color",
+      "row_padding": "menu.row.padding",
+      "radius": "menu.border-radius"
+    },
+
+    "tooltip": {
+      "background": "tooltip.background-color",
+      "text": "tooltip.foreground-color",
+      "border": "tooltip.border-color",
+      "shadow": "tooltip.box-shadow",
+      "radius": "tooltip.border-radius",
+      "padding": "tooltip.padding",
+      "max_width": "TODO: e.g., 240px",
+      "delay_show": "TODO: e.g., 300ms",
+      "delay_hide": "TODO: e.g., 100ms"
+    },
+
+    "overlay": {
+      "$description": "The generic scrim behind anything that overlays the page.",
+      "background": "overlay.background-color",
+      "background_hover": "overlay.background-color.hover",
+      "label": "overlay.label"
+    }
+  },
+
+  "18_BANNERS_MESSAGING": {
+    "$description": "toast, banner, empty-state, skeleton and progress are §4.1 entities. Their intents are §4.4 roles, so no new vocabulary is needed.",
+
+    "toast": {
+      "background": "toast.background-color",
+      "shadow": "toast.box-shadow",
+      "accent_marker": "toast.indicator.background-color",
+      "accent_marker_active": "toast.indicator.background-color.active",
+      "accent_marker_on": "toast.indicator.background-color.on",
+      "auto_dismiss_track": "toast.track.background-color",
+      "roles": {
+        "info": { "border": "toast.info.border-color", "icon": "toast.info.icon.foreground-color", "marker": "toast.info.indicator.background-color" },
+        "success": { "border": "toast.success.border-color", "icon": "toast.success.icon.foreground-color", "marker": "toast.success.indicator.background-color" },
+        "warning": { "border": "toast.warning.border-color", "icon": "toast.warning.icon.foreground-color", "marker": "toast.warning.indicator.background-color" },
+        "destructive": { "border": "toast.destructive.border-color", "icon": "toast.destructive.icon.foreground-color", "marker": "toast.destructive.indicator.background-color" }
+      },
+      "padding": "toast.padding",
+      "radius": "toast.border-radius",
+      "position": "TODO: e.g., top-right",
+      "width": "TODO: e.g., min 320px, max 420px",
+      "auto_dismiss": "TODO: e.g., 5000ms",
+      "gap_between_toasts": "TODO: e.g., 8px",
+      "max_visible": "TODO: e.g., 3",
+      "old_name": "toast.intents.error (v3.0.0) — the law's word for that role is destructive"
+    },
+
+    "inline_alert": {
+      "$description": "A non-dismissable message inside the page. Same entity as banner.",
+      "roles": {
+        "info": { "background": "banner.info.background-color", "border": "banner.info.border-color", "text": "banner.info.label", "icon": "banner.info.icon.foreground-color" },
+        "success": { "background": "banner.success.background-color", "border": "banner.success.border-color", "text": "banner.success.label", "icon": "banner.success.icon.foreground-color" },
+        "warning": { "background": "banner.warning.background-color", "border": "banner.warning.border-color", "text": "banner.warning.foreground-color", "icon": "banner.warning.icon.foreground-color" },
+        "destructive": { "background": "banner.destructive.background-color", "border": "banner.destructive.border-color", "text": "banner.destructive.foreground-color", "icon": "banner.destructive.icon.foreground-color" }
+      },
+      "padding": "banner.padding",
+      "radius": "banner.border-radius",
+      "$note": "The v3 'subtle' vs 'solid' pair is an EMPHASIS axis, not a role. Both spellings resolve to the same token per role; the value differs, the name does not.",
+      "old_name": "inline_alert.variants.subtle|solid with an 'error' key (v3.0.0)"
+    },
+
+    "banner": {
+      "$description": "A full-width strip at the top of a page or section.",
+      "background": "banner.background-color",
+      "text": "banner.foreground-color",
+      "padding": "banner.padding",
+      "height": "TODO: e.g., 44px",
+      "dismissable": "TODO: true/false",
+      "close_icon": "banner.suffix.foreground-color"
+    },
+
+    "empty_state": {
+      "background": "empty-state.background-color",
+      "scrim_behind_the_icon": "empty-state.backdrop",
+      "text": "empty-state.foreground-color",
+      "icon": "empty-state.icon.foreground-color",
+      "icon_background": "empty-state.icon.background-color",
+      "success_icon": "empty-state.success.icon.foreground-color",
+      "illustration_size": "TODO: e.g., 200px, or 64px for icon-only",
+      "action_button": "button.primary.background-color",
+      "max_width": "TODO: e.g., 400px, centred"
+    },
+
+    "loading": {
+      "skeleton": "skeleton.background-color",
+      "skeleton_radius": "skeleton.border-radius",
+      "skeleton_animation": "TODO: e.g., pulse 1.5s ease-in-out infinite",
+      "progress_track": "progress.track.background-color",
+      "progress_track_stroke": "progress.track.stroke",
+      "progress_indicator": "progress.indicator.background-color",
+      "progress_indicator_active": "progress.indicator.background-color.active",
+      "progress_border": "progress.border-color",
+      "progress_label": "progress.foreground-color",
+      "progress_success": "progress.success.indicator.background-color",
+      "progress_warning": "progress.warning.indicator.background-color",
+      "progress_destructive": "progress.destructive.indicator.background-color",
+      "progress_info": "progress.info.indicator.background-color",
+      "spinner_size_sm": "TODO: e.g., 16px",
+      "spinner_size_md": "TODO: e.g., 24px",
+      "spinner_size_lg": "TODO: e.g., 40px",
+      "$law_gap_spinner": "$law-gap: a free-standing spinner has no entity in §4.1 and no anatomy in §4.2 — the same gap as the in-button loader in 10_BUTTONS. A determinate bar is progress and is fully named above; an indeterminate spinner is not.",
+      "$law_gap_skeleton_shine": "$law-gap: the moving highlight of a skeleton is a gradient in motion, not one background-color. Same class as the animated text gradient registered in cookbook.md chapter 1."
+    }
+  },
+
+  "19_TRANSITIONS_ANIMATIONS": {
+    "$description": "Motion has no property in §4.3 — the sixteen are seven paint, six geometry and three type. Everything here is therefore a MEASUREMENT or a rule, declared as such rather than dressed as a token.",
+
+    "$law_gap": "$law-gap: transition-duration, transition-timing-function and animation-name are not §4.3 properties, so motion cannot be named entity.property today. Owner decision: extend §4.3 with a motion domain (a fourth alongside paint, geometry and type), or keep motion outside the token grammar.",
+
+    "durations": {
+      "$tier": "primitive",
+      "instant": "TODO: e.g., 0ms",
+      "fast": "KEEP: 200ms (hover, active, focus rings)",
+      "default": "KEEP: 400ms (buttons, cards, general)",
+      "slow": "KEEP: 600ms (page transitions)",
+      "decorative": "TODO: e.g., 1000ms (skeletons, progress)"
+    },
+
+    "easing": {
+      "$tier": "primitive",
+      "default": "TODO: e.g., ease-in-out",
+      "enter": "TODO: e.g., ease-out",
+      "exit": "TODO: e.g., ease-in",
+      "spring": "TODO: e.g., cubic-bezier(0.34, 1.56, 0.64, 1)"
+    },
+
+    "motion_patterns": {
+      "fade_in": "TODO: opacity 0 to 1, duration, easing",
+      "fade_out": "TODO: opacity 1 to 0, duration, easing",
+      "slide_up": "TODO: translateY(8px to 0), duration, easing",
+      "slide_down": "TODO: translateY(0 to 8px), duration, easing",
+      "slide_right": "TODO: translateX(-100% to 0) — the drawer entering",
+      "scale_in": "TODO: scale(0.95 to 1) — the modal entering",
+      "collapse": "TODO: an accordion; animate grid-template-rows 0fr to 1fr, never display"
+    },
+
+    "reduced_motion": {
+      "$rule": "prefers-reduced-motion MUST be respected.",
+      "strategy": "TODO: 'instant' (all durations to 0ms) or 'fade-only' (opacity changes only)"
+    }
+  },
+
+  "20_ACCESSIBILITY": {
+    "$description": "Rules and thresholds. Only the focus ring is a token, and it is the global entity focus-ring (§5.5).",
+
+    "contrast_ratios": {
+      "normal_text_min": "TODO: e.g., 4.5:1 (WCAG AA)",
+      "large_text_min": "TODO: e.g., 3:1 (18px+ bold or 24px+)",
+      "ui_elements_min": "TODO: e.g., 3:1 (borders, icons, focus indicators)"
+    },
+
+    "focus": {
+      "token": "focus-ring.outline-color",
+      "shadow_form": "focus-ring.box-shadow",
+      "never_remove_outline": "RULE: outline:none always needs a visible replacement",
+      "tab_order": "RULE: tab order must match visual order",
+      "$note": "One decision, N consumers. Writing button.outline-color.focus + field.outline-color.focus + select.outline-color.focus is N copies of a single global decision — the defect §5.5 was opened to fix."
+    },
+
+    "touch_targets": {
+      "min_size": "TODO: e.g., 44px x 44px (WCAG 2.5.5)",
+      "min_spacing": "TODO: e.g., 8px between adjacent targets"
+    },
+
+    "screen_reader": {
+      "icon_buttons_need_aria_label": true,
+      "decorative_icons_need_aria_hidden": true,
+      "form_inputs_need_labels": true,
+      "error_messages_use_aria_live": true,
+      "skip_to_main_link": "TODO: true/false"
+    },
+
+    "colour_independence": {
+      "$rule": "Information must never be carried by colour alone.",
+      "pair_status_colour_with_an_icon": true,
+      "pair_chart_colour_with_a_label": true,
+      "use_patterns_in_charts": "TODO: true/false"
+    }
+  },
+
+  "21_OPACITY_SCALE": {
+    "$description": "A primitive ramp. opacity is NOT a §4.3 property, which is why the disabled states above are declared law gaps rather than named.",
+    "$tier": "primitive",
+    "$law_gap": "$law-gap: opacity is used in production for the disabled state (disabled:opacity-50 in one product, 0.4 in the other) and has no slot in §4.3. Registered in cookbook.md chapter 1. Owner decision: add opacity to §4.3, or require disabled states to declare explicit colours.",
+    "100": "KEEP: 1.0",
+    "80": "KEEP: 0.80",
+    "64": "KEEP: 0.64",
+    "56": "KEEP: 0.56 (placeholder text)",
+    "40": "KEEP: 0.40 (disabled elements)",
+    "24": "KEEP: 0.24",
+    "16": "KEEP: 0.16",
+    "10": "TODO: e.g., 0.10 (a selected-state tint)",
+    "8": "KEEP: 0.08",
+    "4": "KEEP: 0.04"
+  },
+
+  "22_Z_INDEX_SCALE": {
+    "$description": "Stacking order. This is exactly the METADATA §1 says must live in one place and never be typed into a name — z-position is the question `surface` was answering when it was banned (§7.2).",
+    "$tier": "primitive",
+    "base": "KEEP: 0",
+    "element": "KEEP: 1",
+    "element_active": "KEEP: 2",
+    "internal": "KEEP: 10",
+    "item_overlay": "KEEP: 20",
+    "item_control": "KEEP: 30",
+    "dropdown": "KEEP: 50",
+    "sticky": "KEEP: 100",
+    "modal_backdrop": "KEEP: 149",
+    "modal": "KEEP: 150",
+    "sidebar": "KEEP: 200",
+    "sidebar_modal": "KEEP: 201",
+    "above_sidebar": "KEEP: 300",
+    "preview": "KEEP: 1000",
+    "notification": "KEEP: 9998",
+    "toast": "KEEP: 9999"
+  },
+
+  "23_ANTI_PATTERNS": {
+    "$description": "Things never to do. The v3 list taught theme.background.layer1 as the CORRECT answer — the exact vocabulary this law bans. Rewritten against the law.",
+
+    "naming": [
+      "NEVER use surface, semantic or content in a token name, a class, a custom property, a variable, a report section or an artifact name. They may appear only as an old name being eliminated (§3, §3.1, FRAMING extension).",
+      "NEVER name a token after its elevation (layer1, deep, raised, canvas, panel). Elevation is metadata; the entity that renders the pixel is the name (§2).",
+      "NEVER head a token with a rank (primary) or a raw pigment (pink). The head must be an entity you can point at on screen (§5.5).",
+      "NEVER write .default. An omitted state IS the default (§4.5).",
+      "NEVER put the variant after the property. button.secondary.border-color, never button.border-color.secondary — the middle prefix of the second form promises a token that does not exist (§6).",
+      "NEVER emit more than one utility family from one token. A token declares ONE property; text-page painting text with the page BACKGROUND value is defect H-021 (§6).",
+      "NEVER infer an entity from a hex value. Two entities sharing a colour today are still two contracts (§5 rule 1).",
+      "NEVER invent a name for an ambiguous case. Mark it PENDING with the reason (§5 rule 5)."
+    ],
+    "colors": [
+      "NEVER hardcode a hex in a component. Reference the token.",
+      "NEVER consume a primitive ramp directly. A component types a role token; only a role token may reference a primitive.",
+      "NEVER use a generic utility palette class (bg-neutral-200) for a themed decision."
+    ],
+    "typography": [
+      "NEVER skip heading levels (h1 to h3 with no h2).",
+      "NEVER use a near-white grey for body text (contrast).",
+      "NEVER let a line exceed roughly 75 characters."
+    ],
+    "icons": [
+      "NEVER use an emoji as an icon. SVG only.",
+      "NEVER size icons ad hoc — always a step of the icon size scale.",
+      "NEVER give an icon a global colour. An icon is always some entity's icon (§4.2)."
+    ],
+    "interaction": [
+      "NEVER rely on hover alone (it does not exist on touch).",
+      "NEVER use outline:none without a visible replacement.",
+      "NEVER omit cursor:pointer on a clickable element.",
+      "NEVER declare a state token without its default pair — hover with no base is the zero-delta defect (§5 rule 4)."
+    ],
+    "layout": [
+      "NEVER use an arbitrary spacing value; reference the scale.",
+      "NEVER use a magic z-index; reference 22_Z_INDEX_SCALE.",
+      "NEVER cause horizontal scroll at any viewport.",
+      "NEVER disable zoom in the viewport meta."
+    ],
+    "animation": [
+      "NEVER animate width or height; animate transform.",
+      "NEVER exceed 300ms for a micro-interaction.",
+      "NEVER ignore prefers-reduced-motion."
+    ],
+    "data": [
+      "NEVER show a raw number unformatted; use a locale-aware formatter.",
+      "NEVER convey meaning by colour alone; pair it with an icon or a label."
+    ]
+  },
+
+  "24_PRE_DELIVERY_CHECKLIST": {
+    "$description": "Verify before calling a component or page done.",
+
+    "naming": [
+      "Every new token parses as entity[.variant][.anatomy][.property][.state] with no leftover segment",
+      "Every new token scores 100 in score-naming.mjs, or an exception is written down with its reason",
+      "No new use of surface, semantic or content — ds-naming-law.py exits 0 against the baseline",
+      "Every state token has its default pair declared next to it",
+      "Every prefix agrees with the property spelled in the name (prefix-property, baseline 0)",
+      "Any situation with no legal name is marked as a law gap with the reason, not guessed"
+    ],
+    "visual": [
+      "Every colour comes from a token (zero hardcoded hex)",
+      "Every spacing comes from the scale, via an entity token",
+      "Every radius, shadow and z-index references its scale",
+      "Every font size and weight matches a type_scale step",
+      "Light AND dark render correctly",
+      "The component holds up in every theme the product ships"
+    ],
+    "interaction": [
+      "Every clickable element has cursor:pointer",
+      "The five states are declared: default, hover, active, focus, disabled (plus loading where it applies)",
+      "Focus is visible and comes from focus-ring, not from a per-entity copy",
+      "Touch targets are at least 44x44px",
+      "Nothing depends on hover alone"
+    ],
+    "accessibility": [
+      "Text contrast at least 4.5:1",
+      "Every icon-only button has an aria-label",
+      "Every input has an associated label",
+      "Tab order matches visual order",
+      "Error messages use aria-live",
+      "Decorative icons have aria-hidden"
+    ],
+    "responsive": [
+      "Checked at 375px, 768px, 1024px and 1440px",
+      "No horizontal scroll at any of them",
+      "At least 16px body text on mobile",
+      "Images are fluid (max-width: 100%)"
+    ],
+    "performance": [
+      "Transitions animate transform and opacity only",
+      "Images declare explicit dimensions",
+      "Lists beyond ~50 rows are virtualised",
+      "prefers-reduced-motion is respected"
+    ],
+    "evidence": [
+      "The claim is backed by a rendered before/after, not by a code diff",
+      "The console comparison shows no new error",
+      "The migration ledger entry is complete, with commands and raw output"
+    ]
+  }
+}

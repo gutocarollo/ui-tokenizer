@@ -19,4 +19,6 @@ id_rsa*
 # RASTREADOS ate 2026-07-31 — cada rodada do guard sujava o diff.
 __pycache__/
 *.pyc
-design_system_template.json
+# design_system_template.json — VERSIONADO desde 2026-08-01 (decisao do dono).
+# Deixou de ser rascunho: carrega $law, $forbidden e $validation, e docs/log.md
+# e o dossie da ui-ux-pro-max ja o citam. Ignorado, ele nao sobrevivia a um clone.
