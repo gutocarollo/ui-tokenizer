@@ -71,6 +71,34 @@ scope: <categoria>           # design-system | architecture | planos | auditoria
 `superseded` (substituído — candidato a deleção), `historico` (registro imutável de algo concluído),
 `proposta` (ainda não decidido). **Nunca marque `canon` um plano que o código atual não confirma.**
 
+## 3.1. Status do ITEM (`docs/pending/`) — o que o §3 não classifica
+
+O `status` do §3 classifica o **documento**. Ele não tem vocabulário para o
+**item**: um doc `active` pode carregar vinte pendências e a wiki não vê
+nenhuma. Enquanto foi assim, as pendências viveram em prosa espalhada pelos
+planos e num documento de situação escrito à mão que nascia velho — e toda
+sessão que precisava saber "o que falta" reabria os planos e reconstruía a
+lista. Uma dessas reconstruções chegou a perguntar ao dono uma decisão que a
+lei já tinha tomado.
+
+**Uma pendência = um arquivo** `docs/pending/<id>.md`, com o frontmatter
+próprio descrito em [`docs/pending/README.md`](pending/README.md):
+`quem_resolve` (`dono`/`agente`), `severidade`, `bloqueia`, e o par
+`fonte: <path>:<linha>` + `citacao:` que torna o item **auditável**.
+
+Duas regras que não são negociáveis, e a razão de cada uma:
+
+- **Resolver é APAGAR o arquivo**, não mudar o status. Backlog que acumula item
+  fechado deixa de ser lido. Coerente com o §5 (*git é o arquivo*).
+- **Todo item aponta para uma fonte e cita o texto dela.**
+  `tools/gates/pending_index.py --check` confere que aquela citação ainda
+  existe; quando a fonte muda, o item vira **re-auditoria** em vez de continuar
+  sendo afirmado. Backlog cheio de item já resolvido é pior que backlog nenhum,
+  porque faz o agente perguntar ao dono o que a lei já respondeu.
+
+`docs/pending/index.md` é **gerado** por esse script — editar à mão é perda de
+trabalho.
+
 ## 4. Indexação TEMPORAL (norma, não opção)
 
 Todo `.md` não-estrutural aparece em **duas** listas: no `index.md` da sua categoria (por conteúdo/status) e
@@ -84,11 +112,14 @@ passa a ser o mapa interno. A dupla-indexação é o que desambigua: diante de d
 - **Ingest** (doc/decisão nova): (1) nomeie pela classe (§2); (2) frontmatter (§3); (3) 1 entrada no
   `log.md` de repo + no `index.md` da categoria; (4) se muda a verdade atual, atualize a página curada e
   marque a antiga `superseded`; (5) rode o lint.
+- **Backlog**: `python3 tools/gates/pending_index.py --check` — o índice de `pending/` em dia
+  E o ponteiro (`fonte`+`citacao`) de cada item ainda apontando para o que ele diz (§3.1). Sem
+  `--check` ele regenera `pending/index.md`. Projeto sem a pasta passa em silêncio.
 - **Query**: comece pelo `index.md` da categoria (verdade atual). Só desça a fontes brutas para arqueologia.
-- **Lint**: `python3 .harness/lib/docs_wiki_lint.py` — todo `.md`/asset citado no índice+log (FAIL) + naming §2
+- **Lint**: `python3 tools/gates/docs_wiki_lint.py` — todo `.md`/asset citado no índice+log (FAIL) + naming §2
   (WARN, migração incremental; `--strict-naming` para bloquear) + índice vivo linkando `_arquivo/`
   (WARN de wayfinding — confira se o ponteiro ao arquivo é rotulado). Integridade referencial de
-  renames/deletes: `python3 .harness/lib/ref_integrity.py --range <base>..HEAD` — links markdown mortos
+  renames/deletes: `python3 tools/gates/ref_integrity.py --range <base>..HEAD` — links markdown mortos
   (ignora exemplos em code fence; resolve `%20`/acento) + citações a nomes renomeados/deletados.
   `--selftest` roda o teste negativo do próprio detector. Rode também no pre-commit e no CI, se este
   projeto tiver essa automação.

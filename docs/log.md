@@ -7,6 +7,36 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-08-01] infra · wiki
+
+- **`docs/pending/` — o backlog virou artefato.** O dono perguntou "o que falta
+  para o graph loop rodar end-to-end?" e a resposta so podia ser produzida
+  re-derivando tudo na mao. Ao perguntar em seguida *"nao existe uma pasta de
+  pending? o wiki nao esta indexando as docs e criando esses checklists?"*, ele
+  nomeou o defeito: o `status` do §3 classifica o DOCUMENTO e nunca o ITEM, e o
+  `docs_wiki_lint.py` so VALIDA — nada colhia. As pendencias viviam em prosa
+  espalhada pelos planos e num `ESTADO.md` escrito a mao, que nascia velho.
+- Contrato em [`SCHEMA.md`](SCHEMA.md) §3.1 e [`pending/README.md`](pending/README.md):
+  **uma pendencia = um arquivo**, resolver e APAGAR (git e o arquivo, §5), e todo
+  item declara `fonte: <path>:<linha>` + `citacao:`.
+- Guard novo `tools/gates/pending_index.py`: regenera `pending/index.md` e, com
+  `--check`, reprova indice velho, frontmatter invalido e **ponteiro podre** — a
+  citacao sumiu da fonte, entao o item pode ja estar resolvido e vira
+  re-auditoria. Essa e a checagem que justifica o script: backlog cheio de item
+  fechado e pior que backlog nenhum, porque faz o agente perguntar ao dono o que
+  a lei ja respondeu (aconteceu em 2026-07-31 com a D1 de propriedade-no-nome).
+  Os tres detectores foram vistos falhando antes de entrar.
+- Portado para o orions-belt na MESMA mudanca — `engine/lint/`, `.harness/lib/` e
+  `templates/.harness/lib/`, mais o §3.1 no `templates/docs/SCHEMA.md.jinja`. A
+  licao de 2026-07-31 (guard corrigido nos consumidores e esquecido na fonte) diz
+  que a ordem inversa deixa o proximo instalado sem o guard.
+- Colateral, do mesmo tipo que a pasta existe para matar: tres ponteiros de canon
+  estavam stale. `AGENTS.md` afirmava TRES palavras banidas (sao cinco desde
+  2026-08-01) e mandava procurar pendencia do dono em ⚠ no corpo dos docs, citando
+  uma decisao (`divider` como owner) resolvida no mesmo dia; `index.md` repetia as
+  tres palavras e dava `foreground-color` como nome vigente; `SCHEMA.md` mandava
+  rodar `.harness/lib/…`, caminho que este repo nao tem.
+
 ## [2026-08-01] artefato · lei
 
 - [`law/design_system_template.json`](law/design_system_template.json) — **versionado por decisão
