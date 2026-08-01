@@ -20,6 +20,16 @@
  * gerado sem ninguem olhar a tela.
  */
 
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import process from "node:process";
+
+/** Diretório dos scripts da skill, derivado deste arquivo (lib/ -> scripts/). */
+const DEFAULT_SCRIPTS_DIR = path.resolve(
+  path.dirname(new URL(import.meta.url).pathname),
+  ".."
+);
+
 /**
  * Cada entrada declara:
  *   kind      — deterministic | model | human
@@ -33,6 +43,39 @@
  * de modo que um passo que nao emite nada seja um erro de registro, nao um
  * silencio.
  */
+/*
+ * O ARGV DE CADA PASSO, e por que ele é uma FUNÇÃO do contexto.
+ *
+ * Um comando gravado como string pronta (`"node extract.mjs --root frontend"`)
+ * congela dois valores que mudam por corrida: a raiz do app medido e o
+ * diretório da corrida. Foi assim que a camada visual inteira ficou inalcançável
+ * até 2026-08-01 — raiz cravada no arquivo. Aqui o passo declara COMO montar o
+ * argv, e quem executa fornece o contexto; nenhum caminho é literal.
+ *
+ * O contexto mínimo é `{ applicationRoot, runRoot, runConfigPath, batchId }`.
+ * Um passo que precise de algo ausente falha ALTO na montagem, antes de rodar
+ * qualquer coisa — erro de fiação não deve virar erro de execução três camadas
+ * adiante.
+ */
+const artefatos = (ctx) => `${ctx.runRoot}/artifacts`;
+
+/** `--root <app>` mais o resto. Cinco scripts da fase CLASSIFIED leem a raiz por
+ *  `resolveRoot()`, que sem a flag cai no `cwd` — e o `cwd` do executor nao e o
+ *  app medido. */
+function comRaiz(ctx, rotulo, extras = []) {
+  exigir(ctx, ["applicationRoot"], rotulo);
+  return ["--root", ctx.applicationRoot, ...extras];
+}
+
+function exigir(ctx, campos, rotulo) {
+  const faltando = campos.filter((c) => !ctx?.[c]);
+  if (faltando.length) {
+    throw new Error(
+      `contexto insuficiente para ${rotulo}: falta ${faltando.join(", ")}`
+    );
+  }
+}
+
 export const PHASE_EXECUTORS = Object.freeze({
   ANCHORED: {
     kind: "human",
@@ -45,8 +88,15 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: [],
     steps: [
-      { shell: "yarn tokens:build", emits: "token-build" },
-      { script: "validate-token-build.mjs", emits: "token-build" },
+      { shell: "yarn tokens:build", args: () => [], emits: "token-build" },
+      {
+        script: "validate-token-build.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["applicationRoot"], "validate-token-build");
+          return ["--root", ctx.applicationRoot, "--check"];
+        },
+        emits: "token-build",
+      },
     ],
   },
 
@@ -54,8 +104,26 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["design-occurrence", "axis-discovery"],
     steps: [
-      { script: "extract-design-occurrences.mjs", emits: "design-occurrence" },
-      { script: "discover-axes.mjs", emits: "axis-discovery" },
+      {
+        script: "extract-design-occurrences.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["applicationRoot", "runRoot", "runId"], "extract-design-occurrences");
+          return ["--root", ctx.applicationRoot, "--out", artefatos(ctx), "--run-id", ctx.runId];
+        },
+        emits: "design-occurrence",
+      },
+      {
+        script: "discover-axes.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot"], "discover-axes");
+          return [
+            "--occurrences", `${artefatos(ctx)}/design-occurrences.ndjson`,
+            "--extraction-summary", `${artefatos(ctx)}/extraction-summary.json`,
+            "--out", `${artefatos(ctx)}/axis-discovery.json`,
+          ];
+        },
+        emits: "axis-discovery",
+      },
     ],
   },
 
@@ -66,7 +134,18 @@ export const PHASE_EXECUTORS = Object.freeze({
       // passo 1 (ordem) e passo 2 (equivalencia) do pedido original vivem os
       // dois aqui: normalize-occurrences consome lib/tailwind-normalizer, que
       // emite rawOrderHash + canonicalMultisetFingerprint + canonicalSetFingerprint.
-      { script: "normalize-occurrences.mjs", emits: "normalized-occurrence" },
+      {
+        script: "normalize-occurrences.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["applicationRoot", "runRoot"], "normalize-occurrences");
+          return [
+            "--root", ctx.applicationRoot,
+            "--input", `${artefatos(ctx)}/design-occurrences.ndjson`,
+            "--out", artefatos(ctx),
+          ];
+        },
+        emits: "normalized-occurrence",
+      },
     ],
   },
 
@@ -74,11 +153,19 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["inventory-report", "cluster-packet"],
     steps: [
-      { script: "inventory-surface.mjs", emits: "inventory-report" },
-      { script: "inventory-usage.mjs", emits: "inventory-report" },
-      { script: "score-naming.mjs", emits: "inventory-report" },
-      { script: "find-owner.mjs", emits: "cluster-packet" },
-      { script: "cluster-leftovers.mjs", emits: "cluster-packet" },
+      /*
+       * OS CINCO PRECISAM DE `--root`, e isso foi medido, nao presumido: rodar
+       * `inventory-surface.mjs --json` sem raiz falhou com *"No source root
+       * found under .../scripts"* — sem `--root`, `resolveRoot()`
+       * (lib/paths.mjs) cai no `cwd`, que aqui e o diretorio dos scripts da
+       * skill, nao o app medido. A primeira versao deste registro passava so
+       * `--json` e todos os cinco morreriam no mesmo ponto.
+       */
+      { script: "inventory-surface.mjs", args: (ctx) => comRaiz(ctx, "inventory-surface", ["--json"]), emits: "inventory-report" },
+      { script: "inventory-usage.mjs", args: (ctx) => comRaiz(ctx, "inventory-usage"), emits: "inventory-report" },
+      { script: "score-naming.mjs", args: (ctx) => comRaiz(ctx, "score-naming", ["--json"]), emits: "inventory-report" },
+      { script: "find-owner.mjs", args: (ctx) => comRaiz(ctx, "find-owner", ["--json"]), emits: "cluster-packet" },
+      { script: "cluster-leftovers.mjs", args: (ctx) => comRaiz(ctx, "cluster-leftovers", ["--json"]), emits: "cluster-packet" },
     ],
   },
 
@@ -93,10 +180,45 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["impacted-context", "scenario", "evidence-manifest"],
     steps: [
-      { shell: "node scripts/affected-routes.mjs --json", emits: "impacted-context" },
-      { shell: "node scripts/gen-visual-routes.mjs", emits: "scenario" },
-      { shell: "bash scripts/ui-evidence.sh", emits: "evidence-manifest" },
-      { shell: "node scripts/evidence-manifest.mjs", emits: "evidence-manifest" },
+      { shell: "node scripts/affected-routes.mjs", args: () => ["--json"], emits: "impacted-context" },
+      { shell: "node scripts/gen-visual-routes.mjs", args: () => ["--json"], emits: "scenario" },
+      {
+        // `--run-config`, nao `--run-id`: identificador digitado a mao e um
+        // segundo lugar onde a verdade mora (ver prepare-evidence-run.mjs).
+        shell: "node scripts/prepare-evidence-run.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runConfigPath", "applicationRoot", "runRoot", "batchId"], "prepare-evidence-run/before");
+          return [
+            "--run-config", ctx.runConfigPath,
+            "--root", ctx.applicationRoot,
+            "--phase", "before",
+            "--batch-id", ctx.batchId,
+            "--selection-out", `${artefatos(ctx)}/${ctx.batchId}/before/selection.json`,
+            "--manifest-config-out", `${artefatos(ctx)}/${ctx.batchId}/before/manifest-config.json`,
+          ];
+        },
+        emits: "scenario",
+      },
+      {
+        shell: "bash scripts/ui-evidence.sh",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot", "batchId"], "ui-evidence/before");
+          return ["--phase", "before", "--batch-id", ctx.batchId,
+                  "--out", `${artefatos(ctx)}/${ctx.batchId}/before/captures`];
+        },
+        emits: "evidence-manifest",
+      },
+      {
+        shell: "node scripts/evidence-manifest.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot", "batchId"], "evidence-manifest/before");
+          const base = `${artefatos(ctx)}/${ctx.batchId}/before`;
+          return ["--config", `${base}/manifest-config.json`,
+                  "--capture-dir", `${base}/captures`,
+                  "--out", `${base}/manifest.json`];
+        },
+        emits: "evidence-manifest",
+      },
     ],
   },
 
@@ -111,13 +233,23 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["deterministic-checks"],
     steps: [
-      { shell: "yarn tokens:build", emits: "deterministic-checks" },
-      { script: "validate-token-build.mjs", emits: "deterministic-checks" },
-      { shell: "python3 scripts/ds-naming-law.py", emits: "deterministic-checks" },
-      { shell: "python3 scripts/ds-cohesion.py", emits: "deterministic-checks" },
-      { shell: "python3 ../.harness/lib/ds-variety.py", emits: "deterministic-checks" },
-      { shell: "python3 ../.harness/lib/ds-dead-classes.py", emits: "deterministic-checks" },
-      { shell: "bash ../.harness/lib/ds-gate.sh", emits: "deterministic-checks" },
+      { shell: "yarn tokens:build", args: () => [], emits: "deterministic-checks" },
+      {
+        script: "validate-token-build.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["applicationRoot"], "validate-token-build/built");
+          // `--build` aqui, so `--check` no preflight: depois da migracao o CSS
+          // precisa ser REGERADO antes de conferido, senao a checagem le o
+          // artefato anterior a mutacao e aprova o que ja nao existe.
+          return ["--root", ctx.applicationRoot, "--build", "--check"];
+        },
+        emits: "deterministic-checks",
+      },
+      { shell: "python3 scripts/ds-naming-law.py", args: () => [], emits: "deterministic-checks" },
+      { shell: "python3 scripts/ds-cohesion.py", args: () => [], emits: "deterministic-checks" },
+      { shell: "python3 ../.harness/lib/ds-variety.py", args: () => [], emits: "deterministic-checks" },
+      { shell: "python3 ../.harness/lib/ds-dead-classes.py", args: () => [], emits: "deterministic-checks" },
+      { shell: "bash ../.harness/lib/ds-gate.sh", args: () => [], emits: "deterministic-checks" },
     ],
   },
 
@@ -125,8 +257,44 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["evidence-manifest"],
     steps: [
-      { shell: "bash scripts/ui-evidence.sh", emits: "evidence-manifest" },
-      { shell: "node scripts/evidence-manifest.mjs", emits: "evidence-manifest" },
+      {
+        // Fase `after`: SEM `assertBase`. Aqui a fonte DEVE ter divergido da
+        // ancora — e a mutacao que se quer medir. Exigir igualdade nesta fase
+        // reprovaria toda migracao bem-sucedida.
+        shell: "node scripts/prepare-evidence-run.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runConfigPath", "applicationRoot", "runRoot", "batchId"], "prepare-evidence-run/after");
+          return [
+            "--run-config", ctx.runConfigPath,
+            "--root", ctx.applicationRoot,
+            "--phase", "after",
+            "--batch-id", ctx.batchId,
+            "--selection-out", `${artefatos(ctx)}/${ctx.batchId}/after/selection.json`,
+            "--manifest-config-out", `${artefatos(ctx)}/${ctx.batchId}/after/manifest-config.json`,
+          ];
+        },
+        emits: "evidence-manifest",
+      },
+      {
+        shell: "bash scripts/ui-evidence.sh",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot", "batchId"], "ui-evidence/after");
+          return ["--phase", "after", "--batch-id", ctx.batchId,
+                  "--out", `${artefatos(ctx)}/${ctx.batchId}/after/captures`];
+        },
+        emits: "evidence-manifest",
+      },
+      {
+        shell: "node scripts/evidence-manifest.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot", "batchId"], "evidence-manifest/after");
+          const base = `${artefatos(ctx)}/${ctx.batchId}/after`;
+          return ["--config", `${base}/manifest-config.json`,
+                  "--capture-dir", `${base}/captures`,
+                  "--out", `${base}/manifest.json`];
+        },
+        emits: "evidence-manifest",
+      },
     ],
   },
 
@@ -134,8 +302,31 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["comparison"],
     steps: [
-      { shell: "node scripts/compare-evidence.mjs", emits: "comparison" },
-      { shell: "node scripts/evidence-report.mjs", emits: "comparison" },
+      {
+        shell: "node scripts/compare-evidence.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot", "batchId"], "compare-evidence");
+          const base = `${artefatos(ctx)}/${ctx.batchId}`;
+          return ["--before", `${base}/before/manifest.json`,
+                  "--after", `${base}/after/manifest.json`,
+                  "--out", `${base}/comparison`,
+                  // O pacote de revisao sai AQUI, mas quem o preenche e a fase
+                  // REVIEWED, que e `model`: script nenhum fecha veredito visual.
+                  "--review-input", `${base}/visual-review-input.json`];
+        },
+        emits: "comparison",
+      },
+      {
+        shell: "node scripts/evidence-report.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot", "batchId"], "evidence-report");
+          const base = `${artefatos(ctx)}/${ctx.batchId}`;
+          return ["--before", `${base}/before/manifest.json`,
+                  "--after", `${base}/after/manifest.json`,
+                  "--out", `${base}/report`];
+        },
+        emits: "comparison",
+      },
     ],
   },
 
@@ -157,8 +348,28 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["design-occurrence", "axis-discovery"],
     steps: [
-      { script: "extract-design-occurrences.mjs", emits: "design-occurrence" },
-      { script: "discover-axes.mjs", emits: "axis-discovery" },
+      {
+        script: "extract-design-occurrences.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["applicationRoot", "runRoot", "runId"], "extract-design-occurrences/re");
+          // Sai em `reinventory/`, nao por cima do inventario inicial: o laco de
+          // residuo COMPARA os dois, e sobrescrever a origem apagaria o termo de
+          // comparacao — a iteracao passaria a convergir contra si mesma.
+          return ["--root", ctx.applicationRoot, "--out", `${artefatos(ctx)}/reinventory`, "--run-id", ctx.runId];
+        },
+        emits: "design-occurrence",
+      },
+      {
+        script: "discover-axes.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot"], "discover-axes/re");
+          const base = `${artefatos(ctx)}/reinventory`;
+          return ["--occurrences", `${base}/design-occurrences.ndjson`,
+                  "--extraction-summary", `${base}/extraction-summary.json`,
+                  "--out", `${base}/axis-discovery.json`];
+        },
+        emits: "axis-discovery",
+      },
     ],
   },
 
@@ -171,7 +382,15 @@ export const PHASE_EXECUTORS = Object.freeze({
       "final-proof",
     ],
     steps: [
-      { script: "evaluate-absolute-completion.mjs", emits: "final-proof" },
+      {
+        script: "evaluate-absolute-completion.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runRoot"], "evaluate-absolute-completion");
+          return ["--out", `${artefatos(ctx)}/final-proof.json`,
+                  "--gap-report", `${artefatos(ctx)}/final-gaps.json`];
+        },
+        emits: "final-proof",
+      },
     ],
   },
 });
@@ -225,10 +444,142 @@ export function auditRegistry({ phases, requiredArtifacts }) {
       for (const s of entry.steps ?? []) {
         if (!s.emits) problemas.push(`${phase}: step sem 'emits' (comando que nao amarra artefato)`);
         if (!s.script && !s.shell) problemas.push(`${phase}: step sem script nem shell`);
+        /*
+         * `args` OBRIGATORIO, inclusive quando e `() => []`. Sem esta regra um
+         * passo novo nasce com argv vazio EM SILENCIO, e o script cai no
+         * default errado: medido em 2026-08-01, `inventory-surface.mjs` sem
+         * `--root` resolve a raiz como o `cwd` do executor — o diretorio dos
+         * scripts da skill — e morre com "No source root found". Exigir a
+         * declaracao explicita transforma esquecimento em erro de registro.
+         */
+        if (typeof s.args !== "function") {
+          problemas.push(
+            `${phase}: step sem args() — declare '() => []' quando o comando nao leva argumento`
+          );
+        }
       }
     } else if (!entry.blocker) {
       problemas.push(`${phase}: kind=${entry.kind} sem blocker declarado`);
     }
   }
   return problemas;
+}
+
+/**
+ * Resolve os passos de uma fase em comandos COMPLETOS, sem executar nada.
+ *
+ * Existe separado do `execute` por dois motivos concretos. Primeiro, é assim que
+ * a fiação vira inspecionável: `--dry-run` imprime o argv exato que rodaria, e
+ * uma fase visual pode ser conferida sem disparar 376 capturas de navegador.
+ * Segundo, um erro de CONTEXTO (falta `batchId`, falta `runConfigPath`) estoura
+ * aqui, na montagem, antes de o primeiro comando tocar o disco — em vez de o
+ * pipeline morrer no meio com metade dos artefatos escritos.
+ *
+ * O `cwd` não é detalhe: `script` roda a partir do repositório do PROCESSO
+ * (é onde os scripts da skill e suas dependências vivem) e `shell` a partir da
+ * raiz do APP medido, que é o contrato já declarado no topo deste arquivo.
+ */
+export function resolveSteps(phase, context = {}) {
+  const entry = executorFor(phase);
+  if (entry.kind !== "deterministic") return [];
+  const scriptsDir = context.scriptsDir ?? DEFAULT_SCRIPTS_DIR;
+  const processRoot = context.processRoot ?? path.resolve(scriptsDir, "../../../..");
+  return (entry.steps ?? []).map((step, index) => {
+    const argv = typeof step.args === "function" ? step.args(context) : [];
+    if (!Array.isArray(argv)) {
+      throw new Error(`${phase} passo ${index}: args() nao devolveu array`);
+    }
+    if (step.script) {
+      return {
+        index,
+        emits: step.emits,
+        cwd: processRoot,
+        command: process.execPath,
+        argv: [path.join(scriptsDir, step.script), ...argv],
+        label: `node ${step.script} ${argv.join(" ")}`.trim(),
+      };
+    }
+    // `shell` chega como linha ("node scripts/x.mjs", "bash a.sh", "yarn t")
+    // porque alguns passos são comandos do app, não scripts nossos. Partir na
+    // primeira palavra mantém a execução SEM shell — nada de interpolação, nada
+    // de `sh -c`, portanto nada que um caminho com espaço possa reescrever.
+    const [command, ...fixos] = step.shell.split(" ");
+    return {
+      index,
+      emits: step.emits,
+      cwd: context.applicationRoot ?? processRoot,
+      command,
+      argv: [...fixos, ...argv],
+      label: `${step.shell} ${argv.join(" ")}`.trim(),
+    };
+  });
+}
+
+/**
+ * Executa uma fase.
+ *
+ * A REGRA QUE ESTE ARQUIVO EXISTE PARA DEFENDER: só `deterministic` roda. Para
+ * `model` e `human`, `execute` devolve `executed:false` com o motivo — nunca um
+ * "ok" implícito. Fingir que uma fase `model` rodou porque um script terminou
+ * com exit 0 é o modo de falha que este projeto já cometeu: relatório "limpo"
+ * gerado sem ninguém olhar a tela.
+ *
+ * Passos rodam em ORDEM e param no primeiro que falha. Seguir depois de uma
+ * falha produziria artefato derivado de entrada que não existe — e o erro
+ * apareceria três camadas adiante, apontando para o lugar errado.
+ *
+ * @returns {{phase, kind, executed, ok, steps, blocker?}}
+ */
+export function execute(phase, context = {}, options = {}) {
+  const entry = executorFor(phase);
+  if (entry.kind !== "deterministic") {
+    return {
+      phase,
+      kind: entry.kind,
+      executed: false,
+      ok: false,
+      steps: [],
+      blocker: entry.blocker,
+    };
+  }
+
+  const passos = resolveSteps(phase, context);
+  if (options.dryRun) {
+    return {
+      phase,
+      kind: entry.kind,
+      executed: false,
+      ok: true,
+      dryRun: true,
+      steps: passos.map((p) => ({ ...p, status: "resolved" })),
+    };
+  }
+
+  const rodar = options.run ?? rodarPasso;
+  const resultados = [];
+  for (const passo of passos) {
+    const r = rodar(passo);
+    resultados.push({ ...passo, ...r });
+    if (r.exitCode !== 0) {
+      return { phase, kind: entry.kind, executed: true, ok: false, steps: resultados };
+    }
+  }
+  return { phase, kind: entry.kind, executed: true, ok: true, steps: resultados };
+}
+
+function rodarPasso(passo) {
+  const r = spawnSync(passo.command, passo.argv, {
+    cwd: passo.cwd,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  return {
+    // `spawnSync` devolve status null quando o processo nem nasceu (binário
+    // ausente) ou morreu por sinal. Tratar null como 0 faria um comando que
+    // NÃO EXISTE contar como sucesso — exatamente o silêncio que o registro
+    // inteiro existe para impedir.
+    exitCode: r.status === null ? 127 : r.status,
+    stdout: r.stdout ?? "",
+    stderr: r.stderr ?? (r.error ? String(r.error.message) : ""),
+  };
 }

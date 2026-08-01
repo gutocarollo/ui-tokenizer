@@ -171,7 +171,7 @@ const CLASS_OCCURRENCE_KINDS = new Set(["utility-class", "generated-class"]);
 
 const PHASE_INDEX = new Map(PHASES.map((phase, index) => [phase, index]));
 
-const REQUIRED_TRANSITION_ARTIFACTS = Object.freeze({
+export const REQUIRED_TRANSITION_ARTIFACTS = Object.freeze({
   INVENTORIED: ["design-occurrence", "axis-discovery"],
   NORMALIZED: ["normalized-occurrence"],
   CLASSIFIED: ["inventory-report", "cluster-packet"],
