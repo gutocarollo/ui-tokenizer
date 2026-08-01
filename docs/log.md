@@ -7,6 +7,32 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 
 ---
 
+## [2026-08-01] auditoria · planos
+
+- **Documento do PROCESSO morando no repo do ALVO.** O dono pediu para varrer os
+  planos recentes de todos os repos suspeitando de extravio. O caso que ele ja
+  tinha apontado se confirmou e e o pior possivel: `validacao-pesos.md` — o
+  questionario de 40 pares do **F-D0, que bloqueia o APPLY** — vive em
+  `makers-ai-hub/frontend/docs/reports/`. Os pesos que ele valida
+  (`cor 40 · contrato 25 · componente 15 · owner 10 · funcao 10`) estao cravados
+  em `converge-tokens.mjs` Linhas 199-210, deste repo. Decisao do dono, bloqueante,
+  parada em repositorio alheio. Agora rastreada em
+  [`pending/f-d0-pesos-da-convergencia-esperam-o-dono.md`](pending/f-d0-pesos-da-convergencia-esperam-o-dono.md).
+- **E ela estava invisivel por um ponto cego de lint, medido.** A wiki do alvo
+  cobre `docs/`, e `frontend/docs/` esta fora. O `_stray_covered()` ainda da os 13
+  documentos daquela pasta por cobertos porque `reports` e `docs` sao genericos e
+  ele sobe ate `frontend/`, que alguma pagina cita — **uma mencao a `frontend/`
+  silencia a pasta inteira**.
+- **O gerador de relatorio quebra a wiki do alvo a cada run.**
+  `tokenization-report.mjs` escreve em `ROOT/../docs/reports/` e nao indexa nada;
+  rodar o loop uma vez hoje bastou para deixar o lint do makers-ai-hub vermelho
+  com um orfao. As rodadas de 07-30 e 07-31 so nao aparecem assim porque alguem
+  as indexou a mao. A instancia de hoje foi indexada com ressalva; a causa esta em
+  [`pending/relatorio-de-rodada-nasce-orfao-no-alvo.md`](pending/relatorio-de-rodada-nasce-orfao-no-alvo.md).
+- Os tres relatorios `2026-07-2{6,7,8}` existem nos DOIS repos com o mesmo nome,
+  divergindo so no banner de retratacao. Classificacao (duplicata x dois papeis)
+  em apuracao por workflow.
+
 ## [2026-08-01] infra · wiki
 
 - **`docs/pending/` — o backlog virou artefato.** O dono perguntou "o que falta
