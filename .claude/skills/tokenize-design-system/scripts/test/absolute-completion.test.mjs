@@ -167,7 +167,7 @@ function buildFixture({
         axis: "color",
         tokenTypes: ["color"],
         validator: "absolute-color-validator",
-        namingContract: "owner.anatomy.property",
+        namingContract: "entity.variant.anatomy.property",
         emitter: "fixture-emitter",
         completionPredicateIds: [...axisCompletionPredicateIds],
       },
