@@ -111,6 +111,18 @@ export const PHASE_EXECUTORS = Object.freeze({
           exigir(ctx, ["applicationRoot", "runRoot", "runId"], "extract-design-occurrences");
           return ["--root", ctx.applicationRoot, "--out", artefatos(ctx), "--run-id", ctx.runId];
         },
+        /*
+         * EXIT 2 NAO E FALHA, e a distincao esta no proprio extrator:
+         *   1 = falha real (inventario vazio, scanner quebrado);
+         *   2 = artefatos ESCRITOS, com ocorrencia opaca a reconciliar adiante;
+         *   0 = limpo.
+         * Medido no alvo: 762 opacas de 13.869 — resíduo conhecido, que o laco
+         * global (`evaluate-residual`) ja mede como predicado. Tratar 2 como
+         * falha para o pipeline num ponto em que ele NAO falhou; tratar como 0
+         * apagaria o residuo. Por isso o desfecho e declarado com significado e
+         * fica GRAVADO no resultado do passo.
+         */
+        outcomes: { 2: "ocorrencias opacas a reconciliar; artefatos escritos" },
         emits: "design-occurrence",
       },
       {
@@ -358,6 +370,7 @@ export const PHASE_EXECUTORS = Object.freeze({
           // comparacao — a iteracao passaria a convergir contra si mesma.
           return ["--root", ctx.applicationRoot, "--out", `${artefatos(ctx)}/reinventory`, "--run-id", ctx.runId];
         },
+        outcomes: { 2: "ocorrencias opacas a reconciliar; artefatos escritos" },
         emits: "design-occurrence",
       },
       {
@@ -494,6 +507,7 @@ export function resolveSteps(phase, context = {}) {
       return {
         index,
         emits: step.emits,
+        outcomes: step.outcomes ?? null,
         cwd: processRoot,
         command: process.execPath,
         argv: [path.join(scriptsDir, step.script), ...argv],
@@ -508,6 +522,7 @@ export function resolveSteps(phase, context = {}) {
     return {
       index,
       emits: step.emits,
+      outcomes: step.outcomes ?? null,
       cwd: context.applicationRoot ?? processRoot,
       command,
       argv: [...fixos, ...argv],
@@ -560,8 +575,17 @@ export function execute(phase, context = {}, options = {}) {
   const resultados = [];
   for (const passo of passos) {
     const r = rodar(passo);
-    resultados.push({ ...passo, ...r });
-    if (r.exitCode !== 0) {
+    /*
+     * Um passo pode declarar desfechos NAO-ZERO conhecidos. So os codigos
+     * DECLARADOS sao nao-fatais, e cada um carrega o seu significado no
+     * resultado — o resto continua falha. A alternativa que se ve por ai
+     * ("|| true", ou aceitar qualquer nao-zero) transformaria comando quebrado
+     * em sucesso silencioso, que e a classe de defeito que este arquivo inteiro
+     * existe para impedir.
+     */
+    const desfecho = r.exitCode !== 0 ? passo.outcomes?.[r.exitCode] : null;
+    resultados.push({ ...passo, ...r, outcome: desfecho ?? null });
+    if (r.exitCode !== 0 && !desfecho) {
       return { phase, kind: entry.kind, executed: true, ok: false, steps: resultados };
     }
   }

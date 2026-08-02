@@ -17,6 +17,9 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import {
   PHASES,
@@ -31,10 +34,30 @@ import {
   resolveSteps,
 } from "../lib/phase-executors.mjs";
 
+/*
+ * O contexto precisa de um RUN ROOT DE VERDADE, porque o passo de impacto lê o
+ * batch-contract do disco para saber quais arquivos o lote vai tocar.
+ *
+ * Isso é deliberado: antes da mutação o diff da worktree está vazio POR
+ * DEFINIÇÃO, e um impacted-context derivado dele afirmaria que o lote não afeta
+ * nada. Os arquivos afetados são os PLANEJADOS, e quem os declara é o lote.
+ * Logo o teste declara um lote, em vez de o código aceitar a ausência dele.
+ */
+const RUN_ROOT = mkdtempSync(path.join(os.tmpdir(), "phase-exec-"));
+mkdirSync(path.join(RUN_ROOT, "artifacts"), { recursive: true });
+writeFileSync(
+  path.join(RUN_ROOT, "artifacts", "batch-B0001.json"),
+  JSON.stringify({
+    artifactType: "batch-contract",
+    batchId: "B0001",
+    plannedFiles: ["src/components/Button/index.jsx", "src/pages/Home/index.jsx"],
+  })
+);
+
 const CTX = {
   applicationRoot: "/tmp/app",
-  runRoot: "/tmp/run/tokenize-x",
-  runConfigPath: "/tmp/run/tokenize-x/config.json",
+  runRoot: RUN_ROOT,
+  runConfigPath: path.join(RUN_ROOT, "config.json"),
   runId: "tokenize-x",
   batchId: "B0001",
 };
@@ -121,6 +144,18 @@ test("contexto incompleto estoura na MONTAGEM, antes de qualquer efeito", () => 
   assert.throws(
     () => resolveSteps("BEFORE_CAPTURED", { applicationRoot: "/tmp/app" }),
     /contexto insuficiente/
+  );
+  // Lote sem `plannedFiles` é lote que não declara o que vai tocar: o impacto
+  // dele não é verificável, e isso tem de estourar aqui, não virar captura vazia.
+  const semLote = mkdtempSync(path.join(os.tmpdir(), "phase-exec-vazio-"));
+  mkdirSync(path.join(semLote, "artifacts"), { recursive: true });
+  writeFileSync(
+    path.join(semLote, "artifacts", "batch-B0001.json"),
+    JSON.stringify({ artifactType: "batch-contract", batchId: "B0001", plannedFiles: [] })
+  );
+  assert.throws(
+    () => resolveSteps("BEFORE_CAPTURED", { ...CTX, runRoot: semLote }),
+    /sem plannedFiles/
   );
   assert.throws(
     () => resolveSteps("INVENTORIED", { runRoot: "/tmp/run" }),
