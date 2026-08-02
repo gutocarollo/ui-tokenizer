@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -135,6 +135,10 @@ export const PHASE_EXECUTORS = Object.freeze({
             "--out", `${artefatos(ctx)}/axis-discovery.json`,
           ];
         },
+        // Mesmo vocabulário do extrator: 2 = artefato escrito, eixo sem cobertura
+        // DECLARADO em `uncoveredAxes` (o contrato aceita declarar; exige só que
+        // nenhum eixo descoberto fique sem contrato nem sem registro).
+        outcomes: { 2: "eixo descoberto sem cobertura, declarado em uncoveredAxes" },
         emits: "axis-discovery",
       },
     ],
@@ -157,6 +161,14 @@ export const PHASE_EXECUTORS = Object.freeze({
             "--out", artefatos(ctx),
           ];
         },
+        /*
+         * Mesmo vocabulário: 2 = normalizou tudo e sobrou opaco a reconciliar.
+         * Medido nesta corrida: 7356/7356 classes, valid=6355, opaque=1001,
+         * invalid=0, truncated=0, compilador do ALVO. Nada falhou — `invalid` e
+         * `truncated` zerados são a prova; `opaque` é classe que o compilador
+         * não resolve a um valor físico, e o laço de resíduo já a mede.
+         */
+        outcomes: { 2: "classes opacas a reconciliar; normalização completa" },
         emits: "normalized-occurrence",
       },
     ],
@@ -179,6 +191,30 @@ export const PHASE_EXECUTORS = Object.freeze({
       { script: "score-naming.mjs", args: (ctx) => comRaiz(ctx, "score-naming", ["--json"]), emits: "inventory-report" },
       { script: "find-owner.mjs", args: (ctx) => comRaiz(ctx, "find-owner", ["--json"]), emits: "cluster-packet" },
       { script: "cluster-leftovers.mjs", args: (ctx) => comRaiz(ctx, "cluster-leftovers", ["--json"]), emits: "cluster-packet" },
+      {
+        /*
+         * O PRODUTOR DE VERDADE, e ele faltava.
+         *
+         * Os cinco passos acima ANALISAM e imprimem JSON no stdout; nenhum
+         * escreve artefato no run root. Medido em 2026-08-02: a fase reportou
+         * `ok=true` e o run root ficou sem `cluster-packets.ndjson` e sem
+         * `inventory-ownerless.json` — sucesso silencioso sobre nada, que é
+         * exatamente o que este arquivo existe para impedir.
+         *
+         * `--emit-artifacts` mora dentro de `context-clusters` de propósito: o
+         * `cluster-packet` exige `occurrenceIds` COMPLETO, e a saída `--json`
+         * trunca em 6 por cluster. Um emissor externo teria de reprocessar tudo
+         * ou emitir lista mutilada com cara de completa.
+         */
+        script: "context-clusters.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["applicationRoot", "runConfigPath", "runRoot"], "context-clusters");
+          return ["--root", ctx.applicationRoot, "--all",
+                  "--emit-artifacts", artefatos(ctx),
+                  "--run-config", ctx.runConfigPath];
+        },
+        emits: "cluster-packet",
+      },
     ],
   },
 
@@ -382,6 +418,10 @@ export const PHASE_EXECUTORS = Object.freeze({
                   "--extraction-summary", `${base}/extraction-summary.json`,
                   "--out", `${base}/axis-discovery.json`];
         },
+        // Mesmo vocabulário do extrator: 2 = artefato escrito, eixo sem cobertura
+        // DECLARADO em `uncoveredAxes` (o contrato aceita declarar; exige só que
+        // nenhum eixo descoberto fique sem contrato nem sem registro).
+        outcomes: { 2: "eixo descoberto sem cobertura, declarado em uncoveredAxes" },
         emits: "axis-discovery",
       },
     ],
@@ -589,7 +629,47 @@ export function execute(phase, context = {}, options = {}) {
       return { phase, kind: entry.kind, executed: true, ok: false, steps: resultados };
     }
   }
+  /*
+   * `emits` DEIXA DE SER COMENTÁRIO. Uma fase que declara produzir
+   * `cluster-packet` e termina sem nenhum registro desse tipo no run root não
+   * teve sucesso — teve silêncio. Medido em 2026-08-02: CLASSIFIED devolveu
+   * `ok=true` com o run root vazio dos dois artefatos que ela promete, porque
+   * os cinco passos só imprimiam JSON no stdout.
+   *
+   * A checagem é por CONTEÚDO, não por nome de arquivo: varre os artefatos do
+   * run root e procura o `artifactType` declarado. Conferir nome de arquivo
+   * aceitaria um arquivo vazio com o nome certo.
+   */
+  const faltando = artefatosAusentes(entry.artifacts ?? [], context);
+  if (faltando.length) {
+    return {
+      phase, kind: entry.kind, executed: true, ok: false, steps: resultados,
+      missingArtifacts: faltando,
+      blocker: `a fase declarou emitir ${faltando.join(", ")} e o run root não tem nenhum registro desses tipos`,
+    };
+  }
   return { phase, kind: entry.kind, executed: true, ok: true, steps: resultados };
+}
+
+/** Quais dos tipos declarados NÃO aparecem em artefato nenhum do run root. */
+function artefatosAusentes(tipos, context) {
+  if (!tipos.length || !context?.runRoot) return [];
+  const dir = `${context.runRoot}/artifacts`;
+  let arquivos = [];
+  try { arquivos = readdirSync(dir); } catch { return [...tipos]; }
+  const vistos = new Set();
+  for (const nome of arquivos) {
+    if (!/\.(json|ndjson)$/.test(nome)) continue;
+    let texto = "";
+    try { texto = readFileSync(`${dir}/${nome}`, "utf8"); } catch { continue; }
+    for (const linha of texto.split("\n")) {
+      const corte = linha.indexOf('"artifactType"');
+      if (corte < 0) continue;
+      const m = /"artifactType"\s*:\s*"([^"]+)"/.exec(linha.slice(corte));
+      if (m) vistos.add(m[1]);
+    }
+  }
+  return tipos.filter((tipo) => !vistos.has(tipo));
 }
 
 function rodarPasso(passo) {

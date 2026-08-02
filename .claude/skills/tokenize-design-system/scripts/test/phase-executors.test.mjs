@@ -209,3 +209,57 @@ test("o reinventário NÃO escreve por cima do inventário inicial", () => {
   assert.notEqual(saida("REINVENTORIED"), saida("INVENTORIED"));
   assert.match(saida("REINVENTORIED"), /reinventory/);
 });
+
+test("fase que declara emitir artefato e não emite NÃO pode devolver ok", () => {
+  /*
+   * `emits` era comentário. Medido em 2026-08-02: CLASSIFIED devolveu `ok=true`
+   * com o run root sem `cluster-packet` e sem `inventory-report`, porque os
+   * cinco passos daquela fase só imprimiam JSON no stdout — o produtor de
+   * verdade (`context-clusters --emit-artifacts`) nem estava no registro.
+   *
+   * Sucesso silencioso sobre nada é a classe de defeito que este arquivo existe
+   * para impedir, então a promessa passa a ser conferida no run root.
+   */
+  const vazio = mkdtempSync(path.join(os.tmpdir(), "phase-exec-semart-"));
+  mkdirSync(path.join(vazio, "artifacts"), { recursive: true });
+  writeFileSync(
+    path.join(vazio, "artifacts", "batch-B0001.json"),
+    JSON.stringify({ artifactType: "batch-contract", batchId: "B0001", plannedFiles: ["a.jsx"] })
+  );
+  const r = execute("CLASSIFIED", { ...CTX, runRoot: vazio }, {
+    run: () => ({ exitCode: 0, stdout: "{}", stderr: "" }),
+  });
+  assert.equal(r.ok, false, "todos os passos saíram 0, mas nada foi emitido");
+  assert.deepEqual(r.missingArtifacts.sort(), ["cluster-packet", "inventory-report"]);
+  assert.match(r.blocker, /run root não tem nenhum registro/);
+});
+
+test("a verificação é por CONTEÚDO do artefato, não por nome de arquivo", () => {
+  // Arquivo com o nome certo e o tipo errado tem de continuar faltando: conferir
+  // nome aceitaria um arquivo vazio batizado corretamente.
+  const dir = mkdtempSync(path.join(os.tmpdir(), "phase-exec-conteudo-"));
+  mkdirSync(path.join(dir, "artifacts"), { recursive: true });
+  writeFileSync(
+    path.join(dir, "artifacts", "batch-B0001.json"),
+    JSON.stringify({ artifactType: "batch-contract", batchId: "B0001", plannedFiles: ["a.jsx"] })
+  );
+  writeFileSync(path.join(dir, "artifacts", "cluster-packets.ndjson"), "");
+  writeFileSync(path.join(dir, "artifacts", "inventory-ownerless.json"), "{}");
+  const semConteudo = execute("CLASSIFIED", { ...CTX, runRoot: dir }, {
+    run: () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+  assert.equal(semConteudo.ok, false, "nome certo, conteúdo vazio: continua faltando");
+
+  writeFileSync(
+    path.join(dir, "artifacts", "cluster-packets.ndjson"),
+    JSON.stringify({ artifactType: "cluster-packet", clusterId: "c-1" }) + "\n"
+  );
+  writeFileSync(
+    path.join(dir, "artifacts", "inventory-ownerless.json"),
+    JSON.stringify({ artifactType: "inventory-report", kind: "ownerless" })
+  );
+  const comConteudo = execute("CLASSIFIED", { ...CTX, runRoot: dir }, {
+    run: () => ({ exitCode: 0, stdout: "", stderr: "" }),
+  });
+  assert.equal(comConteudo.ok, true, "com os dois tipos presentes, a fase fecha");
+});

@@ -109,4 +109,23 @@ console.log(
     `coveredKinds=${discovery.coveredOccurrenceKinds.length}/19, ` +
     `exhaustive=${discovery.exhaustive}`
 );
-if (!discovery.exhaustive) process.exitCode = 1;
+/*
+ * EXIT 2, NÃO 1 — e a diferença não é cosmética.
+ *
+ * Não-exaustivo significa "o artefato FOI escrito e declara o que ficou de
+ * fora", que é resíduo, não falha. O contrato concorda: ele exige que todo eixo
+ * descoberto tenha contrato configurado OU registro em `uncoveredAxes`
+ * (`artifact-contract.mjs`, invariante axis-discovery), e declarar satisfaz.
+ * Medido em 2026-08-02 sobre esta corrida: `uncoveredAxes: ["unmapped"]` produz
+ * ZERO violação de axis-discovery na validação do conjunto.
+ *
+ * Sinalizar isso com 1 era ambíguo de um jeito perigoso: exceção não capturada
+ * no Node também sai 1. Quem consome o exit code não conseguia distinguir
+ * "rodou e sobrou resíduo" de "quebrou no meio", e a única saída seria o
+ * chamador declarar 1 como não-fatal — mascarando crash de verdade.
+ *
+ * 2 é a mesma convenção que `extract-design-occurrences.mjs` já usa para
+ * "artefatos escritos, com resíduo a reconciliar". Um vocabulário, dois
+ * emissores.
+ */
+if (!discovery.exhaustive) process.exitCode = 2;
