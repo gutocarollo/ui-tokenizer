@@ -88,6 +88,15 @@ function exigir(ctx, campos, rotulo) {
  *   O override é a interface que o próprio extrator declara para orquestrador
  *   (extract-design-occurrences.mjs, "Header override supplied by an
  *   orchestrator"); o valor único vem do config.
+ * - `--source-fingerprint`: idem, e é a 8ª ocorrência da família dominante
+ *   deste projeto (dois donos de um nome). Medido 2026-08-03: a âncora
+ *   recalcula `b755f954…` de forma ESTÁVEL sobre as mesmas raízes, e o
+ *   `fingerprintFiles` interno do extrator devolve `8fa03f67…` — composições
+ *   de hash diferentes, não duas medições legítimas. Isso quebrava a fase
+ *   seguinte, cujos produtores usam o valor do run-config: metade da cadeia
+ *   assinava com um valor e metade com outro. A âncora é a dona por definição
+ *   ("corrida ancorada"); mudança real de fonte se trata RE-ANCORANDO, que
+ *   troca o runId, não deixando cada passo medir por conta.
  *
  * Config ilegível LANÇA — recusa visível, nunca censo com identidade errada.
  */
@@ -97,6 +106,7 @@ function sourceRootsDoConfig(ctx) {
   return [
     ...(Array.isArray(roots) && roots.length ? ["--source-roots", roots.join(",")] : []),
     ...(cfg?.toolchainFingerprint ? ["--toolchain-fingerprint", cfg.toolchainFingerprint] : []),
+    ...(cfg?.sourceFingerprint ? ["--source-fingerprint", cfg.sourceFingerprint] : []),
   ];
 }
 

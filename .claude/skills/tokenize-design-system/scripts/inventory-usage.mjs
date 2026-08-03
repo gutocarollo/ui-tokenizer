@@ -7,10 +7,12 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { resolveRoot } from "./lib/paths.mjs";
+import { resolveRoot, resolveSourceRoots } from "./lib/paths.mjs";
 
 const root = resolveRoot();
-const sourceRoot = path.join(root, "src");
+// As raízes vêm da TOPOLOGIA do alvo, nunca de `src` cravado: o primeiro alvo
+// de fora tinha `app` e este passo morria com ENOENT no meio da fase.
+const sourceRoots = resolveSourceRoots(root);
 const propertyByPrefix = [
   [/^bg-/, "background-color"],
   [/^(text|placeholder)-/, "foreground-color"],
@@ -79,7 +81,7 @@ function classTokens(source, offset) {
 }
 
 const usages = [];
-for (const file of files(sourceRoot)) {
+for (const file of sourceRoots.flatMap((raiz) => [...files(raiz)])) {
   const source = readFileSync(file, "utf8");
   const owner = componentName(source, file);
   const relativePath = path.relative(root, file);

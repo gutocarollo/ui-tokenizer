@@ -11,7 +11,15 @@
  * ausência de medida — a mesma distinção que o `evaluate-residual` pratica
  * ("não medido" nunca vira "zero").
  */
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 /** Parseia um arquivo de artefato: JSON único, array, ou NDJSON linha a linha. */
@@ -32,6 +40,53 @@ export function objetosDoArquivo(texto) {
       })
       .filter(Boolean);
   }
+}
+
+/**
+ * O `sourceFingerprint` de um artefato, lendo o MÍNIMO do arquivo.
+ *
+ * NDJSON de censo passa de 60 MB; parsear inteiro só para ler o cabeçalho é
+ * desperdício e, em alvo grande, estouro de memória. Toda linha do NDJSON
+ * carrega o mesmo cabeçalho, então a primeira basta — e ela cabe no primeiro
+ * bloco. Devolve null quando o arquivo não declara (não é artefato).
+ */
+/**
+ * Leitura PARCIAL de verdade: 256 KB do início. Um cabeçalho de artefato não
+ * chega perto disso, e ler os 60 MB de um censo para achar 64 hex seria o
+ * desperdício que este comentário existiria para explicar.
+ */
+function primeiroBloco(caminho, extrair) {
+  let fd;
+  try {
+    fd = openSync(caminho, "r");
+  } catch {
+    return null;
+  }
+  try {
+    const buffer = Buffer.alloc(256 * 1024);
+    const lidos = readSync(fd, buffer, 0, buffer.length, 0);
+    return extrair(buffer.toString("utf8", 0, lidos));
+  } finally {
+    closeSync(fd);
+  }
+}
+
+export function fingerprintDoArtefato(caminho) {
+  return primeiroBloco(caminho, (texto) => {
+    const m = /"sourceFingerprint"\s*:\s*"([0-9a-f]{64})"/.exec(texto);
+    return m ? m[1] : null;
+  });
+}
+
+/**
+ * O `artifactType` de um arquivo, pela mesma leitura parcial. `null` quando o
+ * arquivo não declara nenhum — sinal de que NÃO é artefato de contrato.
+ */
+export function tipoDoArtefato(caminho) {
+  return primeiroBloco(caminho, (texto) => {
+    const m = /"artifactType"\s*:\s*"([^"]+)"/.exec(texto);
+    return m ? m[1] : null;
+  });
 }
 
 export function lerProgresso(runRoot) {

@@ -47,12 +47,14 @@ import {
 import { artefatosPorTipo, execute, executorFor } from "./lib/phase-executors.mjs";
 import {
   deParaDasDecisoes,
+  fingerprintDoArtefato,
   lerProgresso,
   objetosDoArquivo,
   registrarProgresso,
+  tipoDoArtefato,
 } from "./lib/progress-log.mjs";
 import { runCli } from "./tokenization-runner.mjs";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const MODULE_PATH = fileURLToPath(import.meta.url);
@@ -82,6 +84,42 @@ export function reentradaMaisAMontante(codigos) {
     [...(codigos ?? [])]
       .filter((c) => REENTRY_PHASE[c])
       .sort((a, b) => PHASES.indexOf(REENTRY_PHASE[a]) - PHASES.indexOf(REENTRY_PHASE[b]))[0] ?? null
+  );
+}
+
+/**
+ * Todos os artefatos do run root que pertencem à fonte ATIVA.
+ *
+ * POR QUE NÃO BASTA passar os tipos exigidos pela transição (defeito meu, pego
+ * no 1º alvo real): as invariantes do contrato são de CONJUNTO —
+ * `design-reconciliation` reconcilia cluster contra ocorrência, `axis-discovery`
+ * exige exatamente um artefato de eixo *da fonte ativa*. Passando só
+ * `inventory-report` + `cluster-packet`, elas viam ZERO ocorrência e ZERO eixo e
+ * recusavam com "Active source design inventory is empty" — o conjunto estava
+ * incompleto, não a corrida.
+ *
+ * Filtrar por fingerprint é OBRIGATÓRIO, não otimização: `commandTransition`
+ * lança em qualquer registro cuja fonte divirja (`source-freshness`), então
+ * passar artefato de uma rodada anterior derrubaria a transição inteira.
+ */
+export function artefatosDaFonteAtiva(runRoot, sourceFingerprint) {
+  const dir = path.join(runRoot, "artifacts");
+  let nomes = [];
+  try {
+    nomes = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  return (
+    nomes
+      .filter((n) => /\.(json|ndjson)$/.test(n))
+      .map((n) => path.join(dir, n))
+      // Arquivo SEM `artifactType` não é artefato de contrato (é sumário de
+      // apoio, como extraction-summary/normalization-summary). Passá-lo faz
+      // `inferArtifactType` lançar "exactly one root artifact type" e derruba a
+      // transição por um arquivo que nem participa do contrato.
+      .filter((p) => tipoDoArtefato(p) !== null)
+      .filter((p) => fingerprintDoArtefato(p) === sourceFingerprint)
   );
 }
 
@@ -339,11 +377,16 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
     if (faltando.length) {
       return sair(1, `transição para ${proxima} exige ${faltando.join(", ")} e o run root não tem`);
     }
+    // O conjunto é TODO artefato da fonte ativa (as invariantes são de
+    // conjunto), com os tipos exigidos garantidos dentro dele.
+    const doConjunto = artefatosDaFonteAtiva(runRoot, st.sourceFingerprint);
+    const exigidos = tipos.map((t) => mapa.get(t)[0]);
+    const artefatos = [...new Set([...doConjunto, ...exigidos])];
     try {
       d.transicionar({
         para: proxima,
         motivo: `sweep rodada ${rodada}: ${atual}→${proxima}`,
-        artefatos: tipos.map((t) => mapa.get(t)[0]),
+        artefatos,
       });
     } catch (e) {
       // ArtifactContractError carrega a LISTA de violações — engolir e só

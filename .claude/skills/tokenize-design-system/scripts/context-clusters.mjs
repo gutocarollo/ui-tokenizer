@@ -28,13 +28,18 @@
  */
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
-import { resolveRoot } from "./lib/paths.mjs";
+import { resolveRoot, resolveSourceRoots } from "./lib/paths.mjs";
 import { findUseOwner } from "./find-owner.mjs";
 import { readVocabulary, PREFIX_PROPERTY } from "./score-naming.mjs";
 import { prefixAlternation, lawSlotFor } from "./lib/utility-families.mjs";
 
 const ROOT = resolveRoot();
-const SRC = path.join(ROOT, "src");
+// Raízes vindas da TOPOLOGIA do alvo (nunca `src` cravado — o 1º alvo de fora
+// tinha `app`). `SRC_ROOTS[0]` é a base para o caminho relativo do componente:
+// com mais de uma raiz, cada arquivo relativiza contra a raiz que o contém.
+const SRC_ROOTS = resolveSourceRoots(ROOT);
+const raizDe = (file) =>
+  SRC_ROOTS.find((raiz) => file.startsWith(`${raiz}${path.sep}`)) ?? SRC_ROOTS[0];
 
 /*
  * As palavras proibidas pela lei (§2, §3.1) — a lista tem que ser a MESMA que o
@@ -77,7 +82,7 @@ function contextOf(text, offset, file) {
   const disabled = /\bdisabled\b|aria-disabled/.test(frag);
   const selected = /aria-selected|aria-current|data-selected/.test(frag);
 
-  const rel = path.relative(SRC, file);
+  const rel = path.relative(raizDe(file), file);
   const parts = rel.split(path.sep);
   const base = parts.pop().replace(/\.(jsx?|tsx?)$/, "");
   const component = base === "index" ? parts[parts.length - 1] ?? base : base;
@@ -166,7 +171,7 @@ const tokenRx = alvo
   : new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${PRE})-((?:${FORBIDDEN.join("|")})-[a-z0-9-]+)(?![\\w-])`, "g");
 
 const ocorrencias = [];
-for (const f of files(SRC)) {
+for (const f of SRC_ROOTS.flatMap((raiz) => [...files(raiz)])) {
   const text = readFileSync(f, "utf8");
   for (const m of text.matchAll(tokenRx)) {
     const [, variantPrefix, prefix, token] = m;
