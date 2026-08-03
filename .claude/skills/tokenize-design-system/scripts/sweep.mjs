@@ -136,7 +136,10 @@ export function contadoresDe(residualJson, runRoot) {
 
 export function depsReais({ root, runRoot }) {
   return {
-    executar: (fase) => execute(fase, { root, runRoot }),
+    // O contrato de contexto do registro é `applicationRoot` (não `root`) —
+    // divergir aqui foi o 1º achado do smoke real (2026-08-03): o mesmo par
+    // contrato×produtor de sempre, pego RODANDO.
+    executar: (fase) => execute(fase, { applicationRoot: root, runRoot }),
     estado: () => runCli(["status", "--root", root, "--run-root", runRoot]),
     transicionar: ({ para, motivo, artefatos = [], reentrada = null, lote = null }) =>
       runCli([

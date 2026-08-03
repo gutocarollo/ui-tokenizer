@@ -263,17 +263,35 @@ export function createArtifactValidator({
     throw new Error(`Target package.json not found: ${packageJson}`);
   }
 
+  /*
+   * Ajv resolve do ALVO primeiro — é o que faz a cópia vendorizada funcionar
+   * dentro de um app sem este repo por perto. Mas o dialeto valida os SCHEMAS
+   * DO PROCESSO, não código do alvo: exigir que todo app-alvo adote Ajv 8 como
+   * devDependency seria o processo impondo dependência ao alvo (contra D4,
+   * 2026-08-03 — medido na primeira cobaia real: o ajv dela é 6.14.0 transitivo,
+   * sem `dist/2020`, e o init recusava um alvo perfeitamente válido). Fallback:
+   * a árvore de QUEM CARREGA este módulo — no repo do processo é o ajv daqui;
+   * na cópia vendorizada é o próprio alvo, ou seja, o comportamento antigo.
+   */
   const targetRequire = createRequire(packageJson);
+  const selfRequire = createRequire(import.meta.url);
   let Ajv2020;
-  try {
-    const loaded = targetRequire("ajv/dist/2020");
-    Ajv2020 = loaded.default ?? loaded;
-  } catch (error) {
+  let carga = null;
+  for (const resolver of [targetRequire, selfRequire]) {
+    try {
+      carga = resolver("ajv/dist/2020");
+      break;
+    } catch {
+      /* tenta o próximo */
+    }
+  }
+  if (!carga) {
     throw new Error(
-      `Ajv 2020 could not be resolved from ${applicationRoot}. Add Ajv 8 as a target-project development dependency.`,
-      { cause: error }
+      `Ajv 2020 could not be resolved from ${applicationRoot} nor from the process tree. ` +
+        `Add Ajv 8 as a development dependency of one of them.`
     );
   }
+  Ajv2020 = carga.default ?? carga;
 
   const schema = loadSchemaBundle(schemaPath);
   const rootTypes = (schema.oneOf ?? []).map((entry) => {
