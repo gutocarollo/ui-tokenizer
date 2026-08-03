@@ -933,6 +933,49 @@ test("axis discovery must reconcile every discovered axis or report it uncovered
   );
 });
 
+test("MIGRATED validates against the prior census until REINVENTORIED emits the new one", () => {
+  const validator = createArtifactValidator({ root: APPLICATION_ROOT });
+  const fixtures = schemaFixtures();
+  const state = {
+    ...fixtures.get("run-state"),
+    ...header("run-state", SOURCE_B),
+    currentPhase: "MIGRATED",
+    activeBatchId: "B0001",
+  };
+  const result = validateArtifactSet({
+    records: [
+      runConfig(),
+      state,
+      designOccurrence(),
+      normalizedOccurrence(),
+      axisDiscovery(),
+      fixtures.get("batch-contract"),
+      fixtures.get("impacted-context"),
+      fixtures.get("mutation-manifest"),
+    ],
+    runRoot: mkdtempSync(path.join(os.tmpdir(), "artifact-contract-")),
+    validator,
+    targetPhase: "MIGRATED",
+    resolveReferences: false,
+  });
+  assert.equal(
+    result.violations.some(
+      ({ invariant, message }) =>
+        invariant === "design-reconciliation" &&
+        message === "Active source design inventory is empty"
+    ),
+    false
+  );
+  assert.equal(
+    result.violations.some(
+      ({ invariant, message }) =>
+        invariant === "axis-discovery" &&
+        message.includes("requires exactly one axis-discovery artifact")
+    ),
+    false
+  );
+});
+
 test("reference integrity rejects bytes changed after the ref was created", () => {
   const validator = createArtifactValidator({ root: APPLICATION_ROOT });
   const runRoot = mkdtempSync(path.join(os.tmpdir(), "artifact-contract-"));

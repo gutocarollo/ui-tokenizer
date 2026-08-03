@@ -1150,6 +1150,44 @@ function phaseAtLeast(targetPhase, phase) {
   );
 }
 
+function resolveCensusSourceFingerprint(index, activeSourceFingerprint) {
+  const designSources = new Set(
+    (index.get("design-occurrence") ?? []).map(
+      ({ artifact }) => artifact.sourceFingerprint
+    )
+  );
+  const discoverySources = new Set(
+    (index.get("axis-discovery") ?? []).map(
+      ({ artifact }) => artifact.sourceFingerprint
+    )
+  );
+  const hasCensus = (fingerprint) =>
+    designSources.has(fingerprint) && discoverySources.has(fingerprint);
+  if (hasCensus(activeSourceFingerprint)) return activeSourceFingerprint;
+
+  // Entre MIGRATED e REINVENTORIED a fonte ativa já é a pós-mutação, mas o
+  // último censo válido ainda pertence ao fingerprint anterior. Caminhamos a
+  // cadeia before<-after até achar essa projeção. Exigir censo do fingerprint
+  // novo em MIGRATED cria um ciclo impossível: esse censo só nasce depois, na
+  // fase REINVENTORIED.
+  const predecessors = new Map();
+  for (const { artifact } of index.get("mutation-manifest") ?? []) {
+    const values = predecessors.get(artifact.afterSourceFingerprint) ?? new Set();
+    values.add(artifact.beforeSourceFingerprint);
+    predecessors.set(artifact.afterSourceFingerprint, values);
+  }
+  const seen = new Set();
+  let cursor = activeSourceFingerprint;
+  while (!seen.has(cursor)) {
+    seen.add(cursor);
+    const candidates = predecessors.get(cursor);
+    if (!candidates || candidates.size !== 1) return activeSourceFingerprint;
+    cursor = [...candidates][0];
+    if (hasCensus(cursor)) return cursor;
+  }
+  return activeSourceFingerprint;
+}
+
 function checkClassProjection(
   index,
   currentDesignRecords,
@@ -2944,6 +2982,10 @@ export function validateArtifactSet({
         ? ((index.get("final-proof") ?? [])[0]?.artifact
             ?.finalSourceFingerprint ?? runConfig.sourceFingerprint)
         : runConfig.sourceFingerprint;
+  const censusSourceFingerprint = resolveCensusSourceFingerprint(
+    index,
+    activeSourceFingerprint
+  );
   checkRunIdentity(schemaValidRecords, runConfig, violations);
   checkSourceKindRegistry(runConfig, violations);
   checkSourceFreshness(index, schemaValidRecords, runConfig, violations);
@@ -2972,7 +3014,7 @@ export function validateArtifactSet({
     records: index.get("design-occurrence") ?? [],
     runRoot,
     runId: runConfig.runId,
-    sourceFingerprint: activeSourceFingerprint,
+    sourceFingerprint: censusSourceFingerprint,
   });
   violations.push(...designLineage.violations);
   const currentDesignRecords = designLineage.currentRecords;
@@ -2981,14 +3023,14 @@ export function validateArtifactSet({
     index,
     currentDesignRecords,
     targetPhase,
-    activeSourceFingerprint,
+    censusSourceFingerprint,
     violations
   );
   checkClassProjection(
     index,
     currentDesignRecords,
     targetPhase,
-    activeSourceFingerprint,
+    censusSourceFingerprint,
     violations
   );
   checkClusterReferentialIntegrity(index, violations);
@@ -2998,14 +3040,14 @@ export function validateArtifactSet({
     currentDesignRecords,
     runConfig,
     targetPhase,
-    activeSourceFingerprint,
+    censusSourceFingerprint,
     violations
   );
   checkAbsoluteCompletionRegistry(
     index,
     runConfig,
     targetPhase,
-    activeSourceFingerprint,
+    censusSourceFingerprint,
     violations
   );
   checkBatchScope(index, violations);
