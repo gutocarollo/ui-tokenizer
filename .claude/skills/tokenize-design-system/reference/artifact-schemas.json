@@ -1703,6 +1703,33 @@
             },
             "reconciled": {
               "type": "boolean"
+            },
+            "scope": {
+              "type": "object",
+              "required": [
+                "occurrenceKinds",
+                "criterion"
+              ],
+              "properties": {
+                "occurrenceKinds": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/occurrenceKind"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "criterion": {
+                  "$ref": "#/$defs/nonEmptyString"
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
             }
           },
           "allOf": [

@@ -371,16 +371,23 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
       return sair(1, ex.blocker ?? `passo falhou em ${proxima}: ${falha?.stderr?.slice(0, 400) ?? "sem stderr"}`);
     }
 
+    /*
+     * O DRIVER NÃO JULGA SUFICIÊNCIA — ele só apresenta a evidência.
+     *
+     * Havia aqui um pré-check "faltam tipos exigidos?", e ele era o TERCEIRO
+     * dono da mesma regra (contrato, checagem de `emits` do executor, e este).
+     * Na primeira dispensa legítima — CLASSIFIED sem cluster-packet, declarado
+     * pelo inventory-report — o contrato aceitou, o executor aceitou, e este
+     * pré-check barrou: uma cópia da regra que ninguém sincronizou. Quem decide
+     * se a evidência basta é `validateTransitionEvidence`; o driver reporta as
+     * violações que ele devolve (já vão para o progress log).
+     */
     const tipos = REQUIRED_TRANSITION_ARTIFACTS[proxima] ?? [];
     const mapa = artefatosPorTipo(tipos, runRoot);
-    const faltando = tipos.filter((t) => !(mapa.get(t) ?? []).length);
-    if (faltando.length) {
-      return sair(1, `transição para ${proxima} exige ${faltando.join(", ")} e o run root não tem`);
-    }
-    // O conjunto é TODO artefato da fonte ativa (as invariantes são de
-    // conjunto), com os tipos exigidos garantidos dentro dele.
+    // O conjunto é TODO artefato da fonte ativa (as invariantes são de conjunto),
+    // com os tipos exigidos que EXISTEM garantidos dentro dele.
     const doConjunto = artefatosDaFonteAtiva(runRoot, st.sourceFingerprint);
-    const exigidos = tipos.map((t) => mapa.get(t)[0]);
+    const exigidos = tipos.flatMap((t) => (mapa.get(t) ?? []).slice(0, 1));
     const artefatos = [...new Set([...doConjunto, ...exigidos])];
     try {
       d.transicionar({

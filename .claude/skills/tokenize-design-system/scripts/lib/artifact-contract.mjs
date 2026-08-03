@@ -2617,22 +2617,61 @@ function checkRunState(index, records, violations) {
   }
 }
 
+/**
+ * A ÚNICA dispensa de artefato exigido, e ela custa MAIS evidência, não menos.
+ *
+ * `cluster-packet` só pode faltar em CLASSIFIED quando o `inventory-report`
+ * fresco DECLARA que não havia o que empacotar, e declara de forma conferível:
+ * população NÃO-VÁCUA (sítios examinados > 0, o mesmo critério que
+ * `absolute-completion` exige em `counts.population`), zero cluster, e um
+ * `scope` nomeando os tipos de ocorrência que o classificador consome.
+ *
+ * POR QUE ISTO EXISTE (medido 2026-08-03, primeira cobaia externa): o
+ * classificador varre `utility-class` com palavra banida. Naquele alvo o censo
+ * achou 35 mil ocorrências em 12 tipos — 13.131 `utility-class`, 9.872
+ * `inline-style`, 5.447 `svg-presentation` — e ZERO com palavra banida. O
+ * produtor então gravava um NDJSON de 1 byte, que o contrato recusava (e
+ * recusava certo: vazio é indistinguível de produtor que morreu no meio).
+ *
+ * As duas saídas erradas eram simétricas: aceitar o arquivo vazio (perder a
+ * distinção entre "medi e não havia" e "quebrei") ou deixar a fase travada
+ * para sempre num alvo legítimo. A saída certa é obrigar a DECLARAÇÃO — e ela
+ * também impede a leitura falsa "alvo limpo", porque o `scope` diz em voz alta
+ * que as outras 11 formas de débito não passaram por este classificador.
+ */
+export function dispensaDeClusterPacket(artifacts) {
+  const relatorios = artifacts.filter(
+    (artifact) =>
+      artifact?.artifactType === "inventory-report" && artifact?.counts?.clusters === 0
+  );
+  return relatorios.some(
+    (relatorio) =>
+      Number.isInteger(relatorio.counts.population) &&
+      relatorio.counts.population > 0 &&
+      Array.isArray(relatorio.scope?.occurrenceKinds) &&
+      relatorio.scope.occurrenceKinds.length > 0 &&
+      typeof relatorio.scope?.criterion === "string" &&
+      relatorio.scope.criterion.length > 0
+  );
+}
+
 export function validateTransitionEvidence({ targetPhase, transitionRecords }) {
   const violations = [];
   const required = REQUIRED_TRANSITION_ARTIFACTS[targetPhase] ?? [];
-  const types = new Set(
-    transitionRecords.map((record) => toRecord(record).artifact?.artifactType)
-  );
+  const registros = transitionRecords.map((record) => toRecord(record).artifact);
+  const types = new Set(registros.map((artifact) => artifact?.artifactType));
+  const dispensaCluster =
+    targetPhase === "CLASSIFIED" && dispensaDeClusterPacket(registros);
   for (const artifactType of required) {
-    if (!types.has(artifactType)) {
-      violations.push(
-        violation(
-          "transition-evidence",
-          REENTRY_BY_ARTIFACT[artifactType],
-          `${targetPhase} requires a fresh ${artifactType} artifact in this transition`
-        )
-      );
-    }
+    if (types.has(artifactType)) continue;
+    if (artifactType === "cluster-packet" && dispensaCluster) continue;
+    violations.push(
+      violation(
+        "transition-evidence",
+        REENTRY_BY_ARTIFACT[artifactType],
+        `${targetPhase} requires a fresh ${artifactType} artifact in this transition`
+      )
+    );
   }
 
   const artifacts = transitionRecords.map(

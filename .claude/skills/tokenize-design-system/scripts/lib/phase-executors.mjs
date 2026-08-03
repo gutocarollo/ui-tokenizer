@@ -25,6 +25,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import { dispensaDeClusterPacket } from "./artifact-contract.mjs";
+
 /** Diretório dos scripts da skill, derivado deste arquivo (lib/ -> scripts/). */
 const DEFAULT_SCRIPTS_DIR = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
@@ -740,11 +742,37 @@ export function artefatosPorTipo(tipos, runRoot) {
   return achados;
 }
 
-/** Quais dos tipos declarados NÃO aparecem em artefato nenhum do run root. */
+/**
+ * Quais dos tipos declarados NÃO aparecem em artefato nenhum do run root.
+ *
+ * A ÚNICA exceção é a mesma do contrato, e o predicado é IMPORTADO dele — não
+ * reescrito aqui. Duas cópias da regra de dispensa divergiriam na fronteira,
+ * que é a causa-raiz de nove defeitos medidos em 2026-08-01/03: `cluster-packet`
+ * pode faltar quando o `inventory-report` declara zero cluster sobre população
+ * não-vácua com escopo nomeado.
+ */
 function artefatosAusentes(tipos, context) {
   if (!tipos.length || !context?.runRoot) return [];
   const achados = artefatosPorTipo(tipos, context.runRoot);
-  return tipos.filter((tipo) => achados.get(tipo).length === 0);
+  const faltando = tipos.filter((tipo) => achados.get(tipo).length === 0);
+  if (!faltando.includes("cluster-packet")) return faltando;
+
+  const relatorios = (artefatosPorTipo(["inventory-report"], context.runRoot).get("inventory-report") ?? [])
+    .flatMap((caminho) => {
+      let texto = "";
+      try { texto = readFileSync(caminho, "utf8"); } catch { return []; }
+      try {
+        const um = JSON.parse(texto);
+        return Array.isArray(um) ? um : [um];
+      } catch {
+        return texto.split("\n").filter(Boolean).flatMap((linha) => {
+          try { return [JSON.parse(linha)]; } catch { return []; }
+        });
+      }
+    });
+  return dispensaDeClusterPacket(relatorios)
+    ? faltando.filter((tipo) => tipo !== "cluster-packet")
+    : faltando;
 }
 
 function rodarPasso(passo) {

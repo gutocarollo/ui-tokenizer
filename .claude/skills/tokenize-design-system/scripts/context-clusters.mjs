@@ -171,8 +171,18 @@ const tokenRx = alvo
   : new RegExp(`(?<![\\w-])((?:[a-z-]+:)*)(${PRE})-((?:${FORBIDDEN.join("|")})-[a-z0-9-]+)(?![\\w-])`, "g");
 
 const ocorrencias = [];
+/*
+ * POPULAÇÃO EXAMINADA — não é o mesmo que ocorrências ACHADAS, e confundir as
+ * duas produz verdade vácua. `absolute-completion.mjs:320` recusa
+ * `population <= 0` justamente porque "resíduo zero sobre população zero" é
+ * afirmação sem lastro. Num alvo sem palavra banida, "achadas" é 0; o que dá
+ * lastro ao zero é dizer QUANTOS sítios foram olhados.
+ */
+const examinado = { arquivos: 0, sitiosDeClasse: 0 };
 for (const f of SRC_ROOTS.flatMap((raiz) => [...files(raiz)])) {
   const text = readFileSync(f, "utf8");
+  examinado.arquivos += 1;
+  examinado.sitiosDeClasse += (text.match(/class(?:Name)?\s*=/g) ?? []).length;
   for (const m of text.matchAll(tokenRx)) {
     const [, variantPrefix, prefix, token] = m;
     const line = text.slice(0, m.index).split("\n").length;
@@ -432,21 +442,59 @@ if (emitDir) {
     };
   });
 
-  const pacotesPath = path.join(emitDir, "cluster-packets.ndjson");
-  wf(pacotesPath, pacotes.map((p) => JSON.stringify(p)).join("\n") + "\n");
+  /*
+   * ZERO CLUSTER NÃO SE ESCREVE COMO ARQUIVO VAZIO.
+   *
+   * A versão anterior gravava `cluster-packets.ndjson` sempre, e num alvo sem
+   * nenhum cluster o resultado era um arquivo de 1 byte. O contrato o recusa
+   * (`NDJSON artifact is empty`) e recusa CERTO: arquivo vazio é
+   * indistinguível de produtor que morreu no meio. Medido 2026-08-03 na
+   * primeira cobaia externa.
+   *
+   * E o zero DAQUELE alvo não era "não havia nada": o censo achou 35 mil
+   * ocorrências em 12 tipos — 13.131 `utility-class`, 9.872 `inline-style`,
+   * 5.447 `svg-presentation` — e ESTE classificador consome só
+   * `utility-class` que carregue palavra banida. Zero aqui significa
+   * *"a forma que eu varro não aparece neste alvo"*, e é isso que o relatório
+   * passa a DIZER, em vez de deixar um arquivo vazio insinuando outra coisa.
+   */
+  const pacotesPath = pacotes.length ? path.join(emitDir, "cluster-packets.ndjson") : null;
+  if (pacotesPath) wf(pacotesPath, pacotes.map((p) => JSON.stringify(p)).join("\n") + "\n");
 
   const semOwner = lista.filter((c) => !c.proposedName);
   const relatorio = {
     ...env.header("inventory-report"),
     reportId: "classified/ownerless",
     inventoryKind: "ownerless",
-    inputArtifactRefs: [refRunConfig, env.ref("cluster-packet", pacotesPath, { relativeTo: runRoot })],
+    inputArtifactRefs: [
+      refRunConfig,
+      ...(pacotesPath ? [env.ref("cluster-packet", pacotesPath, { relativeTo: runRoot })] : []),
+    ],
     counts: {
-      population: total,
+      // `population` = o que foi EXAMINADO (sítios de classe olhados). Antes era
+      // `total` (as ocorrências achadas), e num alvo limpo isso dava 0 —
+      // população vácua, que o avaliador de conclusão recusa por contrato.
+      population: examinado.sitiosDeClasse,
+      filesExamined: examinado.arquivos,
+      violations: total,
       clusters: lista.length,
       classified: lista.length - semOwner.length,
       requiresHuman: semOwner.length,
       unapprovedResidual: semOwner.reduce((s, c) => s + c.count, 0),
+    },
+    /*
+     * O ESCOPO DECLARADO, e ele é o que torna o zero legível. `population` é
+     * a contagem que ESTE classificador examinou; `scopeKinds` diz o que ele
+     * consome. Sem isto, "0 clusters" e "alvo limpo" viram a mesma frase — e
+     * são coisas diferentes.
+     */
+    scope: {
+      occurrenceKinds: ["utility-class"],
+      criterion: "utility-class cuja classe carrega palavra banida (§3.1)",
+      note:
+        pacotes.length === 0
+          ? "zero cluster nesta forma; outras formas de débito do alvo (inline-style, svg-presentation, css-declaration) são de OUTRO classificador, não deste"
+          : null,
     },
     detailArtifactRefs: [],
     // `reconciled` afirma que o inventario fecha com o censo. Ele so pode ser
@@ -458,7 +506,7 @@ if (emitDir) {
   wf(relatorioPath, JSON.stringify(relatorio, null, 1) + "\n");
 
   console.error(
-    `CLASSIFIED emitido: ${pacotes.length} cluster-packet + 1 inventory-report` +
+    `CLASSIFIED emitido: ${pacotes.length} cluster-packet${pacotes.length ? "" : " (nenhum: escopo declarado no relatorio)"} + 1 inventory-report` +
       ` (${relatorio.counts.classified} classificados, ${relatorio.counts.requiresHuman} para humano)`
   );
 }

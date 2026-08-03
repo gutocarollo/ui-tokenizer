@@ -23,6 +23,7 @@ import {
   vetorResidual,
 } from "../sweep.mjs";
 import { lerProgresso, renderProgresso } from "../lib/progress-log.mjs";
+import { validateTransitionEvidence } from "../lib/artifact-contract.mjs";
 
 function novoRunRoot() {
   const runRoot = mkdtempSync(path.join(tmpdir(), "sweep-"));
@@ -34,7 +35,16 @@ function escreverArtefato(runRoot, nome, obj) {
   writeFileSync(path.join(runRoot, "artifacts", nome), `${JSON.stringify(obj)}\n`);
 }
 
-/** Máquina de estados fake: transição muda a fase; tudo registrado. */
+/**
+ * Máquina de estados fake — mas a REGRA de suficiência vem do CONTRATO real.
+ *
+ * O `transicionar` daqui aceitava qualquer coisa, e por isso os testes de
+ * "artefato ausente" e "dispensa indevida" passavam por acidente: eles
+ * afirmavam que o DRIVER recusa, quando quem recusa é
+ * `validateTransitionEvidence`. Fake que não modela a recusa transforma teste
+ * de guard em teste de nada (medido 2026-08-03, ao mover o julgamento do driver
+ * para o contrato — que é onde ele deve morar, com um dono só).
+ */
 function maquina(faseInicial) {
   let fase = faseInicial;
   const transicoes = [];
@@ -46,6 +56,30 @@ function maquina(faseInicial) {
     deps: {
       estado: () => ({ phase: fase }),
       transicionar: (t) => {
+        // O runner real NÃO valida evidência em reentrada
+        // (`transitionRecords: reentryCode ? null : records`): a volta dirigida
+        // reexecuta a fase, então exigir o artefato dela ANTES seria circular.
+        if (t.reentrada) {
+          transicoes.push(t);
+          fase = t.para;
+          return { to: t.para };
+        }
+        const registros = (t.artefatos ?? []).flatMap((p) => {
+          try {
+            return [{ artifact: JSON.parse(readFileSync(p, "utf8")) }];
+          } catch {
+            return [];
+          }
+        });
+        const violacoes = validateTransitionEvidence({
+          targetPhase: t.para,
+          transitionRecords: registros,
+        });
+        if (violacoes.length) {
+          const erro = new Error("Artifact contract validation failed");
+          erro.violations = violacoes;
+          throw erro;
+        }
         transicoes.push(t);
         fase = t.para;
         return { to: t.para };
@@ -164,19 +198,23 @@ test("artefato exigido pela transição AUSENTE do run root → exit 1, sem tran
   const r = varrer({ root: "/x", runRoot }, m.deps);
   assert.equal(r.exitCode, 1);
   assert.equal(m.transicoes.length, 0);
-  assert.match(r.motivo, /design-occurrence/);
+  // Quem recusa é o CONTRATO; o driver repassa as violações dele (e as grava no
+  // progress log). O tipo ausente aparece ali, não na frase do driver.
+  assert.match(r.motivo, /recusada pelo contrato/);
+  assert.ok(
+    (r.violacoes ?? []).some((v) => /design-occurrence/.test(v.message)),
+    "a violação do contrato nomeia o artefato que falta"
+  );
 });
 
 test("REINVENTORIED + residual exit 0 → transiciona COMPLETE com os 4 artefatos exigidos", () => {
   const runRoot = novoRunRoot();
-  for (const [nome, tipo] of [
-    ["ev.json", "evidence-manifest"],
-    ["checks.json", "deterministic-checks"],
-    ["adv.json", "adversarial-review"],
-    ["proof.json", "final-proof"],
-  ]) {
-    escreverArtefato(runRoot, nome, { artifactType: tipo });
-  }
+  // O contrato de COMPLETE não confere só o TIPO: exige matriz final, checks
+  // final, review final SATISFEITA e prova DONE — um de cada.
+  escreverArtefato(runRoot, "ev.json", { artifactType: "evidence-manifest", phase: "final" });
+  escreverArtefato(runRoot, "checks.json", { artifactType: "deterministic-checks", scope: "final" });
+  escreverArtefato(runRoot, "adv.json", { artifactType: "adversarial-review", scope: "final", verdict: "satisfied" });
+  escreverArtefato(runRoot, "proof.json", { artifactType: "final-proof", verdict: "done" });
   const m = maquina("REINVENTORIED");
   m.deps.residual = () => ({ exitCode: 0, json: { medidos: 14, detalhe: [], naoMedidos: [] } });
   const r = varrer({ root: "/x", runRoot }, m.deps);
@@ -269,4 +307,42 @@ test("D9: progress.ndjson + progress.md nascem com contadores, rodada e de→par
 
   // ausência imprime travessão, nunca zero
   assert.match(renderProgresso([{ rodada: 1, at: "t", evento: "x", fase: null, contadores: {} }]), /— \| — \| — \|/);
+});
+
+/* ───────────────────────── a dispensa de cluster-packet (verdade-vácua) ──── */
+
+test("CLASSIFIED avança SEM cluster-packet quando o inventory-report declara zero sobre população não-vácua", () => {
+  const runRoot = novoRunRoot();
+  escreverArtefato(runRoot, "inv.json", {
+    artifactType: "inventory-report",
+    counts: { population: 12220, clusters: 0, unapprovedResidual: 0 },
+    scope: { occurrenceKinds: ["utility-class"], criterion: "classe com palavra banida (§3.1)" },
+  });
+  const m = maquina("NORMALIZED");
+  const r = varrer({ root: "/x", runRoot }, m.deps);
+  assert.equal(m.transicoes[0]?.para, "CLASSIFIED", "a fase avança com a declaração no lugar do pacote");
+  assert.equal(r.exitCode, 6, "e para no handoff human de DECIDED");
+});
+
+test("a dispensa EXIGE mais evidência: população vácua, escopo ausente ou cluster>0 NÃO dispensam", () => {
+  const base = {
+    artifactType: "inventory-report",
+    counts: { population: 12220, clusters: 0 },
+    scope: { occurrenceKinds: ["utility-class"], criterion: "x" },
+  };
+  const casos = [
+    ["população vácua", { ...base, counts: { population: 0, clusters: 0 } }],
+    ["sem scope", { ...base, scope: undefined }],
+    ["scope sem kinds", { ...base, scope: { occurrenceKinds: [], criterion: "x" } }],
+    ["scope sem criterion", { ...base, scope: { occurrenceKinds: ["utility-class"], criterion: "" } }],
+    ["há clusters (o pacote é obrigatório)", { ...base, counts: { population: 10, clusters: 3 } }],
+  ];
+  for (const [rotulo, artefato] of casos) {
+    const runRoot = novoRunRoot();
+    escreverArtefato(runRoot, "inv.json", artefato);
+    const m = maquina("NORMALIZED");
+    const r = varrer({ root: "/x", runRoot }, m.deps);
+    assert.equal(r.exitCode, 1, `deveria RECUSAR: ${rotulo}`);
+    assert.equal(m.transicoes.length, 0, `não devia transicionar: ${rotulo}`);
+  }
 });
