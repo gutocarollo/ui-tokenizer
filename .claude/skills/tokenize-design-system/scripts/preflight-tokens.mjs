@@ -106,14 +106,82 @@ if ((build.status ?? 127) !== 0) {
   process.exit(1);
 }
 
-const validar = spawnSync(
-  process.execPath,
-  [path.join(AQUI, "validate-token-build.mjs"), "--root", root, "--check"],
-  { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
-);
-if ((validar.status ?? 127) !== 0) {
-  console.error(`preflight-tokens: validate-token-build --check falhou\n${validar.stderr}`);
-  process.exit(1);
+/*
+ * `tokens:check` é ADAPTADOR OPCIONAL do alvo, não requisito nosso. A versão
+ * anterior chamava `validate-token-build --check` sempre, e ele exige que o
+ * alvo defina esse script — o processo reprovava um alvo saudável por não ter
+ * um nome de script que só nós conhecemos (medido 2026-08-03, mesmo erro do
+ * Ajv). Se o alvo define, respeitamos e rodamos; se não, seguimos.
+ */
+if (pkg.scripts?.["tokens:check"]) {
+  const validar = spawnSync(
+    process.execPath,
+    [path.join(AQUI, "validate-token-build.mjs"), "--root", root, "--check"],
+    { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
+  );
+  if ((validar.status ?? 127) !== 0) {
+    console.error(`preflight-tokens: o tokens:check do alvo falhou\n${validar.stderr}`);
+    process.exit(1);
+  }
+}
+
+/*
+ * A PROVA É NO ARTEFATO, não na configuração (CLAUDE.md §8). Build que termina
+ * com exit 0 e não escreve CSS é o modo de falha silenciosa que este projeto
+ * inteiro existe para impedir — foi assim que 1999 classes ficaram mudas.
+ *
+ * Dois desfechos distintos quando o CSS não existe, e confundi-los seria mentir
+ * nas duas direções:
+ *   - DTCG sem token nenhum  → esperado. O esqueleto está pronto e os tokens
+ *     entram pela fase DECIDED. Resíduo declarado (exit 2).
+ *   - DTCG COM token         → o compilador recebeu entrada real e não produziu
+ *     saída. Isso é quebra (exit 1).
+ */
+const cfgTopologia = ["tokenization.config.json", "tokens/tokenization.config.json"]
+  .map((rel) => path.join(root, rel))
+  .find(existsSync);
+const themeFile = cfgTopologia
+  ? JSON.parse(readFileSync(cfgTopologia, "utf8")).themeFile ?? null
+  : null;
+
+/** Folhas DTCG (nós com `$value`) — a ENTRADA que o compilador recebeu. */
+function contarFolhas(no) {
+  if (!no || typeof no !== "object") return 0;
+  if ("$value" in no) return 1;
+  return Object.entries(no)
+    .filter(([chave]) => !chave.startsWith("$"))
+    .reduce((soma, [, filho]) => soma + contarFolhas(filho), 0);
+}
+
+if (themeFile) {
+  const alvoCss = path.join(root, themeFile);
+  const temCss = existsSync(alvoCss) && readFileSync(alvoCss, "utf8").trim().length > 0;
+  const tokenFile = JSON.parse(readFileSync(cfgTopologia, "utf8")).tokenFile ?? "tokens/color.tokens.json";
+  const caminhoDTCG = path.join(root, tokenFile);
+  const folhas = existsSync(caminhoDTCG)
+    ? contarFolhas(JSON.parse(readFileSync(caminhoDTCG, "utf8")))
+    : 0;
+
+  if (!temCss && folhas > 0) {
+    console.error(
+      `preflight-tokens: o DTCG tem ${folhas} token(s) e o build NÃO escreveu ${themeFile}. ` +
+        `Build com exit 0 e sem saída é a falha silenciosa que deixa classe muda.`
+    );
+    process.exit(1);
+  }
+  if (!temCss) {
+    console.log(
+      JSON.stringify({
+        status: "scaffold-sem-tokens",
+        root,
+        gerenciador: pm,
+        porQue: `DTCG sem token; ${themeFile} não é escrito até DECIDED produzir os primeiros`,
+      })
+    );
+    process.exit(2);
+  }
+  console.log(JSON.stringify({ status: "ok", root, gerenciador: pm, themeFile, tokensNoDTCG: folhas }));
+  process.exit(0);
 }
 
 console.log(JSON.stringify({ status: "ok", root, gerenciador: pm }));

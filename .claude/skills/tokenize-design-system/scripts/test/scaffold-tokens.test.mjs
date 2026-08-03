@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { esqueletoDTCG, planejarScaffold } from "../scaffold-tokens.mjs";
+import { configDoCompilador, esqueletoDTCG, planejarScaffold } from "../scaffold-tokens.mjs";
 
 function alvo({ comFonte = "src", pkg = true, comBuild = true } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "scaffold-"));
@@ -83,9 +83,64 @@ test("nenhuma raiz de fonte existente → recusa pedindo --source-roots", () => 
   assert.match(planejarScaffold(alvo({ comFonte: false })).erro, /--source-roots/);
 });
 
-test("sem tokens:build → RECUSA em vez de criar meio pipeline (o guard vizinho chamaria de quebra)", () => {
-  const p = planejarScaffold(alvo({ comBuild: false }));
-  assert.match(p.erro, /tokens:build/);
-  assert.match(p.erro, /PARCIAL/);
-  assert.equal(p.criar, undefined, "nada é planejado quando o compilador não existe");
+test("sem tokens:build o scaffold ENTREGA o compilador — pipeline completo, nunca metade", () => {
+  const p = planejarScaffold(alvo({ comBuild: false, comFonte: "app" }));
+  assert.equal(p.erro, undefined);
+  const rels = p.criar.map((c) => c.rel);
+  assert.deepEqual(rels, [
+    "tokenization.config.json",
+    "tokens/color.tokens.json",
+    "style-dictionary.config.json",
+    "package.json",
+  ]);
+  const pkg = p.criar.find((c) => c.rel === "package.json").conteudo;
+  assert.match(pkg.scripts["tokens:build"], /^style-dictionary build --config/);
+  assert.ok(pkg.devDependencies["style-dictionary"], "a dependência é DECLARADA (instalar é do operador)");
+});
+
+test("o compilador é Style Dictionary configurado, não código nosso: @theme + outputReferences", () => {
+  // A forma REAL que `planejarScaffold` produz é RELATIVA ("app"), não absoluta.
+  // Alimentar o teste com a forma imaginada foi o que deixou o CSS ser escrito
+  // três níveis acima, dentro do repo do processo (2026-08-03).
+  const cfg = configDoCompilador(["app"], "/alvo");
+  const arquivo = cfg.platforms.css.files[0];
+  assert.equal(arquivo.format, "css/variables", "format EXISTENTE, sem format custom");
+  // `:root` não gera utility no Tailwind v4; `@theme` gera (doc oficial).
+  assert.equal(arquivo.options.selector, "@theme");
+  // Alias preservado: o componente SEGUE o primitivo. Achatar quebra o tier.
+  assert.equal(arquivo.options.outputReferences, true);
+  assert.equal(cfg.platforms.css.buildPath, "app/styles/generated/");
+  assert.deepEqual(cfg.source, ["tokens/**/*.tokens.json"]);
+});
+
+test("o passo MANUAL é declarado em voz alta — sem o import, build passa verde e zero utility existe", () => {
+  const p = planejarScaffold(alvo({ comBuild: false, comFonte: "app" }));
+  assert.match(p.importarNoEntryCss, /^@import "\.\/styles\/generated\/theme\.css";$/);
+  assert.ok(p.instalar, "dependência nova exige instalação declarada");
+});
+
+test("alvo que JÁ tem tokens:build não recebe nossa config — o pipeline dele vence", () => {
+  const p = planejarScaffold(alvo({ comBuild: true, comFonte: "app" }));
+  const rels = p.criar.map((c) => c.rel);
+  assert.ok(!rels.includes("style-dictionary.config.json"), "não impor compilador a quem já tem");
+  assert.ok(!rels.includes("package.json"), "package.json do alvo fica intocado");
+  assert.equal(p.importarNoEntryCss, null, "nada a importar: o build é dele");
+});
+
+test("buildPath NUNCA escapa do alvo — nem com raiz absoluta de outro lugar", () => {
+  // A forma relativa é a do produtor; a absoluta coerente também vale.
+  assert.equal(configDoCompilador(["app"], "/alvo").platforms.css.buildPath, "app/styles/generated/");
+  assert.equal(configDoCompilador(["/alvo/app"], "/alvo").platforms.css.buildPath, "app/styles/generated/");
+  // Raiz fora do alvo é RECUSA, não caminho com "..": foi assim que o CSS foi
+  // escrito dentro do repositório do processo.
+  assert.throws(() => configDoCompilador(["/outro/app"], "/alvo"), /fora do alvo/);
+  assert.throws(() => configDoCompilador([".."], "/alvo"), /fora do alvo/);
+});
+
+test("o plano REAL do produtor gera buildPath dentro do alvo (contrato x produtor, confrontados)", () => {
+  const root = alvo({ comBuild: false, comFonte: "app" });
+  const p = planejarScaffold(root);
+  const sd = p.criar.find((c) => c.rel === "style-dictionary.config.json").conteudo;
+  assert.equal(sd.platforms.css.buildPath, "app/styles/generated/");
+  assert.ok(!sd.platforms.css.buildPath.includes(".."), "nenhum salto para fora");
 });

@@ -46,6 +46,97 @@ const MODULE_PATH = fileURLToPath(import.meta.url);
 
 const CANDIDATOS_DE_FONTE = ["src", "app", "components"];
 const TOKEN_FILE_PADRAO = "tokens/color.tokens.json";
+const SD_CONFIG = "style-dictionary.config.json";
+/** Versão major de Style Dictionary com DTCG nativo (`$value`/`$type`). */
+const SD_VERSAO = "^5.5.0";
+
+/**
+ * O COMPILADOR NÃO É NOSSO — e não deve ser (LEI ZERO).
+ *
+ * DTCG → CSS custom properties é problema resolvido. O canon deste repo já
+ * havia feito a pesquisa e medido a adoção (`docs/ESTADO.md`): Style Dictionary
+ * **1,95M downloads/semana** contra 51,7k do `@terrazzo/cli` — 38× — e suporte
+ * DTCG nativo desde a v4 (auto-detecta `$value`, propaga `$type` de grupo).
+ * Escrever um flattener nosso seria reinventar com 1 usuário.
+ *
+ * O ENCAIXE COM TAILWIND v4, conferido na doc oficial (tailwindcss.com,
+ * `theme.mdx` e `colors.mdx`) e não adivinhado:
+ *
+ * - variável no namespace `--color-*` DENTRO de `@theme` gera as utilities
+ *   (`bg-*`, `text-*`, `fill-*`) — é exatamente o que a lei deste repo fixa
+ *   (`law.md` Linha 399);
+ * - `@theme` pode viver em arquivo PRÓPRIO, importado depois de
+ *   `@import "tailwindcss"` — o padrão documentado *"Share theme variables
+ *   across projects"*. Logo o compilador escreve um arquivo só dele, e nada
+ *   do app precisa ser reescrito.
+ *
+ * E o encaixe usa recurso EXISTENTE do Style Dictionary, sem format custom: o
+ * `css/variables` aceita `selector`, então `selector: "@theme"` emite o bloco
+ * na forma que o Tailwind consome. `outputReferences: true` preserva o alias
+ * `{primitivo}` como `var(...)` — obrigatório aqui, porque o tier DTCG exige
+ * que o componente SIGA o primitivo; achatar para hex quebraria a herança
+ * (foi a 1ª das quatro costuras que `emit-tokens.mjs` documenta).
+ */
+export function configDoCompilador(sourceRoots, root = ".") {
+  /*
+   * A raiz pode chegar RELATIVA ("app", o que `planejarScaffold` produz) ou
+   * ABSOLUTA. Resolver contra `root` cobre as duas; `path.relative` cru cobria
+   * só a absoluta, e essa foi a 9ª ocorrência da família dominante deste
+   * projeto — só que desta vez o TESTE participou do erro: eu o alimentei com
+   * a forma que imaginei (`/alvo/app`) em vez da que o produtor passa, ele
+   * ficou verde, e o build real escreveu o CSS TRÊS NÍVEIS ACIMA, dentro do
+   * repositório do processo. Guard abaixo: `buildPath` que escapa do alvo é
+   * recusa, não arquivo.
+   */
+  const destino = path.posix.join(raizRelativa(root, sourceRoots[0]), "styles/generated/");
+  return {
+    source: ["tokens/**/*.tokens.json"],
+    platforms: {
+      css: {
+        transformGroup: "css",
+        buildPath: destino,
+        files: [
+          {
+            destination: "theme.css",
+            format: "css/variables",
+            options: {
+              // O bloco que o Tailwind v4 consome; `:root` não gera utility.
+              selector: "@theme",
+              // Alias preservado como var() — o componente segue o primitivo.
+              outputReferences: true,
+            },
+          },
+        ],
+      },
+    },
+  };
+}
+
+/**
+ * A raiz de fonte como caminho POSIX relativo ao alvo — fonte única desta
+ * normalização, e ela existe porque a mesma conta feita a olho errou DUAS vezes
+ * no mesmo arquivo (2026-08-03).
+ *
+ * A raiz chega RELATIVA ("app", o que `planejarScaffold` produz) ou ABSOLUTA.
+ * `path.relative` cru só acerta a absoluta: com a relativa ele a resolve contra
+ * o CWD, e o CWD é o repositório do PROCESSO. Resultado medido: o compilador
+ * escreveu o CSS em `../../../ui-tokenizer-v2/app/styles/generated/`, isto é,
+ * dentro do repo da ferramenta, e o teste ficou verde porque eu o alimentei com
+ * a forma que imaginei em vez da que o produtor passa.
+ */
+export function raizRelativa(root, sourceRoot) {
+  const rel = path
+    .relative(path.resolve(root), path.resolve(root, sourceRoot))
+    .split(path.sep)
+    .join("/");
+  if (!rel || rel.startsWith("..") || path.posix.isAbsolute(rel)) {
+    throw new Error(
+      `raiz de fonte "${sourceRoot}" não está dentro de ${root} — ` +
+        `o compilador escreveria fora do alvo`
+    );
+  }
+  return rel;
+}
 
 /** DTCG vazio, mas VÁLIDO: `$schema` declara o formato; nada de token. */
 export function esqueletoDTCG() {
@@ -105,26 +196,77 @@ export function planejarScaffold(root, sourceRootsPedidas = null) {
    * deste esqueleto.
    */
   const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-  if (!pkg.scripts?.["tokens:build"]) {
-    return {
-      erro:
-        `${root} não define o script "tokens:build". Criar o DTCG sem o compilador ` +
-        `produziria pipeline PARCIAL, que preflight-tokens recusa (e recusa certo): ` +
-        `alvo virgem viraria alvo quebrado. Adicione o pipeline de build de tokens ` +
-        `do alvo primeiro — este comando só escreve o esqueleto de topologia.`,
-    };
-  }
+
+  /*
+   * PIPELINE DO ALVO VENCE. Se o alvo já tem `tokens:build`, ele já decidiu como
+   * compila os tokens dele — impor a nossa config de Style Dictionary por cima
+   * seria o processo reescrevendo o build de um app que funciona. Só alvo SEM
+   * compilador nenhum recebe o nosso, e aí ele vem COMPLETO (config + script +
+   * dependência declarada), nunca pela metade.
+   */
+  const precisaCompilador = !pkg.scripts?.["tokens:build"];
+  const compilador = precisaCompilador ? configDoCompilador(sourceRoots, root) : null;
+  const cssGerado = compilador
+    ? path.posix.join(
+        compilador.platforms.css.buildPath,
+        compilador.platforms.css.files[0].destination
+      )
+    : null;
 
   const criar = [
     {
       rel: "tokenization.config.json",
-      conteudo: { sourceRoots, tokenFile: TOKEN_FILE_PADRAO },
+      conteudo: {
+        sourceRoots,
+        tokenFile: TOKEN_FILE_PADRAO,
+        ...(cssGerado ? { themeFile: cssGerado } : {}),
+      },
     },
   ];
   if (!existsSync(path.join(root, TOKEN_FILE_PADRAO))) {
     criar.push({ rel: TOKEN_FILE_PADRAO, conteudo: esqueletoDTCG() });
   }
-  return { criar, configFile: null, tokenFile: TOKEN_FILE_PADRAO, sourceRoots };
+  if (compilador && !existsSync(path.join(root, SD_CONFIG))) {
+    criar.push({ rel: SD_CONFIG, conteudo: compilador });
+  }
+
+  /*
+   * O `tokens:build` do alvo nasce JUNTO do DTCG — nunca depois. A versão
+   * anterior criava o DTCG e parava, produzindo o "pipeline PARCIAL" que
+   * `preflight-tokens` declara quebra (e declara certo): um alvo VIRGEM, que o
+   * laço atravessa, viraria um alvo QUEBRADO, que o laço recusa. O autor deste
+   * arquivo foi a primeira vítima do próprio guard, em 2026-08-03.
+   *
+   * Instalar a dependência NÃO é papel deste comando: mexer em node_modules do
+   * alvo é ação do operador. Ele declara e reporta; se faltar instalar, o
+   * `preflight-tokens` falha fechado com a mensagem do gerenciador.
+   */
+  const pacote = { ...pkg };
+  let pacoteMudou = false;
+  if (precisaCompilador) {
+    pacote.scripts = { ...pkg.scripts, "tokens:build": `style-dictionary build --config ${SD_CONFIG}` };
+    pacoteMudou = true;
+    if (!pkg.devDependencies?.["style-dictionary"] && !pkg.dependencies?.["style-dictionary"]) {
+      pacote.devDependencies = { ...pkg.devDependencies, "style-dictionary": SD_VERSAO };
+    }
+  }
+  if (pacoteMudou) criar.push({ rel: "package.json", conteudo: pacote });
+
+  return {
+    criar,
+    configFile: null,
+    tokenFile: TOKEN_FILE_PADRAO,
+    sourceRoots,
+    cssGerado,
+    // O ÚNICO passo manual, e ele é declarado em voz alta: sem este import o
+    // build passa verde e nenhuma utility existe — a falha silenciosa que este
+    // projeto inteiro existe para impedir. A prova fica no CSS BUILDADO
+    // (`validate-token-build.mjs --css ... --class ...`), nunca na config.
+    importarNoEntryCss: cssGerado
+      ? `@import "./${path.posix.relative(raizRelativa(root, sourceRoots[0]), cssGerado)}";`
+      : null,
+    instalar: pacoteMudou ? "instale as dependências do alvo (o gerenciador do lockfile)" : null,
+  };
 }
 
 function main() {
@@ -158,14 +300,17 @@ function main() {
     criados: plano.criar.map((c) => c.rel),
     sourceRoots: plano.sourceRoots,
     tokenFile: plano.tokenFile,
+    cssGerado: plano.cssGerado ?? null,
+    passosManuais: [plano.instalar, plano.importarNoEntryCss ? `adicione no CSS de entrada, DEPOIS de @import "tailwindcss": ${plano.importarNoEntryCss}` : null].filter(Boolean),
   };
-  console.log(
-    argv.includes("--json")
-      ? JSON.stringify(saida, null, 1)
-      : plano.criar.length
-        ? `scaffold: criados ${saida.criados.join(", ")} (fontes: ${saida.sourceRoots.join(", ")})`
-        : `scaffold: nada a fazer — o alvo já declara tokenFile ${saida.tokenFile}`
-  );
+  if (argv.includes("--json")) {
+    console.log(JSON.stringify(saida, null, 1));
+  } else if (plano.criar.length) {
+    console.log(`scaffold: criados ${saida.criados.join(", ")} (fontes: ${saida.sourceRoots.join(", ")})`);
+    for (const passo of saida.passosManuais) console.log(`  PASSO MANUAL: ${passo}`);
+  } else {
+    console.log(`scaffold: nada a fazer — o alvo já declara tokenFile ${saida.tokenFile}`);
+  }
   process.exit(0);
 }
 
