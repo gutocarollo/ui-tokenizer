@@ -342,6 +342,41 @@ function nextSegment(segment) {
   return segment;
 }
 
+function nextStaticRedirect(page) {
+  const sourceFile = ts.createSourceFile(
+    page,
+    readFileSync(page, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(page)
+  );
+  const destinations = [];
+  let returnsNull = false;
+  function visit(node) {
+    if (
+      ts.isReturnStatement(node) &&
+      node.expression?.kind === ts.SyntaxKind.NullKeyword
+    ) {
+      returnsNull = true;
+    }
+    if (ts.isCallExpression(node) && node.arguments.length) {
+      const destination = literalText(node.arguments[0]);
+      const isRedirect =
+        (ts.isIdentifier(node.expression) &&
+          node.expression.text === "redirect") ||
+        (ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.name.text === "replace");
+      if (isRedirect && destination?.startsWith("/")) {
+        destinations.push(normalizeRoutePath(destination));
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  const unique = uniqueSorted(destinations);
+  return returnsNull && unique.length === 1 ? unique[0] : null;
+}
+
 function mergeRoutes(rawRoutes) {
   const merged = new Map();
   for (const route of rawRoutes) {
@@ -402,6 +437,11 @@ export function discoverNextAppRoutes({ frontendRoot, appDir }) {
     const originalSegments = relativeDirectory
       ? relativeDirectory.split(path.sep)
       : [];
+    // Next reserva `_folder` como pasta privada: ela e seus descendentes não
+    // participam do roteamento, mesmo que contenham um arquivo `page.tsx`.
+    if (originalSegments.some((segment) => segment.startsWith("_"))) {
+      continue;
+    }
     const intercepting = originalSegments.filter((segment) =>
       /^\(\.{1,4}\)/.test(segment)
     );
@@ -444,6 +484,7 @@ export function discoverNextAppRoutes({ frontendRoot, appDir }) {
       ownComponentModules: [normalizeAbsolute(page)],
       guardNames: [],
       unresolvedSpecs: [],
+      redirectTo: nextStaticRedirect(page),
       source: {
         file: toPosix(path.relative(root, page)),
         line: 1,

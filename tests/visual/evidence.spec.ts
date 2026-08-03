@@ -13,6 +13,7 @@ import {
   captureStem,
   matrixScenarioId,
 } from "../../scripts/lib/evidence-matrix.mjs";
+import { isFrameworkDiagnosticRequest } from "../../scripts/lib/request-policy.mjs";
 import { installReadOnlyNetworkFixture } from "./network-fixtures.mjs";
 import { THEME_STATES } from "./theme-map.config";
 
@@ -406,7 +407,11 @@ for (const scenario of selection.scenarios) {
           page.on("request", (request) => {
             if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) {
               const signal = `${request.method()} ${stableUrl(request.url())}`;
-              if (
+              if (isFrameworkDiagnosticRequest(request.method(), request.url())) {
+                // Next dev tools use POST to symbolize stack frames. It is a
+                // framework-local diagnostic read, not a product mutation;
+                // console/page errors remain recorded independently.
+              } else if (
                 matchesSemanticReadTransport(
                   scenario,
                   request.method(),

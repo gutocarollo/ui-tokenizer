@@ -146,6 +146,7 @@ test("discovers Next App Router pages, omits route groups, and binds ancestor la
     write(root, "app/(pages)/accounts/page.tsx", `import Card from "@/app/_components/Card"; export default function Page(){ return <Card/> }`);
     write(root, "app/(pages)/super-r1/[lead_id]/page.tsx", `export default function Page(){ return null }`);
     write(root, "app/_components/Card.tsx", `export default function Card(){ return null }`);
+    write(root, "app/_components/page.tsx", `export default function NotARoute(){ return null }`);
 
     const discovery = discoverRoutes({ frontendRoot: root });
     assert.equal(discovery.routerKind, "next-app-router");
@@ -170,6 +171,29 @@ test("discovers Next App Router pages, omits route groups, and binds ancestor la
     assert.deepEqual(
       impact.affectedRoutes.map((route) => route.pathPattern),
       ["/accounts"]
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Next App Router marks a renderless static redirect instead of treating it as capturable UI", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "route-impact-next-redirect-"));
+  try {
+    write(
+      root,
+      "app/page.tsx",
+      `'use client'; import {useEffect} from 'react'; import {useRouter} from 'next/navigation'; export default function Page(){ const router=useRouter(); useEffect(()=>router.replace('/home'),[router]); return null }`
+    );
+    write(root, "app/home/page.tsx", `export default function Home(){ return <main/> }`);
+    const discovery = discoverRoutes({ frontendRoot: root });
+    assert.equal(
+      discovery.routes.find((route) => route.pathPattern === "/").redirectTo,
+      "/home"
+    );
+    assert.equal(
+      discovery.routes.find((route) => route.pathPattern === "/home").redirectTo,
+      null
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

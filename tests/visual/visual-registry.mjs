@@ -441,6 +441,16 @@ export function materializeVisualRegistry({
       });
       continue;
     }
+    if (route.redirectTo) {
+      skipped.push(
+        skipRecord(
+          route,
+          "static-redirect",
+          `Route redirects to ${route.redirectTo} without rendering a stable visual state.`
+        )
+      );
+      continue;
+    }
     if (hasSensitiveRouteParameter(route.pathPattern)) {
       skipped.push(
         skipRecord(
