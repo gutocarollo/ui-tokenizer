@@ -80,6 +80,17 @@ function pacote(clusterId) {
     ],
     evidenceRefs: [{ artifactType: "run-config", path: "config.json", sha256: SHA }],
     classificationStatus: "classified",
+    confidence: {
+      score: 100,
+      uncertainty: 0,
+      threshold: 70,
+      band: "high",
+      signals: [
+        { name: "nome", weight: 50, score: 1, note: "nome derivado" },
+        { name: "valor", weight: 50, score: 1, note: "valor único" },
+      ],
+      blockers: [],
+    },
   };
 }
 

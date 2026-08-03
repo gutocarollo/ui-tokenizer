@@ -1267,6 +1267,47 @@ function checkClusterReferentialIntegrity(index, violations) {
   }
 }
 
+function checkConfidenceContract(index, violations) {
+  for (const { artifact } of index.get("cluster-packet") ?? []) {
+    const confidence = artifact.confidence;
+    if (!confidence) continue; // schema já acusa a ausência
+    const expectedBand =
+      confidence.score >= confidence.threshold && confidence.blockers.length === 0
+        ? "high"
+        : "low";
+    const expectedStatus = expectedBand === "high" ? "classified" : "requires-human";
+    if (confidence.uncertainty !== 100 - confidence.score) {
+      violations.push(
+        violation(
+          "confidence-contract",
+          "E-CLASSIFY",
+          `${artifact.clusterId} uncertainty must equal 100 - score`,
+          artifact
+        )
+      );
+    }
+    if (
+      confidence.band !== expectedBand ||
+      artifact.classificationStatus !== expectedStatus
+    ) {
+      violations.push(
+        violation(
+          "confidence-contract",
+          "E-CLASSIFY",
+          `${artifact.clusterId} confidence band/status disagree with score, threshold, or blockers`,
+          artifact,
+          {
+            expectedBand,
+            actualBand: confidence.band,
+            expectedStatus,
+            actualStatus: artifact.classificationStatus,
+          }
+        )
+      );
+    }
+  }
+}
+
 function checkAxisDiscovery(
   index,
   currentDesignRecords,
@@ -2928,6 +2969,7 @@ export function validateArtifactSet({
     violations
   );
   checkClusterReferentialIntegrity(index, violations);
+  checkConfidenceContract(index, violations);
   checkAxisDiscovery(
     index,
     currentDesignRecords,

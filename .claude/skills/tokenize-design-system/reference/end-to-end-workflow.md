@@ -741,6 +741,20 @@ token types use their declared axis contract; they must not be squeezed into a
 colour-only property grammar. Low scores return to owner/context analysis. The
 LLM may not manufacture a generic owner to empty the queue.
 
+Classification confidence is one executable contract, not two queues. Every
+`cluster-packet` carries `confidenceEvidence`: a 0–100 score, uncertainty,
+threshold, high/low band, weighted signals, and explicit blockers. Context
+classification and convergence both use
+`scripts/lib/confidence-policy.mjs`; the canonical threshold is 70. A score at
+or above the threshold is still low when any blocker remains. The artifact
+contract recomputes band/status consistency, so a producer cannot label a low
+cluster `classified` by changing only the string.
+
+All high-confidence clusters are processed before any human handoff. A batch
+may contain only `confidence.band=high` contracts with no blockers. Low means
+evidence is insufficient or materially conflicting; it is not permission to
+invent a generic owner, value, or exception.
+
 ### Phase 8 — Resolve material decisions
 
 Use a decision board and the grill process only when:

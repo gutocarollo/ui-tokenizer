@@ -151,7 +151,7 @@ test("contadoresDe: sem medição sai null (nunca zero); com legado mede tokeniz
 
 /* ─────────────────────────────────────────────── o laço com deps fake ────── */
 
-test("cadeia determinística avança transicionando com artefatos achados por TIPO, e para no handoff human de DECIDED", () => {
+test("cadeia determinística avança e para no handoff model de DECIDED antes do humano", () => {
   const runRoot = novoRunRoot();
   escreverArtefato(runRoot, "occ.ndjson", { artifactType: "design-occurrence" });
   escreverArtefato(runRoot, "axis.json", { artifactType: "axis-discovery" });
@@ -162,7 +162,7 @@ test("cadeia determinística avança transicionando com artefatos achados por TI
   const m = maquina("ANCHORED");
   const r = varrer({ root: "/nao-usado", runRoot }, m.deps);
 
-  assert.equal(r.exitCode, 6, "DECIDED é human → handoff");
+  assert.equal(r.exitCode, 5, "DECIDED processa a fila alta com model antes do humano");
   assert.deepEqual(
     m.transicoes.map((t) => t.para),
     ["PREFLIGHTED", "INVENTORIED", "NORMALIZED", "CLASSIFIED"]
@@ -274,11 +274,11 @@ test("residual exit 3 com vetor DIFERENTE → reentrada dirigida mais a montante
   const r = varrer({ root: "/x", runRoot }, m.deps);
 
   // reentra em NORMALIZED (E-CLASSIFY é o mais a montante), segue CLASSIFIED e
-  // para no handoff human de DECIDED — uma volta REAL do laço
+  // para no handoff model de DECIDED — uma volta REAL do laço
   assert.equal(m.transicoes[0].para, "NORMALIZED");
   assert.equal(m.transicoes[0].reentrada, "E-CLASSIFY");
   assert.equal(m.transicoes[1].para, "CLASSIFIED");
-  assert.equal(r.exitCode, 6);
+  assert.equal(r.exitCode, 5);
   assert.equal(r.rodada, 2, "nova rodada contada");
 });
 
@@ -330,7 +330,7 @@ test("CLASSIFIED avança SEM cluster-packet quando o inventory-report declara ze
   const m = maquina("NORMALIZED");
   const r = varrer({ root: "/x", runRoot }, m.deps);
   assert.equal(m.transicoes[0]?.para, "CLASSIFIED", "a fase avança com a declaração no lugar do pacote");
-  assert.equal(r.exitCode, 6, "e para no handoff human de DECIDED");
+  assert.equal(r.exitCode, 5, "e para no handoff model de DECIDED");
 });
 
 test("a dispensa EXIGE mais evidência: população vácua, escopo ausente ou cluster>0 NÃO dispensam", () => {

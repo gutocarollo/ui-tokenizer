@@ -39,13 +39,19 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { resolveRoot } from "./lib/paths.mjs";
+import {
+  CONFIDENCE_THRESHOLD,
+  mergeConfidenceEvidence,
+} from "./lib/confidence-policy.mjs";
 
 const ROOT = resolveRoot();
 const argv = process.argv.slice(2);
 const arg = (n, d = null) => { const i = argv.indexOf(n); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
 
 /** Corte de incerteza. Acima disso o processo NAO decide sozinho. */
-const MAX_UNCERTAINTY = Number(arg("--max-uncertainty", "30"));
+const MAX_UNCERTAINTY = Number(
+  arg("--max-uncertainty", String(100 - CONFIDENCE_THRESHOLD))
+);
 
 /** ΔE abaixo do qual duas cores sao perceptualmente a mesma. JND ~ 2.3. */
 const DE_SAME = Number(arg("--de-same", "2.3"));
@@ -266,7 +272,16 @@ function mergeConfidence(a, b) {
     });
   }
 
-  return { confidence, uncertainty: 100 - confidence, signals };
+  const evidence = mergeConfidenceEvidence(signals, {
+    scoreFloor: suficiente ? 100 - MAX_UNCERTAINTY : 0,
+    threshold: 100 - MAX_UNCERTAINTY,
+  });
+  return {
+    ...evidence,
+    // Alias de compatibilidade para relatórios existentes; a fonte canônica é
+    // `score`, na mesma forma dos clusters de contexto.
+    confidence: evidence.score,
+  };
 }
 
 /* -------------------------------------------------------------- iteracoes -- */

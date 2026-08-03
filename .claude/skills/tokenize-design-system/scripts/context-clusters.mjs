@@ -32,6 +32,7 @@ import { resolveRoot, resolveSourceRoots } from "./lib/paths.mjs";
 import { findUseOwner } from "./find-owner.mjs";
 import { readVocabulary, PREFIX_PROPERTY } from "./score-naming.mjs";
 import { prefixAlternation, lawSlotFor } from "./lib/utility-families.mjs";
+import { contextClusterConfidence } from "./lib/confidence-policy.mjs";
 
 const ROOT = resolveRoot();
 // Raízes vindas da TOPOLOGIA do alvo (nunca `src` cravado — o 1º alvo de fora
@@ -332,6 +333,14 @@ const lista = [...clusters.values()]
       reason: proposed ? null : (s.lawGap ?? "owner nao determinado pelo contexto renderizado"),
     };
   })
+  .map((cluster) => {
+    const confidence = contextClusterConfidence(cluster);
+    return {
+      ...cluster,
+      confidence,
+      needsDecision: confidence.band === "low",
+    };
+  })
   .sort((a, b) => b.count - a.count)
   /*
    * O `clusterId` NASCE AQUI, e é o MESMO id que o `cluster-packet` carrega.
@@ -353,7 +362,7 @@ const lista = [...clusters.values()]
   .map((c, i) => ({ ...c, clusterId: `cluster-${String(i + 1).padStart(5, "0")}` }));
 
 const total = ocorrencias.length;
-const derivados = lista.filter((c) => c.proposedName);
+const derivados = lista.filter((c) => c.confidence.band === "high");
 const cobertos = derivados.reduce((s, c) => s + c.count, 0);
 
 /* ─────────────────────────────────────────── o envelope de CLASSIFIED ───── */
@@ -438,7 +447,9 @@ if (emitDir) {
       contextFingerprint: fingerprint(c.key ?? c.sample ?? {}),
       styleVariants,
       evidenceRefs: [refRunConfig],
-      classificationStatus: c.proposedName ? "classified" : "requires-human",
+      confidence: c.confidence,
+      classificationStatus:
+        c.confidence.band === "high" ? "classified" : "requires-human",
     };
   });
 
@@ -461,7 +472,7 @@ if (emitDir) {
   const pacotesPath = pacotes.length ? path.join(emitDir, "cluster-packets.ndjson") : null;
   if (pacotesPath) wf(pacotesPath, pacotes.map((p) => JSON.stringify(p)).join("\n") + "\n");
 
-  const semOwner = lista.filter((c) => !c.proposedName);
+  const baixaConfianca = lista.filter((c) => c.confidence.band === "low");
   const relatorio = {
     ...env.header("inventory-report"),
     reportId: "classified/ownerless",
@@ -478,9 +489,9 @@ if (emitDir) {
       filesExamined: examinado.arquivos,
       violations: total,
       clusters: lista.length,
-      classified: lista.length - semOwner.length,
-      requiresHuman: semOwner.length,
-      unapprovedResidual: semOwner.reduce((s, c) => s + c.count, 0),
+      classified: lista.length - baixaConfianca.length,
+      requiresHuman: baixaConfianca.length,
+      unapprovedResidual: baixaConfianca.reduce((s, c) => s + c.count, 0),
     },
     /*
      * O ESCOPO DECLARADO, e ele é o que torna o zero legível. `population` é
@@ -500,7 +511,7 @@ if (emitDir) {
     // `reconciled` afirma que o inventario fecha com o censo. Ele so pode ser
     // verdadeiro quando NENHUM cluster ficou sem nome — senao ha populacao que o
     // relatorio conta e nao explica.
-    reconciled: semOwner.length === 0,
+    reconciled: baixaConfianca.length === 0,
   };
   const relatorioPath = path.join(emitDir, "inventory-ownerless.json");
   wf(relatorioPath, JSON.stringify(relatorio, null, 1) + "\n");

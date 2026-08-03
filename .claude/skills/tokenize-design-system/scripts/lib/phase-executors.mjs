@@ -279,10 +279,10 @@ export const PHASE_EXECUTORS = Object.freeze({
   },
 
   DECIDED: {
-    kind: "human",
+    kind: "model",
     artifacts: ["decision", "batch-contract"],
     blocker:
-      "nome de token e escopo do lote sao decisao do dono quando o score fica abaixo do corte ou quando ha padrao concorrente defensavel; derive-tokens.mjs --dtcg prepara a proposta, nao a decide",
+      "processar primeiro todos os clusters confidence.band=high e congelar um lote reversível; só confidence.band=low, após a fila alta zerar, pode escalar ao dono",
   },
 
   BEFORE_CAPTURED: {

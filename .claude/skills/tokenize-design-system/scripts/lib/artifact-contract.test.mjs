@@ -385,6 +385,17 @@ function schemaFixtures() {
     ],
     evidenceRefs: [REF],
     classificationStatus: "classified",
+    confidence: {
+      score: 100,
+      uncertainty: 0,
+      threshold: 70,
+      band: "high",
+      signals: [
+        { name: "nome", weight: 50, score: 1, note: "nome derivado" },
+        { name: "valor", weight: 50, score: 1, note: "valor único" },
+      ],
+      blockers: [],
+    },
   });
   fixtures.set("decision", {
     ...header("decision"),
@@ -674,6 +685,25 @@ test("schema failures return the producer-specific re-entry code", () => {
   });
   assert.equal(result.valid, false);
   assert.equal(result.reentryCode, "E-NORMALIZE");
+});
+
+test("confidence durável não pode discordar de score, blockers ou status", () => {
+  const validator = createArtifactValidator({ root: APPLICATION_ROOT });
+  const packet = structuredClone(schemaFixtures().get("cluster-packet"));
+  packet.confidence.band = "low";
+  const result = validateArtifactSet({
+    records: [runConfig(), packet],
+    runRoot: mkdtempSync(path.join(os.tmpdir(), "confidence-contract-")),
+    validator,
+    targetPhase: "CLASSIFIED",
+    resolveReferences: false,
+  });
+  assert.ok(
+    result.violations.some(
+      ({ invariant }) => invariant === "confidence-contract"
+    ),
+    JSON.stringify(result.violations, null, 2)
+  );
 });
 
 test("schema rejects P1 mutations in axis bindings and absolute report IDs", () => {

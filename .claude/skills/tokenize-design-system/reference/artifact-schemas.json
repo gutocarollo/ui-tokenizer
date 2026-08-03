@@ -1757,6 +1757,45 @@
       ],
       "unevaluatedProperties": false
     },
+    "confidenceSignal": {
+      "type": "object",
+      "required": ["name", "weight", "score", "note"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "weight": { "type": "number", "minimum": 0, "maximum": 100 },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "note": { "$ref": "#/$defs/nonEmptyString" }
+      },
+      "additionalProperties": false
+    },
+    "confidenceEvidence": {
+      "type": "object",
+      "required": [
+        "score",
+        "uncertainty",
+        "threshold",
+        "band",
+        "signals",
+        "blockers"
+      ],
+      "properties": {
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "uncertainty": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "threshold": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "band": { "enum": ["high", "low"] },
+        "signals": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/confidenceSignal" }
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
     "clusterPacket": {
       "allOf": [
         {
@@ -1771,7 +1810,8 @@
             "contextFingerprint",
             "styleVariants",
             "evidenceRefs",
-            "classificationStatus"
+            "classificationStatus",
+            "confidence"
           ],
           "properties": {
             "artifactType": {
@@ -1836,6 +1876,9 @@
                 "classified",
                 "requires-human"
               ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/confidenceEvidence"
             }
           }
         }

@@ -48,6 +48,7 @@ import path from "node:path";
 
 import { envelopeFrom } from "../../../../scripts/lib/artifact-envelope.mjs";
 import { resolveRoot } from "./lib/paths.mjs";
+import { confidenceBlockReason } from "./lib/confidence-policy.mjs";
 
 const argv = process.argv.slice(2);
 const arg = (flag, fallback = null) => {
@@ -124,6 +125,8 @@ const eixoDe = (c) => EIXO_DA_PROPRIEDADE[c.sample?.property] ?? null;
 /* ──────────────────────────────────────────────────────── elegibilidade ───── */
 
 const motivoDeExclusao = (c) => {
+  const bloqueioDeConfianca = confidenceBlockReason(c.confidence);
+  if (bloqueioDeConfianca) return bloqueioDeConfianca;
   if (!c.proposedName) return "sem nome derivado da lei";
   if ((c.valueSpread ?? 1) !== 1) return `aliasa ${c.valueSpread} valores físicos distintos`;
   if ((c.divergentCount ?? 0) !== 0) return `${c.divergentCount} ocorrências divergem do valor dominante (§9)`;
@@ -335,6 +338,7 @@ const decisoes = noLote.map((c, i) => ({
   status: "approved",
   proposal: { name: c.proposedName, axis: eixoDe(c), exception: false },
   rationale:
+    `confiança multicritério ${c.confidence.score}/${c.confidence.threshold} (${c.confidence.signals.map((s) => s.name).join(", ")}); ` +
     `${c.count} ocorrências no mesmo contexto renderizado convergem para um valor físico único ` +
     `(${c.dominantPrimitive}); o nome é derivado da lei, não escolhido.`,
   decidedBy: "deterministic",
