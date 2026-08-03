@@ -6,6 +6,7 @@ import {
   type Response,
 } from "@playwright/test";
 import axe from "axe-core";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -13,7 +14,10 @@ import {
   captureStem,
   matrixScenarioId,
 } from "../../scripts/lib/evidence-matrix.mjs";
-import { isFrameworkDiagnosticRequest } from "../../scripts/lib/request-policy.mjs";
+import {
+  filterDevToolingConsoleErrors,
+  isFrameworkDiagnosticRequest,
+} from "../../scripts/lib/request-policy.mjs";
 import { installReadOnlyNetworkFixture } from "./network-fixtures.mjs";
 import { THEME_STATES } from "./theme-map.config";
 
@@ -38,6 +42,8 @@ type VisualScenario = {
   witness: { type: string; value: string } | null;
   assertReady: ScenarioStep | null;
   captureRegion: string | null;
+  stabilityHideSelectors?: string[];
+  stabilityRationale?: string;
   expectedVisualEffect: "preserve" | "change" | "mixed";
   expectedRenderedErrorSelector: string | null;
   semanticReadTransports: Array<{
@@ -325,6 +331,38 @@ async function waitForDomAndAssets(page: Page) {
   });
 }
 
+const DEV_TOOLING_STYLE = `
+  [data-react-scan="true"], #react-scan-root, nextjs-portal {
+    display: none !important;
+    visibility: hidden !important;
+  }
+`;
+
+async function waitForVisualStability(
+  page: Page,
+  stabilityHideSelectors: string[] = []
+) {
+  const routeStyle = stabilityHideSelectors.length
+    ? `${stabilityHideSelectors.join(", ")} { display: none !important; visibility: hidden !important; }`
+    : "";
+  await page.addStyleTag({ content: `${DEV_TOOLING_STYLE}\n${routeStyle}` });
+  let prior: string | null = null;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    await page.waitForTimeout(500);
+    const bytes = await page.screenshot({
+      animations: "disabled",
+      caret: "hide",
+      fullPage: true,
+    });
+    const digest = createHash("sha256").update(bytes).digest("hex");
+    if (digest === prior) return;
+    prior = digest;
+  }
+  throw new Error(
+    "ui-evidence: rendered pixels did not stabilize after 12 probes"
+  );
+}
+
 async function runAxe(page: Page) {
   await page.addScriptTag({ content: axe.source });
   return page.evaluate(async () => {
@@ -526,6 +564,10 @@ for (const scenario of selection.scenarios) {
           await applyTheme(page, theme, locale, writingMode);
           if (scenario.assertReady)
             await applyAssertion(page, scenario.assertReady);
+          await waitForVisualStability(
+            page,
+            scenario.stabilityHideSelectors ?? []
+          );
 
           expect(
             normalizedPathname(page.url()),
@@ -584,7 +626,9 @@ for (const scenario of selection.scenarios) {
                 ),
                 finalUrl: page.url(),
                 httpStatus: navigationResponse?.status() ?? null,
-                consoleErrors: stableSignals(consoleErrors),
+                consoleErrors: stableSignals(
+                  filterDevToolingConsoleErrors(consoleErrors)
+                ),
                 pageErrors: stableSignals(pageErrors),
                 networkFailures: stableSignals(networkFailures),
                 abortedRequests: stableSignals(abortedRequests),

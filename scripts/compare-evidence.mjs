@@ -8,6 +8,7 @@ import {
   bindVisualReview,
   buildVisualReviewInput,
   compareEvidenceManifests,
+  expandVisualPolicyToScenarioMatrix,
   VisualContractError,
 } from "./lib/visual-contract.mjs";
 
@@ -35,6 +36,7 @@ const policyPath = valueAfter("--policy");
 const outputPath = valueAfter("--out");
 const reviewInputPath = valueAfter("--review-input");
 const reviewOutputPath = valueAfter("--review-output");
+const scenariosPath = valueAfter("--scenarios");
 
 if (
   !beforePath ||
@@ -51,12 +53,22 @@ try {
   const absoluteOutputPath = path.resolve(outputPath);
   const outputDirectory = path.dirname(absoluteOutputPath);
   mkdirSync(outputDirectory, { recursive: true });
+  const rawPolicy = readJson(policyPath);
+  const scenarios = scenariosPath
+    ? readFileSync(path.resolve(scenariosPath), "utf8")
+        .split(/\r?\n/u)
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+    : null;
+  const policy = scenarios
+    ? expandVisualPolicyToScenarioMatrix(rawPolicy, scenarios)
+    : rawPolicy;
   let comparison = compareEvidenceManifests({
     beforeManifest: readJson(beforePath),
     beforeManifestPath: path.resolve(beforePath),
     afterManifest: readJson(afterPath),
     afterManifestPath: path.resolve(afterPath),
-    policy: readJson(policyPath),
+    policy,
     outputDirectory,
   });
   const reviewInput = buildVisualReviewInput(

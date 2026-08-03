@@ -194,6 +194,69 @@ export function neutralizeExternalRegistry(registry, environment = {}) {
   };
 }
 
+export function applyRouteEvidencePolicy(registry, policy = null) {
+  if (policy === null) return registry;
+  if (policy?.schemaVersion !== "1.0.0" || !policy.routes || typeof policy.routes !== "object") {
+    throw new Error("evidence-route-policy.json must declare schemaVersion=1.0.0 and routes");
+  }
+  const knownRoutes = new Set(registry.contexts.map((context) => context.path));
+  for (const [route, declaration] of Object.entries(policy.routes)) {
+    if (!knownRoutes.has(route)) {
+      throw new Error(`Evidence route policy names an unknown route: ${route}`);
+    }
+    const selectors = declaration?.stabilityHideSelectors;
+    if (
+      !Array.isArray(selectors) ||
+      !selectors.length ||
+      selectors.some((selector) => typeof selector !== "string" || !selector.trim()) ||
+      typeof declaration?.rationale !== "string" ||
+      !declaration.rationale.trim()
+    ) {
+      throw new Error(
+        `Evidence route policy for ${route} requires non-empty stabilityHideSelectors and rationale`
+      );
+    }
+  }
+  const policyFor = (route) => policy.routes[route] ?? null;
+  const contexts = registry.contexts.map((context) => {
+    const declaration = policyFor(context.path);
+    return declaration
+      ? {
+          ...context,
+          stabilityHideSelectors: [...declaration.stabilityHideSelectors],
+          stabilityRationale: declaration.rationale,
+        }
+      : context;
+  });
+  const scenarios = registry.scenarios.map((scenario) => {
+    const declaration = policyFor(scenario.route);
+    return declaration
+      ? {
+          ...scenario,
+          stabilityHideSelectors: [...declaration.stabilityHideSelectors],
+          stabilityRationale: declaration.rationale,
+        }
+      : scenario;
+  });
+  return {
+    ...registry,
+    contexts,
+    scenarios,
+    fixtureRegistryFingerprint: sha256(
+      JSON.stringify({
+        base: registry.fixtureRegistryFingerprint,
+        routeEvidencePolicy: policy,
+      })
+    ),
+    scenarioRegistryFingerprint: sha256(
+      JSON.stringify({
+        base: registry.scenarioRegistryFingerprint,
+        routeEvidencePolicy: policy,
+      })
+    ),
+  };
+}
+
 export async function generateVisualRoutes({
   frontendRoot = FRONTEND_ROOT,
   repoRoot = resolveRepoRoot(frontendRoot),
@@ -223,9 +286,21 @@ export async function generateVisualRoutes({
     routes: discovery.routes,
     environment: fixtureDiscovery.environment,
   });
-  const registry = externalTarget
+  const neutralRegistry = externalTarget
     ? neutralizeExternalRegistry(materializedRegistry, environment)
     : materializedRegistry;
+  const routePolicyPath = path.join(
+    frontendRoot,
+    "tests",
+    "visual",
+    "evidence-route-policy.json"
+  );
+  const registry = applyRouteEvidencePolicy(
+    neutralRegistry,
+    existsSync(routePolicyPath)
+      ? JSON.parse(readFileSync(routePolicyPath, "utf8"))
+      : null
+  );
   if (!registry.exactDeclarationCoverage) {
     throw new Error(
       "Visual registry lost route declarations instead of materializing or skipping them."

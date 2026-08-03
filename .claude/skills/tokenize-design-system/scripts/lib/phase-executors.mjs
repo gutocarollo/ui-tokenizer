@@ -496,6 +496,7 @@ export const PHASE_EXECUTORS = Object.freeze({
           return ["--before", `${base}/before/manifest.json`,
                   "--after", `${base}/after/manifest.json`,
                   "--policy", `${artefatos(ctx)}/batch-${ctx.batchId}.json`,
+                  "--scenarios", `${artefatos(ctx)}/scenarios-${ctx.batchId}.ndjson`,
                   "--out", `${base}/comparison.json`,
                   // O pacote de revisao sai AQUI, mas quem o preenche e a fase
                   // REVIEWED, que e `model`: script nenhum fecha veredito visual.

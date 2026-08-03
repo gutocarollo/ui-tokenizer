@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { neutralizeExternalRegistry } from "./gen-visual-routes.mjs";
+import {
+  applyRouteEvidencePolicy,
+  neutralizeExternalRegistry,
+} from "./gen-visual-routes.mjs";
 
 function registry() {
   return {
@@ -61,5 +64,53 @@ test("external target may declare a default authenticated role with explicit pub
       { route: "/private", authRole: "authenticated" },
       { route: "/auth/signin", authRole: "anonymous" },
     ]
+  );
+});
+
+test("route evidence policy hides only declared dynamic regions and is fingerprint-bound", () => {
+  const base = neutralizeExternalRegistry(registry(), {});
+  const result = applyRouteEvidencePolicy(base, {
+    schemaVersion: "1.0.0",
+    routes: {
+      "/auth/signin": {
+        stabilityHideSelectors: ["canvas"],
+        rationale: "two intentional requestAnimationFrame canvas loops",
+      },
+    },
+  });
+  assert.equal(result.contexts[0].stabilityHideSelectors, undefined);
+  assert.deepEqual(result.contexts[1].stabilityHideSelectors, ["canvas"]);
+  assert.deepEqual(result.scenarios[1].stabilityHideSelectors, ["canvas"]);
+  assert.notEqual(result.fixtureRegistryFingerprint, base.fixtureRegistryFingerprint);
+  assert.notEqual(result.scenarioRegistryFingerprint, base.scenarioRegistryFingerprint);
+});
+
+test("route evidence policy fails closed for unknown routes or missing rationale", () => {
+  const base = neutralizeExternalRegistry(registry(), {});
+  assert.throws(
+    () =>
+      applyRouteEvidencePolicy(base, {
+        schemaVersion: "1.0.0",
+        routes: {
+          "/ghost": {
+            stabilityHideSelectors: ["canvas"],
+            rationale: "unknown",
+          },
+        },
+      }),
+    /unknown route/
+  );
+  assert.throws(
+    () =>
+      applyRouteEvidencePolicy(base, {
+        schemaVersion: "1.0.0",
+        routes: {
+          "/auth/signin": {
+            stabilityHideSelectors: ["canvas"],
+            rationale: "",
+          },
+        },
+      }),
+    /requires non-empty/
   );
 });

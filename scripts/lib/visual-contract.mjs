@@ -1250,6 +1250,77 @@ function normalizePolicy(policy, scenarioIds) {
   };
 }
 
+/**
+ * Expande a declaração compacta do batch (`route/state`) para os IDs completos
+ * da matriz (`route/state::theme/...`) usando os artefatos `scenario` como a
+ * única ponte. A projeção precisa fechar exatamente dos dois lados; um ID-base
+ * desconhecido ou um cenário sem declaração é erro, não default.
+ */
+export function expandVisualPolicyToScenarioMatrix(policy, scenarios) {
+  const records = Array.isArray(scenarios) ? scenarios : [];
+  if (!records.length) {
+    throw new VisualContractError("Visual policy expansion requires scenarios");
+  }
+  const fullIds = records.map((record) => record?.scenarioId);
+  if (
+    fullIds.some((id) => typeof id !== "string" || !id) ||
+    new Set(fullIds).size !== fullIds.length
+  ) {
+    throw new VisualContractError(
+      "Visual policy scenarios require unique non-empty scenario IDs"
+    );
+  }
+  const changed = new Set(
+    policy?.expectedChangedScenarioIds ?? policy?.expectedChangedScenarios ?? []
+  );
+  const unchanged = new Set(
+    policy?.expectedUnchangedScenarioIds ?? policy?.expectedUnchangedScenarios ?? []
+  );
+  const declared = new Set([...changed, ...unchanged]);
+  const fullSet = new Set(fullIds);
+  if ([...declared].every((id) => fullSet.has(id))) return policy;
+
+  const baseOf = (id) => id.split("::")[0];
+  const matrixBases = new Set(fullIds.map(baseOf));
+  const missingBases = [...matrixBases].filter((id) => !declared.has(id));
+  const extraBases = [...declared].filter((id) => !matrixBases.has(id));
+  const overlaps = [...changed].filter((id) => unchanged.has(id));
+  if (missingBases.length || extraBases.length || overlaps.length) {
+    throw new VisualContractError(
+      "Visual policy base IDs do not project exactly onto the scenario matrix",
+      { missingBases, extraBases, overlaps }
+    );
+  }
+
+  const expandedChanged = [];
+  const expandedUnchanged = [];
+  for (const record of records) {
+    const base = baseOf(record.scenarioId);
+    const expected = changed.has(base) ? "change" : "preserve";
+    if (
+      record.expectedVisualEffect &&
+      record.expectedVisualEffect !== expected
+    ) {
+      throw new VisualContractError(
+        "Scenario effect disagrees with the batch visual policy",
+        {
+          scenarioId: record.scenarioId,
+          batchEffect: expected,
+          scenarioEffect: record.expectedVisualEffect,
+        }
+      );
+    }
+    (expected === "change" ? expandedChanged : expandedUnchanged).push(
+      record.scenarioId
+    );
+  }
+  return {
+    ...policy,
+    expectedChangedScenarioIds: expandedChanged,
+    expectedUnchangedScenarioIds: expandedUnchanged,
+  };
+}
+
 function expectedEffectFor(policy, scenarioId) {
   return policy.changedScenarioIds.includes(scenarioId) ? "change" : "preserve";
 }

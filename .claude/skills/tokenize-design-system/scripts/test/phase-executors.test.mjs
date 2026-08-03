@@ -231,6 +231,10 @@ test("COMPARED usa o comparador do processo e o batch-contract como policy únic
     passo.argv[passo.argv.indexOf("--out") + 1],
     path.join(RUN_ROOT, "artifacts", "B0001", "comparison.json")
   );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--scenarios") + 1],
+    path.join(RUN_ROOT, "artifacts", "scenarios-B0001.ndjson")
+  );
   assert.equal(passo.outcomes[3], "comparacao deterministica concluida; revisao visual ainda obrigatoria");
 });
 

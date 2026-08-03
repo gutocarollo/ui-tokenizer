@@ -21,6 +21,7 @@ import {
   buildVisualReviewInput,
   compareEvidenceManifests,
   comparePngFiles,
+  expandVisualPolicyToScenarioMatrix,
   sha256File,
   sha256Value,
   validateVisualReviewOutput,
@@ -28,6 +29,61 @@ import {
   ARTIFACT_SCHEMA_VERSION,
   VisualContractError,
 } from "./visual-contract.mjs";
+
+test("batch IDs-base expandem para a matriz completa somente por projeção exata", () => {
+  const scenarios = [
+    {
+      scenarioId: "accounts/default::theme/light::project/desktop",
+      expectedVisualEffect: "preserve",
+    },
+    {
+      scenarioId: "accounts/default::theme/dark::project/desktop",
+      expectedVisualEffect: "preserve",
+    },
+  ];
+  const expanded = expandVisualPolicyToScenarioMatrix(
+    {
+      expectedVisualEffect: "preserve",
+      expectedChangedScenarioIds: [],
+      expectedUnchangedScenarioIds: ["accounts/default"],
+    },
+    scenarios
+  );
+  assert.deepEqual(expanded.expectedChangedScenarioIds, []);
+  assert.deepEqual(
+    expanded.expectedUnchangedScenarioIds,
+    scenarios.map((item) => item.scenarioId)
+  );
+});
+
+test("expansão de policy recusa base extra e efeito divergente", () => {
+  const scenario = {
+    scenarioId: "accounts/default::theme/light",
+    expectedVisualEffect: "preserve",
+  };
+  assert.throws(
+    () =>
+      expandVisualPolicyToScenarioMatrix(
+        {
+          expectedChangedScenarioIds: [],
+          expectedUnchangedScenarioIds: ["accounts/default", "ghost/default"],
+        },
+        [scenario]
+      ),
+    /do not project exactly/
+  );
+  assert.throws(
+    () =>
+      expandVisualPolicyToScenarioMatrix(
+        {
+          expectedChangedScenarioIds: ["accounts/default"],
+          expectedUnchangedScenarioIds: [],
+        },
+        [scenario]
+      ),
+    /disagrees/
+  );
+});
 
 function temporaryDirectory(t) {
   const directory = mkdtempSync(path.join(tmpdir(), "visual-contract-"));
