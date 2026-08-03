@@ -78,8 +78,12 @@ try {
     );
   }
 
+  const envelope = envelopeFrom(path.resolve(runConfigPath), {
+    applicationRoot: FRONTEND_ROOT,
+  });
   const selection = loadEvidenceSelection({
     frontendRoot: FRONTEND_ROOT,
+    matrix: envelope.config.matrix,
     routePaths: csv("--routes"),
     scenarioIds: csv("--scenario-ids"),
     themes: csv("--themes"),
@@ -93,9 +97,6 @@ try {
    * bases diferentes e não compara nada. Nas fases `after`/`final` a divergência
    * é o esperado: é justamente a mutação que se quer medir.
    */
-  const envelope = envelopeFrom(path.resolve(runConfigPath), {
-    applicationRoot: FRONTEND_ROOT,
-  });
   const header = envelope.measuredHeader("evidence-manifest", {
     assertBase: ["global-before", "before"].includes(phase),
   });

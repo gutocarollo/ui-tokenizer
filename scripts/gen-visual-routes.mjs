@@ -17,6 +17,12 @@ import { materializeContractScenarios } from "./lib/evidence-matrix.mjs";
 const FRONTEND_ROOT = resolveAppRoot(
   path.join(path.dirname(new URL(import.meta.url).pathname), "..")
 );
+const PROCESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const EMPTY_NETWORK_FIXTURES = jsonFile({
+  schemaVersion: "1.0.0",
+  readOnly: true,
+  fixtures: [],
+});
 
 function argumentValue(argv, name) {
   const index = argv.indexOf(name);
@@ -60,7 +66,7 @@ function routeFingerprint(routes, frontendRoot) {
   return sha256(JSON.stringify(projection));
 }
 
-function outputFiles({ discovery, registry, fixtureDiscovery, frontendRoot }) {
+function outputFiles({ discovery, registry, fixtureDiscovery, frontendRoot, networkFixtureContent = null }) {
   const routerSources = (discovery.routerFiles ?? [discovery.routerFile]).map(
     (file) => [portableModule(file, frontendRoot), readFileSync(file, "utf8")]
   );
@@ -109,7 +115,59 @@ function outputFiles({ discovery, registry, fixtureDiscovery, frontendRoot }) {
     ["routes.skipped.json", jsonFile(registry.skipped)],
     ["contexts.json", jsonFile(contexts)],
     ["scenarios.json", jsonFile(scenarios)],
+    ...(networkFixtureContent === null
+      ? []
+      : [["network-fixtures.json", networkFixtureContent]]),
   ]);
+}
+
+function neutralizeExternalRegistry(registry) {
+  const networkFixtureRegistryFingerprint = sha256(EMPTY_NETWORK_FIXTURES);
+  const contexts = registry.contexts.map((context) => ({
+    ...context,
+    fixtureId: context.networkFixtureId
+      ? (context.authRole === "anonymous" ? "anonymous-static-v1" : `${context.authRole}-session-v1`)
+      : context.fixtureId,
+    networkFixtureId: null,
+    fixtureSource: context.networkFixtureId ? "route-declaration" : context.fixtureSource,
+  }));
+  const scenarios = registry.scenarios.map((scenario) => ({
+    ...scenario,
+    fixtureId: scenario.networkFixtureId
+      ? (scenario.authRole === "anonymous" ? "anonymous-static-v1" : `${scenario.authRole}-session-v1`)
+      : scenario.fixtureId,
+    networkFixtureId: null,
+    preconditions: [],
+    assertions: [],
+    witness: null,
+    assertReady: null,
+    expectedRenderedErrorSelector: null,
+    semanticReadTransports: [],
+  }));
+  return {
+    ...registry,
+    contexts,
+    scenarios,
+    networkFixtureRegistryFingerprint,
+    fixtureRegistryFingerprint: sha256(JSON.stringify({
+      policy: "external-target-neutral.v1",
+      contexts: contexts.map(({ pattern, path, fixtureId, fixtureSource }) => ({
+        pattern,
+        path,
+        fixtureId,
+        fixtureSource,
+      })),
+    })),
+    scenarioRegistryFingerprint: sha256(JSON.stringify({
+      policy: "external-target-neutral.v1",
+      scenarios: scenarios.map(({ scenarioId, route, actions, authRole }) => ({
+        scenarioId,
+        route,
+        actions,
+        authRole,
+      })),
+    })),
+  };
 }
 
 export async function generateVisualRoutes({
@@ -133,10 +191,14 @@ export async function generateVisualRoutes({
     environment,
     inspectLocalData,
   });
-  const registry = materializeVisualRegistry({
+  const materializedRegistry = materializeVisualRegistry({
     routes: discovery.routes,
     environment: fixtureDiscovery.environment,
   });
+  const externalTarget = path.resolve(frontendRoot) !== PROCESS_ROOT;
+  const registry = externalTarget
+    ? neutralizeExternalRegistry(materializedRegistry)
+    : materializedRegistry;
   if (!registry.exactDeclarationCoverage) {
     throw new Error(
       "Visual registry lost route declarations instead of materializing or skipping them."
@@ -148,6 +210,7 @@ export async function generateVisualRoutes({
     registry,
     fixtureDiscovery,
     frontendRoot,
+    networkFixtureContent: externalTarget ? EMPTY_NETWORK_FIXTURES : null,
   });
   const staleFiles = [];
   if (check) {

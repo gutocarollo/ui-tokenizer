@@ -4,7 +4,7 @@
 #
 # Usage:
 #   scripts/ui-evidence.sh <label>
-#     [--run-id tokenize-<id>]
+#     --run-config <config.json> [--root <app>] [--run-root <run>]
 #     [--batch-id B0001]
 #     [--phase global-before|before|after|final]
 #     [--routes /a,/b]
@@ -22,12 +22,10 @@
 # promoted manifest.
 set -uo pipefail
 
-WEB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO_ROOT="$(git -C "$WEB_DIR" rev-parse --show-toplevel 2>/dev/null)"
-if [ -z "$REPO_ROOT" ]; then
-  echo "ui-evidence: cannot resolve the Git repository root from $WEB_DIR." >&2
-  exit 1
-fi
+TOOL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WEB_DIR="$TOOL_ROOT"
+RUN_CONFIG=""
+RUN_ROOT=""
 
 WEB_URL="${PLAYWRIGHT_WEB_URL:-http://localhost:3006}"
 LABEL=""
@@ -44,6 +42,9 @@ WRITING_MODES=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --run-id) RUN_ID="${2:-}"; shift 2 ;;
+    --run-config) RUN_CONFIG="${2:-}"; shift 2 ;;
+    --run-root) RUN_ROOT="${2:-}"; shift 2 ;;
+    --root) WEB_DIR="${2:-}"; shift 2 ;;
     --batch-id) BATCH_ID="${2:-}"; shift 2 ;;
     --phase) PHASE="${2:-}"; shift 2 ;;
     --routes) ROUTES="${2:-}"; shift 2 ;;
@@ -64,6 +65,17 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+WEB_DIR="$(cd "$WEB_DIR" && pwd)"
+REPO_ROOT="$(git -C "$WEB_DIR" rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$REPO_ROOT" ]; then
+  echo "ui-evidence: cannot resolve the Git repository root from $WEB_DIR." >&2
+  exit 1
+fi
+if [ -n "$RUN_CONFIG" ]; then
+  RUN_CONFIG="$(cd "$(dirname "$RUN_CONFIG")" && pwd)/$(basename "$RUN_CONFIG")"
+  RUN_ID="$(node -e 'const fs=require("fs"); const c=JSON.parse(fs.readFileSync(process.argv[1])); process.stdout.write(c.runId||"")' "$RUN_CONFIG")"
+fi
 
 LABEL="${LABEL:-after}"
 if [[ ! "$LABEL" =~ ^[a-zA-Z0-9._-]+$ ]]; then
@@ -105,8 +117,17 @@ if ! compgen -G "${HOME}/.cache/ms-playwright/chromium-*" >/dev/null; then
   exit 1
 fi
 
-EVIDENCE_ROOT="$REPO_ROOT/.claude/evidence"
-OUT_DIR="$EVIDENCE_ROOT/$LABEL"
+if [ -n "$RUN_ROOT" ]; then
+  RUN_ROOT="$(cd "$RUN_ROOT" && pwd)"
+  EVIDENCE_ROOT="$RUN_ROOT/artifacts/$BATCH_ID"
+else
+  EVIDENCE_ROOT="$REPO_ROOT/.claude/evidence"
+fi
+if [ -n "$RUN_ROOT" ]; then
+  OUT_DIR="$EVIDENCE_ROOT/$PHASE"
+else
+  OUT_DIR="$EVIDENCE_ROOT/$LABEL"
+fi
 mkdir -p "$EVIDENCE_ROOT"
 if [ -e "$OUT_DIR" ]; then
   echo "ui-evidence: immutable label already exists: $OUT_DIR" >&2
@@ -128,7 +149,7 @@ failed_stage() {
   fi
 }
 
-cd "$WEB_DIR"
+cd "$TOOL_ROOT"
 
 config_value() {
   python3 - "$1" <<'PYCONF' 2>/dev/null || true
@@ -151,7 +172,8 @@ MASK_SELECTORS_VALUE="$(config_value HARNESS_UI_EVIDENCE_MASK_SELECTORS)"
 cd "$previous_directory" || exit 1
 
 PREPARE_ARGS=(
-  --run-id "$RUN_ID"
+  --run-config "$RUN_CONFIG"
+  --root "$WEB_DIR"
   --phase "$PHASE"
   --selection-out "$SELECTION_FILE"
   --manifest-config-out "$MANIFEST_CONFIG"
@@ -164,7 +186,11 @@ PREPARE_ARGS=(
 [ -n "$LOCALES" ] && PREPARE_ARGS+=(--locales "$LOCALES")
 [ -n "$WRITING_MODES" ] && PREPARE_ARGS+=(--writing-modes "$WRITING_MODES")
 
-if ! node scripts/prepare-evidence-run.mjs "${PREPARE_ARGS[@]}"; then
+if [ -z "$RUN_CONFIG" ]; then
+  failed_stage "--run-config is required; a typed run id is not evidence identity"
+  exit 2
+fi
+if ! node "$TOOL_ROOT/scripts/prepare-evidence-run.mjs" "${PREPARE_ARGS[@]}"; then
   failed_stage "matrix preparation failed"
   exit 1
 fi
@@ -187,7 +213,7 @@ UI_EVIDENCE_SELECTION_FILE="$SELECTION_FILE" \
 UI_EVIDENCE_OUTPUT_DIR="$STAGING_DIR" \
 HARNESS_UI_EVIDENCE_ERROR_SELECTOR="${HARNESS_UI_EVIDENCE_ERROR_SELECTOR:-$ERROR_SELECTOR_VALUE}" \
 HARNESS_UI_EVIDENCE_MASK_SELECTORS="${HARNESS_UI_EVIDENCE_MASK_SELECTORS:-$MASK_SELECTORS_VALUE}" \
-  npx playwright test -c playwright.visual.config.ts tests/visual/evidence.spec.ts \
+  npx playwright test -c "$TOOL_ROOT/playwright.visual.config.ts" "$TOOL_ROOT/tests/visual/evidence.spec.ts" \
   "${PROJECT_ARGS[@]}" 2>&1 | tail -40
 PLAYWRIGHT_EXIT=${PIPESTATUS[0]}
 if [ "$PLAYWRIGHT_EXIT" -ne 0 ]; then
@@ -195,7 +221,7 @@ if [ "$PLAYWRIGHT_EXIT" -ne 0 ]; then
   exit "$PLAYWRIGHT_EXIT"
 fi
 
-if ! node scripts/evidence-manifest.mjs \
+if ! node "$TOOL_ROOT/scripts/evidence-manifest.mjs" --root "$WEB_DIR" \
   --config "$MANIFEST_CONFIG" \
   --capture-dir "$STAGING_DIR" \
   --out "$STAGING_DIR/manifest.json"; then

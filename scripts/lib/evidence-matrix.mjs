@@ -578,13 +578,14 @@ export function buildEvidenceBindings({
 
 export function loadEvidenceSelection({
   frontendRoot,
+  matrix = null,
   matrixPath = path.join(frontendRoot, DEFAULT_MATRIX_FILE),
   scenarioPath = path.join(frontendRoot, DEFAULT_SCENARIO_FILE),
   ...filters
 }) {
   return selectEvidenceMatrix({
     registry: readJson(scenarioPath),
-    matrix: readJson(matrixPath),
+    matrix: matrix ?? readJson(matrixPath),
     ...filters,
   });
 }

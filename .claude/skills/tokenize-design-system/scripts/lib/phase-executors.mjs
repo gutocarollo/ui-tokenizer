@@ -32,6 +32,7 @@ const DEFAULT_SCRIPTS_DIR = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
   ".."
 );
+const DEFAULT_PROCESS_ROOT = path.resolve(DEFAULT_SCRIPTS_DIR, "../../../..");
 
 /**
  * Cada entrada declara:
@@ -414,11 +415,12 @@ export const PHASE_EXECUTORS = Object.freeze({
          * novo com o mesmo label falha de proposito, entao o nome precisa ser
          * unico por lote e fase.
          */
-        shell: "bash scripts/ui-evidence.sh",
+        shell: "bash",
         args: (ctx) => {
-          exigir(ctx, ["runConfigPath", "batchId"], "ui-evidence/before");
+          exigir(ctx, ["applicationRoot", "runRoot", "runConfigPath", "batchId"], "ui-evidence/before");
           // `--run-config`, nunca `--run-id`: o identificador vem da ancora.
-          return [`before-${ctx.batchId}`, "--run-config", ctx.runConfigPath,
+          return [path.join(DEFAULT_PROCESS_ROOT, "scripts/ui-evidence.sh"), "before", "--root", ctx.applicationRoot,
+                  "--run-root", ctx.runRoot, "--run-config", ctx.runConfigPath,
                   "--batch-id", ctx.batchId, "--phase", "before"];
         },
         emits: "evidence-manifest",
@@ -465,11 +467,12 @@ export const PHASE_EXECUTORS = Object.freeze({
         // Mesma orquestracao unica da fase de referencia; muda so a fase, e com
         // ela o contrato de fingerprint: `before` exige a fonte IGUAL a ancora,
         // `after` exige que ela tenha andado — e a mutacao que se quer medir.
-        shell: "bash scripts/ui-evidence.sh",
+        shell: "bash",
         args: (ctx) => {
-          exigir(ctx, ["runConfigPath", "batchId"], "ui-evidence/after");
+          exigir(ctx, ["applicationRoot", "runRoot", "runConfigPath", "batchId"], "ui-evidence/after");
           // `--run-config`, nunca `--run-id`: o identificador vem da ancora.
-          return [`after-${ctx.batchId}`, "--run-config", ctx.runConfigPath,
+          return [path.join(DEFAULT_PROCESS_ROOT, "scripts/ui-evidence.sh"), "after", "--root", ctx.applicationRoot,
+                  "--run-root", ctx.runRoot, "--run-config", ctx.runConfigPath,
                   "--batch-id", ctx.batchId, "--phase", "after"];
         },
         emits: "evidence-manifest",
