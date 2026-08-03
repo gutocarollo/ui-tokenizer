@@ -439,23 +439,20 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: ["deterministic-checks"],
     steps: [
-      { shell: "yarn tokens:build", args: () => [], emits: "deterministic-checks" },
       {
-        script: "validate-token-build.mjs",
+        script: "run-build-checks.mjs",
         args: (ctx) => {
-          exigir(ctx, ["applicationRoot"], "validate-token-build/built");
-          // `--build` aqui, so `--check` no preflight: depois da migracao o CSS
-          // precisa ser REGERADO antes de conferido, senao a checagem le o
-          // artefato anterior a mutacao e aprova o que ja nao existe.
-          return ["--root", ctx.applicationRoot, "--build", "--check"];
+          exigir(ctx, ["applicationRoot", "runRoot", "runConfigPath", "batchId"], "run-build-checks/built");
+          return [
+            "--root", ctx.applicationRoot,
+            "--run-config", ctx.runConfigPath,
+            "--run-root", ctx.runRoot,
+            "--batch", ctx.batchId,
+            "--out", `${artefatos(ctx)}/${ctx.batchId}/deterministic-checks.json`,
+          ];
         },
         emits: "deterministic-checks",
       },
-      { shell: "python3 scripts/ds-naming-law.py", args: () => [], emits: "deterministic-checks" },
-      { shell: "python3 scripts/ds-cohesion.py", args: () => [], emits: "deterministic-checks" },
-      { shell: "python3 ../.harness/lib/ds-variety.py", args: () => [], emits: "deterministic-checks" },
-      { shell: "python3 ../.harness/lib/ds-dead-classes.py", args: () => [], emits: "deterministic-checks" },
-      { shell: "bash ../.harness/lib/ds-gate.sh", args: () => [], emits: "deterministic-checks" },
     ],
   },
 
