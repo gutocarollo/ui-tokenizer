@@ -1186,33 +1186,176 @@ function scriptFiles() {
 }
 
 function scanInlineStyles() {
-  return scriptFiles().flatMap((file) => [
-    ...regexDrafts(file, /\bstyle\s*=\s*\{\{([\s\S]{0,8000}?)\}\}/g, (match) =>
-      commonDraft({
-        occurrenceKind: "inline-style",
-        file,
-        offset: match.index,
-        rawValue: match[1].trim(),
-        property: /^[A-Za-z_$][\w$]*$/.test(match[1].trim())
-          ? match[1].trim()
-          : null,
-        selectorOrObjectPath: "style",
-        opaqueReason: /\.\.\.|\$\{/.test(match[1])
-          ? "inline style contains unresolved dynamic fragments"
-          : null,
-      })
-    ),
-    ...regexDrafts(file, /\bstyle\s*=\s*\{(?!\{)([^{}\n]+)\}/g, (match) =>
-      commonDraft({
-        occurrenceKind: "inline-style",
-        file,
-        offset: match.index,
-        rawValue: match[1].trim(),
-        selectorOrObjectPath: "style",
-        opaqueReason: "inline style expression requires runtime resolution",
-      })
-    ),
-  ]);
+  const drafts = [];
+  const astFiles = scriptFiles().filter((file) =>
+    AST_CLASS_EXTENSIONS.has(file.extension)
+  );
+
+  if (targetTypeScript) {
+    const ts = targetTypeScript;
+    const scriptKind = (extension) =>
+      extension === ".tsx"
+        ? ts.ScriptKind.TSX
+        : extension === ".jsx"
+          ? ts.ScriptKind.JSX
+          : extension === ".ts"
+            ? ts.ScriptKind.TS
+            : ts.ScriptKind.JS;
+    const propertyName = (name, sourceFile) => {
+      if (!name) return null;
+      if (ts.isIdentifier(name) || ts.isPrivateIdentifier?.(name)) return name.text;
+      if (ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
+      return sourceText(name, sourceFile).replace(/^["']|["']$/g, "") || null;
+    };
+    const tagName = (attribute, sourceFile) => {
+      const opening = attribute.parent?.parent;
+      return opening?.tagName ? sourceText(opening.tagName, sourceFile) : null;
+    };
+
+    for (const file of astFiles) {
+      const sourceFile = ts.createSourceFile(
+        file.relative,
+        file.source,
+        ts.ScriptTarget.Latest,
+        true,
+        scriptKind(file.extension)
+      );
+      const emitExpression = (expression, attribute, branch = "style") => {
+        if (!expression) return;
+        if (ts.isParenthesizedExpression(expression)) {
+          emitExpression(expression.expression, attribute, branch);
+          return;
+        }
+        if (ts.isConditionalExpression(expression)) {
+          emitExpression(expression.whenTrue, attribute, `${branch}.true`);
+          emitExpression(expression.whenFalse, attribute, `${branch}.false`);
+          return;
+        }
+        if (ts.isObjectLiteralExpression(expression)) {
+          for (const member of expression.properties) {
+            if (ts.isPropertyAssignment(member)) {
+              const property = propertyName(member.name, sourceFile);
+              drafts.push(
+                commonDraft({
+                  occurrenceKind: "inline-style",
+                  file,
+                  offset: member.initializer.getStart(sourceFile),
+                  rawValue: sourceText(member.initializer, sourceFile),
+                  property,
+                  selectorOrObjectPath: `${branch}.${property ?? "<computed>"}`,
+                  opaqueReason: property ? null : "inline style has computed property name",
+                  context: {
+                    component: path.basename(file.relative, file.extension),
+                    nativeTag: tagName(attribute, sourceFile),
+                    implicitRole: implicitRoleFor(tagName(attribute, sourceFile)),
+                    explicitRole: null,
+                    nearestLandmark: null,
+                    routeAreas: [],
+                    interactionState: null,
+                  },
+                })
+              );
+            } else if (ts.isShorthandPropertyAssignment(member)) {
+              const property = member.name.text;
+              drafts.push(
+                commonDraft({
+                  occurrenceKind: "inline-style",
+                  file,
+                  offset: member.name.getStart(sourceFile),
+                  rawValue: property,
+                  property,
+                  selectorOrObjectPath: `${branch}.${property}`,
+                })
+              );
+            } else {
+              drafts.push(
+                commonDraft({
+                  occurrenceKind: "inline-style",
+                  file,
+                  offset: member.getStart(sourceFile),
+                  rawValue: sourceText(member, sourceFile),
+                  selectorOrObjectPath: `${branch}.<spread-or-method>`,
+                  opaqueReason: "inline style contains spread, method, or computed member",
+                })
+              );
+            }
+          }
+          return;
+        }
+        drafts.push(
+          commonDraft({
+            occurrenceKind: "inline-style",
+            file,
+            offset: expression.getStart(sourceFile),
+            rawValue: sourceText(expression, sourceFile),
+            selectorOrObjectPath: branch,
+            opaqueReason: "inline style expression references a runtime contract",
+          })
+        );
+      };
+      const visit = (node) => {
+        if (
+          ts.isJsxAttribute(node) &&
+          node.name?.text === "style" &&
+          node.initializer &&
+          ts.isJsxExpression(node.initializer)
+        ) {
+          emitExpression(node.initializer.expression, node);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(sourceFile);
+    }
+  } else {
+    // Alvo sem TypeScript instalado: preserva cobertura, mas declara a forma
+    // composta/opaca. O preflight de um APPLY real exige o compilador; o censo
+    // nao pode morrer e apagar todos os outros 18 tipos por essa ausencia.
+    for (const file of astFiles) {
+      drafts.push(
+        ...regexDrafts(file, /\bstyle\s*=\s*\{\{([\s\S]{0,8000}?)\}\}/g, (match) =>
+          commonDraft({
+            occurrenceKind: "inline-style",
+            file,
+            offset: match.index,
+            rawValue: match[1].trim(),
+            selectorOrObjectPath: "style",
+            opaqueReason: /\.\.\.|\$\{/.test(match[1])
+              ? `style composto e TypeScript do alvo indisponivel: ${targetTypeScriptError}`
+              : null,
+          })
+        ),
+        ...regexDrafts(file, /\bstyle\s*=\s*\{(?!\{)([^{}\n]+)\}/g, (match) =>
+          commonDraft({
+            occurrenceKind: "inline-style",
+            file,
+            offset: match.index,
+            rawValue: match[1].trim(),
+            selectorOrObjectPath: "style",
+            opaqueReason: `TypeScript do alvo indisponivel para atomizar style: ${targetTypeScriptError}`,
+          })
+        )
+      );
+    }
+  }
+
+  // Markup nao-TypeScript continua coberto pelo scanner estatico. Nesses
+  // formatos nao ha compilador AST compartilhado; a expressao fica opaca se
+  // nao for um atributo string simples.
+  for (const file of scriptFiles().filter((item) => !AST_CLASS_EXTENSIONS.has(item.extension))) {
+    drafts.push(
+      ...regexDrafts(file, /\bstyle\s*=\s*(["'])([\s\S]*?)\1/g, (match) =>
+        commonDraft({
+          occurrenceKind: "inline-style",
+          file,
+          offset: match.index,
+          rawValue: match[2].trim(),
+          selectorOrObjectPath: "style",
+          opaqueReason: "markup style string requires declaration-level parser",
+        })
+      )
+    );
+  }
+  return drafts;
 }
 
 function scanCssInJs() {

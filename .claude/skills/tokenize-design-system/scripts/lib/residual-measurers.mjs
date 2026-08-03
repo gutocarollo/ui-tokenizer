@@ -8,6 +8,8 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { resolveDesignOccurrenceLineage } from "./design-occurrence-lineage.mjs";
+
 const TERMINAIS = new Set([
   "approved-token",
   "approved-contract",
@@ -93,6 +95,41 @@ function preferirReinventario(registros) {
   return finais.length ? finais : registros;
 }
 
+/**
+ * `design-occurrence` e historico append-only: raw + classified coexistem.
+ * Medir os dois dobra a populacao e, pior, deixa o raw `discovered` sobreviver
+ * para sempre mesmo quando a projecao classificada e terminal. Primeiro
+ * escolhemos o inventario mais novo; depois resolvemos a folha da linhagem.
+ */
+function designAtivo(registros, runRoot) {
+  const candidatos = preferirReinventario(doTipo(registros, "design-occurrence"));
+  if (!candidatos.length) return [];
+  // Medidores unitarios e corridas legadas anteriores ao contrato de linhagem
+  // podem carregar apenas uma projecao por ID. Nao inventamos predecessor; a
+  // validacao de artefato continua recusando essa forma numa transicao real.
+  if (candidatos.some(({ artifact }) => !["raw", "classified"].includes(artifact.recordStage))) {
+    return unicosPor(candidatos, ({ occurrenceId }) => occurrenceId);
+  }
+  const porFonte = new Map();
+  for (const registro of candidatos) {
+    const fonte = registro.artifact.sourceFingerprint ?? "(sem-fonte)";
+    if (!porFonte.has(fonte)) porFonte.set(fonte, []);
+    porFonte.get(fonte).push(registro);
+  }
+  // Dentro do reinventario so deve existir uma fonte. Se houver mais de uma,
+  // escolher a maior populacao e deterministico; o contrato continua sendo o
+  // dono que recusa a ambiguidade na transicao.
+  const [fonte, daFonte] = [...porFonte.entries()].sort(
+    (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])
+  )[0];
+  const resolved = resolveDesignOccurrenceLineage({
+    records: daFonte,
+    runRoot,
+    sourceFingerprint: fonte === "(sem-fonte)" ? null : fonte,
+  });
+  return resolved.currentRecords;
+}
+
 function caminhos(registros) {
   return [...new Set(registros.map(({ sourcePath }) => sourcePath))].sort();
 }
@@ -118,8 +155,8 @@ function unicosPor(registros, chave) {
   return [...mapa.values()];
 }
 
-function medirFonteInvalida({ registros }) {
-  const design = preferirReinventario(doTipo(registros, "design-occurrence"));
+function medirFonteInvalida({ registros, runRoot }) {
+  const design = designAtivo(registros, runRoot);
   if (!design.length) return null;
   const excecoes = design.filter(({ artifact }) =>
     ["approved-exception", "approved-out-of-scope", "invalid-source"].includes(
@@ -145,8 +182,8 @@ function medirFonteInvalida({ registros }) {
   );
 }
 
-function medirHardcodes({ registros }) {
-  const design = preferirReinventario(doTipo(registros, "design-occurrence"));
+function medirHardcodes({ registros, runRoot }) {
+  const design = designAtivo(registros, runRoot);
   const cobertos = design.filter(({ artifact }) =>
     KINDS_DE_VALOR.has(artifact.occurrenceKind)
   );
@@ -182,13 +219,13 @@ function medirNomeacao({ applicationRoot, registros }) {
   );
 }
 
-function medirClassesEmitidas({ registros }) {
+function medirClassesEmitidas({ registros, runRoot }) {
   const normalized = preferirReinventario(
     doTipo(registros, "normalized-occurrence")
   );
   if (!normalized.length) return null;
   const design = unicosPor(
-    preferirReinventario(doTipo(registros, "design-occurrence")),
+    designAtivo(registros, runRoot),
     (artifact) => artifact.occurrenceId
   );
   const status = new Map(

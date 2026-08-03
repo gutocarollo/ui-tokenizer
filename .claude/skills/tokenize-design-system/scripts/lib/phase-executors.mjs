@@ -275,6 +275,30 @@ export const PHASE_EXECUTORS = Object.freeze({
         },
         emits: "cluster-packet",
       },
+      {
+        /*
+         * O censo nao e uma lista de hardcodes. Ele inclui assets, geometria
+         * SVG, referencias ao tema e classes cujo CSS compilado ja existe.
+         * Esta projecao imutavel classifica o universo inteiro e deixa somente
+         * valores fisicos realmente acionaveis como residuo. Sem ela, o
+         * medidor chamava `theme.text.layer2` de hardcode 1.021 vezes.
+         */
+        script: "classify-design-occurrences.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["applicationRoot", "runConfigPath", "runRoot"], "classify-design-occurrences");
+          return [
+            "--root", ctx.applicationRoot,
+            "--run-config", ctx.runConfigPath,
+            "--input", `${artefatos(ctx)}/design-occurrences.ndjson`,
+            "--normalized", `${artefatos(ctx)}/normalized-occurrences.ndjson`,
+            "--out", `${artefatos(ctx)}/classified-design-occurrences.ndjson`,
+          ];
+        },
+        outcomes: {
+          2: "classificacao completa; valores acionaveis ou expressoes nao resolvidas permanecem como residuo",
+        },
+        emits: "design-occurrence",
+      },
     ],
   },
 

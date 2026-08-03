@@ -73,6 +73,10 @@ function isSamePath(left, right) {
   return path.resolve(left) === path.resolve(right);
 }
 
+function predecessorKey(sourcePath, occurrenceId, recordSha256) {
+  return [path.resolve(sourcePath), occurrenceId ?? "", recordSha256 ?? ""].join("\0");
+}
+
 function violation(message, artifact = null, details = undefined) {
   return {
     message,
@@ -125,6 +129,23 @@ export function resolveDesignOccurrenceLineage({
   });
   const violations = [];
   const byIdentity = new Map();
+  /*
+   * O predecessor era procurado com `allRecords.filter(...)` para CADA folha.
+   * Em 59.383 ocorrencias raw + 59.383 classified isso vira O(n²) e o
+   * avaliador deixa de responder. O contrato e o mesmo; muda apenas a estrutura
+   * de acesso para um indice pela tripla que a supersessao ja exige.
+   */
+  const predecessorIndex = new Map();
+  for (const record of allRecords) {
+    if (!record.sourcePath) continue;
+    const key = predecessorKey(
+      record.sourcePath,
+      record.artifact?.occurrenceId,
+      designRecordSha256(record.artifact)
+    );
+    if (!predecessorIndex.has(key)) predecessorIndex.set(key, []);
+    predecessorIndex.get(key).push(record);
+  }
 
   for (const record of inScope) {
     const stage = record.artifact.recordStage;
@@ -206,13 +227,13 @@ export function resolveDesignOccurrenceLineage({
       }
 
       const expectedPath = path.resolve(runRoot, supersedes.artifactRef.path);
-      const pathCandidates = allRecords.filter(
-        (candidate) =>
-          candidate.sourcePath &&
-          isSamePath(candidate.sourcePath, expectedPath) &&
-          candidate.artifact?.occurrenceId === supersedes.occurrenceId &&
-          designRecordSha256(candidate.artifact) === supersedes.recordSha256
-      );
+      const pathCandidates = predecessorIndex.get(
+        predecessorKey(
+          expectedPath,
+          supersedes.occurrenceId,
+          supersedes.recordSha256
+        )
+      ) ?? [];
       if (pathCandidates.length !== 1) {
         violations.push(
           violation(
