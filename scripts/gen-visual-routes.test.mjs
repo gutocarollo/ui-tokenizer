@@ -67,20 +67,23 @@ test("external target may declare a default authenticated role with explicit pub
   );
 });
 
-test("route evidence policy hides only declared dynamic regions and is fingerprint-bound", () => {
+test("route evidence policy masks only declared dynamic regions and is fingerprint-bound", () => {
   const base = neutralizeExternalRegistry(registry(), {});
   const result = applyRouteEvidencePolicy(base, {
     schemaVersion: "1.0.0",
     routes: {
       "/auth/signin": {
-        stabilityHideSelectors: ["canvas"],
+        stabilityMaskSelectors: ["canvas"],
         rationale: "two intentional requestAnimationFrame canvas loops",
+        freezeClock: true,
       },
     },
   });
-  assert.equal(result.contexts[0].stabilityHideSelectors, undefined);
-  assert.deepEqual(result.contexts[1].stabilityHideSelectors, ["canvas"]);
-  assert.deepEqual(result.scenarios[1].stabilityHideSelectors, ["canvas"]);
+  assert.equal(result.contexts[0].stabilityMaskSelectors, undefined);
+  assert.deepEqual(result.contexts[1].stabilityMaskSelectors, ["canvas"]);
+  assert.deepEqual(result.scenarios[1].stabilityMaskSelectors, ["canvas"]);
+  assert.equal(result.scenarios[1].freezeClock, true);
+  assert.equal(result.scenarios[1].fixedTime, undefined);
   assert.notEqual(result.fixtureRegistryFingerprint, base.fixtureRegistryFingerprint);
   assert.notEqual(result.scenarioRegistryFingerprint, base.scenarioRegistryFingerprint);
 });
@@ -93,7 +96,7 @@ test("route evidence policy fails closed for unknown routes or missing rationale
         schemaVersion: "1.0.0",
         routes: {
           "/ghost": {
-            stabilityHideSelectors: ["canvas"],
+            stabilityMaskSelectors: ["canvas"],
             rationale: "unknown",
           },
         },
@@ -106,11 +109,26 @@ test("route evidence policy fails closed for unknown routes or missing rationale
         schemaVersion: "1.0.0",
         routes: {
           "/auth/signin": {
-            stabilityHideSelectors: ["canvas"],
+            stabilityMaskSelectors: ["canvas"],
             rationale: "",
           },
         },
       }),
     /requires non-empty/
+  );
+  assert.throws(
+    () =>
+      applyRouteEvidencePolicy(base, {
+        schemaVersion: "1.0.0",
+        routes: {
+          "/auth/signin": {
+            stabilityMaskSelectors: ["canvas"],
+            rationale: "ambiguous clock policy",
+            freezeClock: true,
+            fixedTime: true,
+          },
+        },
+      }),
+    /cannot freezeClock and fixedTime together/
   );
 });

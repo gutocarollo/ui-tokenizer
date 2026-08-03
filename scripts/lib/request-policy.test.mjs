@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   filterDevToolingConsoleErrors,
   isFrameworkDiagnosticRequest,
+  normalizeVolatileDiagnosticSignal,
 } from "./request-policy.mjs";
 
 test("Next dev stack-frame diagnostics are not product mutations", () => {
@@ -38,4 +39,15 @@ test("react-scan CSP noise is removed only as a complete diagnostic cohort", () 
     [product]
   );
   assert.deepEqual(filterDevToolingConsoleErrors([worker, product]), [worker, product]);
+});
+
+test("CSP response nonces are canonicalized without removing the violation", () => {
+  const left = "style-src 'nonce-AbC123_-' blocked; use nonce-...";
+  const right = "style-src 'nonce-Zyx987+=' blocked; use nonce-...";
+  assert.equal(
+    normalizeVolatileDiagnosticSignal(left),
+    normalizeVolatileDiagnosticSignal(right)
+  );
+  assert.match(normalizeVolatileDiagnosticSignal(left), /blocked/);
+  assert.match(normalizeVolatileDiagnosticSignal(left), /nonce-\.\.\./);
 });

@@ -204,7 +204,7 @@ export function applyRouteEvidencePolicy(registry, policy = null) {
     if (!knownRoutes.has(route)) {
       throw new Error(`Evidence route policy names an unknown route: ${route}`);
     }
-    const selectors = declaration?.stabilityHideSelectors;
+    const selectors = declaration?.stabilityMaskSelectors;
     if (
       !Array.isArray(selectors) ||
       !selectors.length ||
@@ -213,7 +213,12 @@ export function applyRouteEvidencePolicy(registry, policy = null) {
       !declaration.rationale.trim()
     ) {
       throw new Error(
-        `Evidence route policy for ${route} requires non-empty stabilityHideSelectors and rationale`
+        `Evidence route policy for ${route} requires non-empty stabilityMaskSelectors and rationale`
+      );
+    }
+    if (declaration.freezeClock === true && declaration.fixedTime === true) {
+      throw new Error(
+        `Evidence route policy for ${route} cannot freezeClock and fixedTime together`
       );
     }
   }
@@ -223,8 +228,10 @@ export function applyRouteEvidencePolicy(registry, policy = null) {
     return declaration
       ? {
           ...context,
-          stabilityHideSelectors: [...declaration.stabilityHideSelectors],
+          stabilityMaskSelectors: [...declaration.stabilityMaskSelectors],
           stabilityRationale: declaration.rationale,
+          ...(declaration.freezeClock === true ? { freezeClock: true } : {}),
+          ...(declaration.fixedTime === true ? { fixedTime: true } : {}),
         }
       : context;
   });
@@ -233,8 +240,10 @@ export function applyRouteEvidencePolicy(registry, policy = null) {
     return declaration
       ? {
           ...scenario,
-          stabilityHideSelectors: [...declaration.stabilityHideSelectors],
+          stabilityMaskSelectors: [...declaration.stabilityMaskSelectors],
           stabilityRationale: declaration.rationale,
+          ...(declaration.freezeClock === true ? { freezeClock: true } : {}),
+          ...(declaration.fixedTime === true ? { fixedTime: true } : {}),
         }
       : scenario;
   });

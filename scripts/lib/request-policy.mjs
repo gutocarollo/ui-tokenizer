@@ -30,3 +30,16 @@ export function filterDevToolingConsoleErrors(errors) {
     );
   });
 }
+
+/**
+ * Canonicalize only server-generated CSP nonce tokens. A nonce changes on
+ * every document response even when the violated directive and the product
+ * behavior are identical; retaining the directive while replacing that token
+ * prevents a random response secret from becoming a synthetic error delta.
+ */
+export function normalizeVolatileDiagnosticSignal(value) {
+  return String(value).replace(
+    /nonce-(?!\.\.\.)([A-Za-z0-9+/_=-]+)/gu,
+    "nonce-<dynamic>"
+  );
+}

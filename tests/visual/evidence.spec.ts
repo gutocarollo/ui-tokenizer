@@ -2,6 +2,7 @@ import {
   expect,
   test,
   type BrowserContext,
+  type Locator,
   type Page,
   type Response,
 } from "@playwright/test";
@@ -17,6 +18,7 @@ import {
 import {
   filterDevToolingConsoleErrors,
   isFrameworkDiagnosticRequest,
+  normalizeVolatileDiagnosticSignal,
 } from "../../scripts/lib/request-policy.mjs";
 import { installReadOnlyNetworkFixture } from "./network-fixtures.mjs";
 import { THEME_STATES } from "./theme-map.config";
@@ -42,8 +44,10 @@ type VisualScenario = {
   witness: { type: string; value: string } | null;
   assertReady: ScenarioStep | null;
   captureRegion: string | null;
-  stabilityHideSelectors?: string[];
+  stabilityMaskSelectors?: string[];
   stabilityRationale?: string;
+  freezeClock?: boolean;
+  fixedTime?: boolean;
   expectedVisualEffect: "preserve" | "change" | "mixed";
   expectedRenderedErrorSelector: string | null;
   semanticReadTransports: Array<{
@@ -108,7 +112,9 @@ function stableUrl(url: string) {
 }
 
 function stableSignals(values: string[]) {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+  return [...new Set(values.map(normalizeVolatileDiagnosticSignal))].sort(
+    (left, right) => left.localeCompare(right)
+  );
 }
 
 function matchesSemanticReadTransport(
@@ -266,13 +272,20 @@ async function applyTheme(
   );
 }
 
-async function waitForDomAndAssets(page: Page) {
+async function waitForDomAndAssets(page: Page, frozenClock = false) {
   await page
     .waitForLoadState("networkidle", { timeout: 10_000 })
     .catch(() => {});
   await page.evaluate(
     () => (document as Document & { fonts?: FontFaceSet }).fonts?.ready
   );
+  if (frozenClock) {
+    // The route policy intentionally paused window timers. Quiet-window and
+    // image timeout promises below use those same timers and would therefore
+    // deadlock the harness. The controller-side wait remains real-time.
+    await page.waitForTimeout(600);
+    return;
+  }
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {
@@ -331,31 +344,56 @@ async function waitForDomAndAssets(page: Page) {
   });
 }
 
-const DEV_TOOLING_STYLE = `
-  [data-react-scan="true"], #react-scan-root, nextjs-portal {
-    display: none !important;
-    visibility: hidden !important;
+const DEV_TOOLING_SELECTORS = [
+  '[data-react-scan="true"]',
+  "#react-scan-root",
+  "nextjs-portal",
+];
+
+async function suppressDevTooling(page: Page) {
+  await page.evaluate((selectors) => {
+    for (const selector of selectors) {
+      for (const element of document.querySelectorAll(selector)) element.remove();
+    }
+  }, DEV_TOOLING_SELECTORS);
+}
+
+async function evidenceMasks(
+  page: Page,
+  stabilityMaskSelectors: string[]
+): Promise<Locator[]> {
+  for (const selector of stabilityMaskSelectors) {
+    const count = await page.locator(selector).count();
+    if (count === 0) {
+      throw new Error(
+        `ui-evidence: declared stability mask matched no element: ${selector}`
+      );
+    }
   }
-`;
+  return [...stabilityMaskSelectors, ...MASK_SELECTORS].map((selector) =>
+    page.locator(selector)
+  );
+}
 
 async function waitForVisualStability(
   page: Page,
-  stabilityHideSelectors: string[] = []
-) {
-  const routeStyle = stabilityHideSelectors.length
-    ? `${stabilityHideSelectors.join(", ")} { display: none !important; visibility: hidden !important; }`
-    : "";
-  await page.addStyleTag({ content: `${DEV_TOOLING_STYLE}\n${routeStyle}` });
+  stabilityMaskSelectors: string[] = []
+): Promise<Locator[]> {
+  const masks = await evidenceMasks(page, stabilityMaskSelectors);
   let prior: string | null = null;
+  let identicalStreak = 0;
   for (let attempt = 0; attempt < 12; attempt += 1) {
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(750);
+    await suppressDevTooling(page);
     const bytes = await page.screenshot({
       animations: "disabled",
       caret: "hide",
       fullPage: true,
+      ...(masks.length ? { mask: masks, maskColor: "#6b7280" } : {}),
     });
     const digest = createHash("sha256").update(bytes).digest("hex");
-    if (digest === prior) return;
+    identicalStreak = digest === prior ? identicalStreak + 1 : 0;
+    if (identicalStreak >= 2) return masks;
     prior = digest;
   }
   throw new Error(
@@ -364,7 +402,6 @@ async function waitForVisualStability(
 }
 
 async function runAxe(page: Page) {
-  await page.addScriptTag({ content: axe.source });
   return page.evaluate(async () => {
     const axeApi = (
       window as Window & {
@@ -470,7 +507,15 @@ for (const scenario of selection.scenarios) {
             }
           });
 
+          await page.addInitScript({ content: axe.source });
           await authenticate(context, scenario.authRole);
+          const fixedTime = new Date("2026-01-15T12:00:00.000Z");
+          if (scenario.freezeClock) {
+            await page.clock.install({ time: fixedTime });
+            await page.clock.pauseAt(fixedTime);
+          } else if (scenario.fixedTime) {
+            await page.clock.setFixedTime(fixedTime);
+          }
           const installedNetworkResponses = await installReadOnlyNetworkFixture(
             context,
             scenario.networkFixtureId
@@ -560,13 +605,13 @@ for (const scenario of selection.scenarios) {
           }
 
           await applyTheme(page, theme, locale, writingMode);
-          await waitForDomAndAssets(page);
+          await waitForDomAndAssets(page, scenario.freezeClock === true);
           await applyTheme(page, theme, locale, writingMode);
           if (scenario.assertReady)
             await applyAssertion(page, scenario.assertReady);
-          await waitForVisualStability(
+          const stabilityMasks = await waitForVisualStability(
             page,
-            scenario.stabilityHideSelectors ?? []
+            scenario.stabilityMaskSelectors ?? []
           );
 
           expect(
@@ -578,19 +623,28 @@ for (const scenario of selection.scenarios) {
             `${scenario.scenarioId}: a read-only evidence scenario issued mutating requests`
           ).toEqual([]);
 
+          if (scenario.freezeClock) await page.clock.resume();
           const axeViolationIds = await runAxe(page);
+          if (scenario.freezeClock) {
+            const currentBrowserTime = await page.evaluate(() => Date.now());
+            await page.clock.pauseAt(new Date(currentBrowserTime));
+            expect(
+              normalizedPathname(page.url()),
+              `${scenario.scenarioId}: accessibility audit resumed a redirect timer`
+            ).toBe(wantedPath);
+          }
           const overflow = await detectHorizontalOverflow(page);
+          await suppressDevTooling(page);
           const stem = captureStem(matrixId);
           const pngPath = path.join(outputDirectory, `${stem}.png`);
           const screenshotOptions = {
             path: pngPath,
             animations: "disabled" as const,
             caret: "hide" as const,
-            ...(MASK_SELECTORS.length
+            ...(stabilityMasks.length
               ? {
-                  mask: MASK_SELECTORS.map((selector) =>
-                    page.locator(selector)
-                  ),
+                  mask: stabilityMasks,
+                  maskColor: "#6b7280",
                 }
               : {}),
           };
