@@ -42,6 +42,7 @@ export default defineConfig({
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
+        "--disable-gpu-compositing",
         "--disable-partial-raster",
         "--disable-skia-runtime-opts",
         "--disable-lcd-text",

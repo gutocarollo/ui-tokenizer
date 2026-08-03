@@ -200,10 +200,12 @@ export function applyRouteEvidencePolicy(registry, policy = null) {
     throw new Error("evidence-route-policy.json must declare schemaVersion=1.0.0 and routes");
   }
   const knownRoutes = new Set(registry.contexts.map((context) => context.path));
-  for (const [route, declaration] of Object.entries(policy.routes)) {
-    if (!knownRoutes.has(route)) {
-      throw new Error(`Evidence route policy names an unknown route: ${route}`);
-    }
+  const knownAuthRoles = new Set(
+    [...registry.contexts, ...registry.scenarios]
+      .map((entry) => entry.authRole)
+      .filter(Boolean)
+  );
+  const validateDeclaration = (label, declaration) => {
     const selectors = declaration?.stabilityMaskSelectors;
     if (
       !Array.isArray(selectors) ||
@@ -213,18 +215,72 @@ export function applyRouteEvidencePolicy(registry, policy = null) {
       !declaration.rationale.trim()
     ) {
       throw new Error(
-        `Evidence route policy for ${route} requires non-empty stabilityMaskSelectors and rationale`
+        `Evidence route policy for ${label} requires non-empty stabilityMaskSelectors and rationale`
       );
     }
     if (declaration.freezeClock === true && declaration.fixedTime === true) {
       throw new Error(
-        `Evidence route policy for ${route} cannot freezeClock and fixedTime together`
+        `Evidence route policy for ${label} cannot freezeClock and fixedTime together`
+      );
+    }
+  };
+  for (const [route, declaration] of Object.entries(policy.routes)) {
+    if (!knownRoutes.has(route)) {
+      throw new Error(`Evidence route policy names an unknown route: ${route}`);
+    }
+    validateDeclaration(route, declaration);
+  }
+  if (policy.authRoles !== undefined && (policy.authRoles === null || typeof policy.authRoles !== "object")) {
+    throw new Error("evidence-route-policy.json authRoles must be an object when declared");
+  }
+  for (const [authRole, declaration] of Object.entries(policy.authRoles ?? {})) {
+    if (!knownAuthRoles.has(authRole)) {
+      throw new Error(`Evidence route policy names an unknown auth role: ${authRole}`);
+    }
+    validateDeclaration(`auth role ${authRole}`, declaration);
+    if (
+      declaration.excludedRoutes !== undefined &&
+      (!Array.isArray(declaration.excludedRoutes) ||
+        declaration.excludedRoutes.some(
+          (route) => typeof route !== "string" || !knownRoutes.has(route)
+        ))
+    ) {
+      throw new Error(
+        `Evidence route policy for auth role ${authRole} excludedRoutes must name only known routes`
       );
     }
   }
-  const policyFor = (route) => policy.routes[route] ?? null;
+  const policyFor = (route, authRole) => {
+    const routeDeclaration = policy.routes[route] ?? null;
+    const roleCandidate = policy.authRoles?.[authRole] ?? null;
+    const roleDeclaration = roleCandidate?.excludedRoutes?.includes(route)
+      ? null
+      : roleCandidate;
+    if (!roleDeclaration && !routeDeclaration) return null;
+    const merged = {
+      stabilityMaskSelectors: [
+        ...new Set([
+          ...(roleDeclaration?.stabilityMaskSelectors ?? []),
+          ...(routeDeclaration?.stabilityMaskSelectors ?? []),
+        ]),
+      ],
+      rationale: [roleDeclaration?.rationale, routeDeclaration?.rationale]
+        .filter(Boolean)
+        .join("; "),
+      freezeClock:
+        roleDeclaration?.freezeClock === true || routeDeclaration?.freezeClock === true,
+      fixedTime:
+        roleDeclaration?.fixedTime === true || routeDeclaration?.fixedTime === true,
+    };
+    if (merged.freezeClock && merged.fixedTime) {
+      throw new Error(
+        `Evidence route policy for ${route} cannot freezeClock and fixedTime together after auth-role composition`
+      );
+    }
+    return merged;
+  };
   const contexts = registry.contexts.map((context) => {
-    const declaration = policyFor(context.path);
+    const declaration = policyFor(context.path, context.authRole);
     return declaration
       ? {
           ...context,
@@ -236,7 +292,7 @@ export function applyRouteEvidencePolicy(registry, policy = null) {
       : context;
   });
   const scenarios = registry.scenarios.map((scenario) => {
-    const declaration = policyFor(scenario.route);
+    const declaration = policyFor(scenario.route, scenario.authRole);
     return declaration
       ? {
           ...scenario,

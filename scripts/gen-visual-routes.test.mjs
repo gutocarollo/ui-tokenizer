@@ -88,6 +88,64 @@ test("route evidence policy masks only declared dynamic regions and is fingerpri
   assert.notEqual(result.scenarioRegistryFingerprint, base.scenarioRegistryFingerprint);
 });
 
+test("route evidence policy composes authenticated-shell defaults with route masks", () => {
+  const base = neutralizeExternalRegistry(registry(), {
+    UI_EVIDENCE_DEFAULT_AUTH_ROLE: "authenticated",
+    UI_EVIDENCE_ANONYMOUS_ROUTES: "/auth/signin",
+  });
+  const result = applyRouteEvidencePolicy(base, {
+    schemaVersion: "1.0.0",
+    authRoles: {
+      authenticated: {
+        stabilityMaskSelectors: ["[data-theme-control]"],
+        rationale: "shared translucent shell control",
+      },
+    },
+    routes: {
+      "/private": {
+        stabilityMaskSelectors: ["iframe"],
+        rationale: "externally mutable dashboard",
+        fixedTime: true,
+      },
+    },
+  });
+
+  assert.deepEqual(result.contexts[0].stabilityMaskSelectors, [
+    "[data-theme-control]",
+    "iframe",
+  ]);
+  assert.match(
+    result.contexts[0].stabilityRationale,
+    /shared translucent shell control.*externally mutable dashboard/
+  );
+  assert.equal(result.scenarios[0].fixedTime, true);
+  assert.equal(result.contexts[1].stabilityMaskSelectors, undefined);
+  assert.notEqual(result.fixtureRegistryFingerprint, base.fixtureRegistryFingerprint);
+  assert.notEqual(result.scenarioRegistryFingerprint, base.scenarioRegistryFingerprint);
+
+  const isolated = applyRouteEvidencePolicy(base, {
+    schemaVersion: "1.0.0",
+    authRoles: {
+      authenticated: {
+        stabilityMaskSelectors: ["[data-theme-control]"],
+        rationale: "shared translucent shell control",
+        excludedRoutes: ["/private"],
+      },
+    },
+    routes: {
+      "/private": {
+        stabilityMaskSelectors: ["svg"],
+        rationale: "isolated modal surface has no authenticated shell",
+      },
+    },
+  });
+  assert.deepEqual(isolated.contexts[0].stabilityMaskSelectors, ["svg"]);
+  assert.equal(
+    isolated.contexts[0].stabilityRationale,
+    "isolated modal surface has no authenticated shell"
+  );
+});
+
 test("route evidence policy fails closed for unknown routes or missing rationale", () => {
   const base = neutralizeExternalRegistry(registry(), {});
   assert.throws(
@@ -130,5 +188,34 @@ test("route evidence policy fails closed for unknown routes or missing rationale
         },
       }),
     /cannot freezeClock and fixedTime together/
+  );
+  assert.throws(
+    () =>
+      applyRouteEvidencePolicy(base, {
+        schemaVersion: "1.0.0",
+        authRoles: {
+          authenticated: {
+            stabilityMaskSelectors: ["[data-theme-control]"],
+            rationale: "role absent from the registry",
+          },
+        },
+        routes: {},
+      }),
+    /unknown auth role/
+  );
+  assert.throws(
+    () =>
+      applyRouteEvidencePolicy(base, {
+        schemaVersion: "1.0.0",
+        authRoles: {
+          anonymous: {
+            stabilityMaskSelectors: ["canvas"],
+            rationale: "invalid exclusion",
+            excludedRoutes: ["/ghost"],
+          },
+        },
+        routes: {},
+      }),
+    /excludedRoutes must name only known routes/
   );
 });
