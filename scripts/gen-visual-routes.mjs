@@ -202,6 +202,7 @@ export async function generateVisualRoutes({
   inspectLocalData = true,
   check = false,
 }) {
+  const externalTarget = path.resolve(frontendRoot) !== PROCESS_ROOT;
   const discovery = discoverRoutes({ frontendRoot });
   if (discovery.declarationErrors.length) {
     throw new Error(
@@ -213,13 +214,15 @@ export async function generateVisualRoutes({
   const fixtureDiscovery = await discoverReadOnlyFixtures({
     repoRoot,
     environment,
-    inspectLocalData,
+    // O registro externo é neutralizado abaixo e não pode depender de Prisma,
+    // DB ou fixtures do processo. Sondar essas fontes mesmo assim só injeta
+    // diagnósticos voláteis em arquivo versionado e suja o alvo após a captura.
+    inspectLocalData: externalTarget ? false : inspectLocalData,
   });
   const materializedRegistry = materializeVisualRegistry({
     routes: discovery.routes,
     environment: fixtureDiscovery.environment,
   });
-  const externalTarget = path.resolve(frontendRoot) !== PROCESS_ROOT;
   const registry = externalTarget
     ? neutralizeExternalRegistry(materializedRegistry, environment)
     : materializedRegistry;
