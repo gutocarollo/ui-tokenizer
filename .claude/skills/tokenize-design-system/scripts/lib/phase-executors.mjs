@@ -651,25 +651,41 @@ export function execute(phase, context = {}, options = {}) {
   return { phase, kind: entry.kind, executed: true, ok: true, steps: resultados };
 }
 
-/** Quais dos tipos declarados NÃO aparecem em artefato nenhum do run root. */
-function artefatosAusentes(tipos, context) {
-  if (!tipos.length || !context?.runRoot) return [];
-  const dir = `${context.runRoot}/artifacts`;
+/**
+ * Varre o run root e devolve `Map<artifactType, paths[]>` para os tipos
+ * pedidos — a MESMA varredura por CONTEÚDO que o check de `emits` usa, agora
+ * exportada porque o sweep precisa localizar os artefatos que cada transição
+ * exige. Dois scanners divergindo sobre "o que existe no run root" seria a
+ * família de defeito nº 1 desta empreitada; por isso um só, aqui.
+ */
+export function artefatosPorTipo(tipos, runRoot) {
+  const achados = new Map(tipos.map((tipo) => [tipo, []]));
+  if (!tipos.length || !runRoot) return achados;
+  const dir = `${runRoot}/artifacts`;
   let arquivos = [];
-  try { arquivos = readdirSync(dir); } catch { return [...tipos]; }
-  const vistos = new Set();
+  try { arquivos = readdirSync(dir); } catch { return achados; }
   for (const nome of arquivos) {
     if (!/\.(json|ndjson)$/.test(nome)) continue;
     let texto = "";
     try { texto = readFileSync(`${dir}/${nome}`, "utf8"); } catch { continue; }
+    const caminho = `${dir}/${nome}`;
     for (const linha of texto.split("\n")) {
       const corte = linha.indexOf('"artifactType"');
       if (corte < 0) continue;
       const m = /"artifactType"\s*:\s*"([^"]+)"/.exec(linha.slice(corte));
-      if (m) vistos.add(m[1]);
+      if (!m || !achados.has(m[1])) continue;
+      const lista = achados.get(m[1]);
+      if (!lista.includes(caminho)) lista.push(caminho);
     }
   }
-  return tipos.filter((tipo) => !vistos.has(tipo));
+  return achados;
+}
+
+/** Quais dos tipos declarados NÃO aparecem em artefato nenhum do run root. */
+function artefatosAusentes(tipos, context) {
+  if (!tipos.length || !context?.runRoot) return [];
+  const achados = artefatosPorTipo(tipos, context.runRoot);
+  return tipos.filter((tipo) => achados.get(tipo).length === 0);
 }
 
 function rodarPasso(passo) {
