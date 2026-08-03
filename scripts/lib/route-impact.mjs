@@ -52,6 +52,17 @@ function walkFiles(directory) {
   return output;
 }
 
+function existingSourceRoots(frontendRoot, configured = []) {
+  const candidates = configured.length
+    ? configured
+    : ["src", "app", "pages", "components"];
+  return uniqueSorted(
+    candidates
+      .map((entry) => normalizeAbsolute(path.resolve(frontendRoot, entry)))
+      .filter((entry) => existsSync(entry) && statSync(entry).isDirectory())
+  );
+}
+
 function scriptKindFor(file) {
   if (file.endsWith(".tsx")) return ts.ScriptKind.TSX;
   if (file.endsWith(".ts")) return ts.ScriptKind.TS;
@@ -320,12 +331,149 @@ function routeArrayFromSource(sourceFile) {
   return routeArray;
 }
 
+function nextSegment(segment) {
+  if (/^\(.+\)$/.test(segment) || segment.startsWith("@")) return null;
+  const optionalCatchAll = segment.match(/^\[\[\.\.\.([^\]]+)\]\]$/);
+  if (optionalCatchAll) return `:${optionalCatchAll[1]}`;
+  const catchAll = segment.match(/^\[\.\.\.([^\]]+)\]$/);
+  if (catchAll) return `:${catchAll[1]}`;
+  const dynamic = segment.match(/^\[([^\]]+)\]$/);
+  if (dynamic) return `:${dynamic[1]}`;
+  return segment;
+}
+
+function mergeRoutes(rawRoutes) {
+  const merged = new Map();
+  for (const route of rawRoutes) {
+    const existing = merged.get(route.pathPattern);
+    if (!existing) {
+      merged.set(route.pathPattern, {
+        ...route,
+        definitions: [route.source],
+      });
+      continue;
+    }
+    existing.componentModules = uniqueSorted([
+      ...existing.componentModules,
+      ...route.componentModules,
+    ]);
+    existing.ownComponentModules = uniqueSorted([
+      ...existing.ownComponentModules,
+      ...route.ownComponentModules,
+    ]);
+    existing.guardNames = uniqueSorted([
+      ...existing.guardNames,
+      ...route.guardNames,
+    ]);
+    existing.unresolvedSpecs = uniqueSorted([
+      ...existing.unresolvedSpecs,
+      ...route.unresolvedSpecs,
+    ]);
+    existing.definitions.push(route.source);
+    if (route.ownComponentModules.length) {
+      existing.componentModule = route.componentModule;
+    }
+  }
+  return [...merged.values()].sort((a, b) =>
+    a.pathPattern.localeCompare(b.pathPattern)
+  );
+}
+
+/**
+ * Descobre páginas do Next App Router pela convenção oficial de filesystem.
+ * Só `page.*` é rota visual; `route.*` é handler HTTP e não entra em screenshot.
+ * Layouts ancestrais entram no conjunto de módulos porque uma mudança neles
+ * afeta todas as páginas descendentes. Route groups e slots paralelos não
+ * adicionam segmento à URL.
+ */
+export function discoverNextAppRoutes({ frontendRoot, appDir }) {
+  const root = normalizeAbsolute(frontendRoot);
+  const app = normalizeAbsolute(appDir);
+  const pagePattern = /(?:^|[\\/])page\.(?:[cm]?[jt]sx?)$/i;
+  const layoutPattern = /^(?:layout|template)\.(?:[cm]?[jt]sx?)$/i;
+  const pages = walkFiles(app).filter((file) => pagePattern.test(file));
+  if (!pages.length) {
+    throw new Error(`Next App Router has no page.* files under ${app}`);
+  }
+  const declarationErrors = [];
+  const rawRoutes = [];
+  for (const page of pages) {
+    const relativeDirectory = path.relative(app, path.dirname(page));
+    const originalSegments = relativeDirectory
+      ? relativeDirectory.split(path.sep)
+      : [];
+    const intercepting = originalSegments.filter((segment) =>
+      /^\(\.{1,4}\)/.test(segment)
+    );
+    if (intercepting.length) {
+      declarationErrors.push({
+        code: "unsupported-next-intercepting-route",
+        file: toPosix(path.relative(root, page)),
+        segments: intercepting,
+      });
+      continue;
+    }
+    const segments = originalSegments.map(nextSegment).filter(Boolean);
+    const pathPattern = normalizeRoutePath(segments.join("/"));
+    const params = routeParamNames(pathPattern);
+    const componentModules = [];
+    let cursor = app;
+    for (const segment of originalSegments) {
+      for (const entry of readdirSync(cursor, { withFileTypes: true })) {
+        if (entry.isFile() && layoutPattern.test(entry.name)) {
+          componentModules.push(normalizeAbsolute(path.join(cursor, entry.name)));
+        }
+      }
+      cursor = path.join(cursor, segment);
+    }
+    for (const entry of readdirSync(cursor, { withFileTypes: true })) {
+      if (entry.isFile() && layoutPattern.test(entry.name)) {
+        componentModules.push(normalizeAbsolute(path.join(cursor, entry.name)));
+      }
+    }
+    componentModules.push(normalizeAbsolute(page));
+    rawRoutes.push({
+      pathPattern,
+      declaredPath: toPosix(path.relative(app, page)),
+      routeKind: params.length ? "dynamic" : "static",
+      wildcard: false,
+      dynamic: params.length > 0,
+      parameterNames: params,
+      componentModule: normalizeAbsolute(page),
+      componentModules: uniqueSorted(componentModules),
+      ownComponentModules: [normalizeAbsolute(page)],
+      guardNames: [],
+      unresolvedSpecs: [],
+      source: {
+        file: toPosix(path.relative(root, page)),
+        line: 1,
+        column: 1,
+      },
+    });
+  }
+  return {
+    routerFile: app,
+    routerFiles: uniqueSorted(pages),
+    routerKind: "next-app-router",
+    routes: mergeRoutes(rawRoutes),
+    declarationErrors,
+  };
+}
+
 export function discoverRoutes({
   frontendRoot,
-  routerFile = path.join(frontendRoot, "src", "main.jsx"),
+  routerFile = null,
 }) {
   const root = normalizeAbsolute(frontendRoot);
-  const router = normalizeAbsolute(routerFile);
+  const explicitRouter = routerFile ? normalizeAbsolute(routerFile) : null;
+  const conventionalRouter = path.join(root, "src", "main.jsx");
+  const router = explicitRouter ?? conventionalRouter;
+  if (!explicitRouter && !existsSync(router)) {
+    const appDir = [path.join(root, "app"), path.join(root, "src", "app")].find(
+      (candidate) => existsSync(candidate) && statSync(candidate).isDirectory()
+    );
+    if (appDir) return discoverNextAppRoutes({ frontendRoot: root, appDir });
+  }
   if (!existsSync(router)) {
     throw new Error(`Router file does not exist: ${router}`);
   }
@@ -468,43 +616,11 @@ export function discoverRoutes({
 
   visitArray(routeArray, "", [], []);
 
-  const merged = new Map();
-  for (const route of rawRoutes) {
-    const existing = merged.get(route.pathPattern);
-    if (!existing) {
-      merged.set(route.pathPattern, {
-        ...route,
-        definitions: [route.source],
-      });
-      continue;
-    }
-    existing.componentModules = uniqueSorted([
-      ...existing.componentModules,
-      ...route.componentModules,
-    ]);
-    existing.ownComponentModules = uniqueSorted([
-      ...existing.ownComponentModules,
-      ...route.ownComponentModules,
-    ]);
-    existing.guardNames = uniqueSorted([
-      ...existing.guardNames,
-      ...route.guardNames,
-    ]);
-    existing.unresolvedSpecs = uniqueSorted([
-      ...existing.unresolvedSpecs,
-      ...route.unresolvedSpecs,
-    ]);
-    existing.definitions.push(route.source);
-    if (route.ownComponentModules.length) {
-      existing.componentModule = route.componentModule;
-    }
-  }
-
   return {
     routerFile: router,
-    routes: [...merged.values()].sort((a, b) =>
-      a.pathPattern.localeCompare(b.pathPattern)
-    ),
+    routerFiles: [router],
+    routerKind: "react-router",
+    routes: mergeRoutes(rawRoutes),
     declarationErrors,
   };
 }
@@ -717,11 +833,18 @@ export function classifyGlobalFanout(file, frontendRoot) {
   return uniqueSorted(reasons);
 }
 
-export function isRouteImpactCandidate(file, frontendRoot) {
+export function isRouteImpactCandidate(
+  file,
+  frontendRoot,
+  sourceRoots = []
+) {
   const absolute = normalizeAbsolute(file);
-  const relative = toPosix(path.relative(frontendRoot, absolute));
+  const roots = existingSourceRoots(frontendRoot, sourceRoots);
   return (
-    (relative.startsWith("src/") && DESIGN_FILE_PATTERN.test(absolute)) ||
+    (roots.some((root) => {
+      const relative = path.relative(root, absolute);
+      return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+    }) && DESIGN_FILE_PATTERN.test(absolute)) ||
     classifyGlobalFanout(absolute, frontendRoot).length > 0
   );
 }
@@ -750,18 +873,25 @@ function relativeRecordPath(frontendRoot, file) {
 export function analyzeRouteImpact({
   frontendRoot,
   changedFiles,
-  routerFile = path.join(frontendRoot, "src", "main.jsx"),
+  routerFile = null,
+  sourceRoots = [],
 }) {
   const root = normalizeAbsolute(frontendRoot);
-  const sourceRoot = path.join(root, "src");
+  const resolvedSourceRoots = existingSourceRoots(root, sourceRoots);
+  if (!resolvedSourceRoots.length) {
+    throw new Error(`No source root found under ${root}`);
+  }
   const routeDiscovery = discoverRoutes({
     frontendRoot: root,
     routerFile,
   });
-  const { graph, unresolvedImports } = buildImportGraph({
-    frontendRoot: root,
-    sourceRoot,
-  });
+  const graphs = resolvedSourceRoots.map((sourceRoot) =>
+    buildImportGraph({ frontendRoot: root, sourceRoot })
+  );
+  const graph = new Map(
+    graphs.flatMap(({ graph: one }) => [...one.entries()])
+  );
+  const unresolvedImports = graphs.flatMap((one) => one.unresolvedImports);
   const reverse = invertImportGraph(graph);
   const routes = routeDiscovery.routes;
   const allRoutePatterns = routes.map((route) => route.pathPattern);
@@ -782,6 +912,11 @@ export function analyzeRouteImpact({
       fanOutReasons: globalReasons,
       affectedRoutes: [],
     };
+    // A entrada desta análise é o conjunto `plannedFiles` do lote. Mesmo quando
+    // o arquivo não exige fan-out global, ele é um call site planejado; deixar o
+    // conjunto vazio fazia o produtor contrariar o schema (minItems: 1) e,
+    // semanticamente, apagava a causa primária do impacto.
+    fanOutReasons.add("planned-callsite");
 
     if (!exists) {
       deletedChangedFiles.push(relative);
@@ -794,7 +929,10 @@ export function analyzeRouteImpact({
       changed.push(entry);
       continue;
     }
-    if (globalReasons.length || input === routeDiscovery.routerFile) {
+    if (
+      globalReasons.length ||
+      (routeDiscovery.routerFiles ?? [routeDiscovery.routerFile]).includes(input)
+    ) {
       for (const route of allRoutePatterns) affected.add(route);
       for (const reason of globalReasons.length
         ? globalReasons
@@ -824,6 +962,9 @@ export function analyzeRouteImpact({
         (a, b) => a.hops - b.hops || a.pathPattern.localeCompare(b.pathPattern)
       )
       .map((item) => item.pathPattern);
+    if (routeHits.some(({ hops }) => hops > 0)) {
+      fanOutReasons.add("reverse-import");
+    }
 
     if (!entry.affectedRoutes.length) {
       entry.status = "uncovered";

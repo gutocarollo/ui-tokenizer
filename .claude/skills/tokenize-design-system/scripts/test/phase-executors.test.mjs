@@ -229,6 +229,18 @@ test("o reinventário NÃO escreve por cima do inventário inicial", () => {
   assert.match(saida("REINVENTORIED"), /reinventory/);
 });
 
+test("COMPLETE passa as duas raízes obrigatórias ao avaliador absoluto", () => {
+  const [passo] = resolveSteps("COMPLETE", CTX);
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--root") + 1],
+    CTX.applicationRoot
+  );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--run-root") + 1],
+    CTX.runRoot
+  );
+});
+
 test("fase que declara emitir artefato e não emite NÃO pode devolver ok", () => {
   /*
    * `emits` era comentário. Medido em 2026-08-02: CLASSIFIED devolveu `ok=true`

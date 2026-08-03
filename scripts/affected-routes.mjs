@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import path from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import { resolveAppRoot, resolveRepoRoot } from "./lib/app-roots.mjs";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,8 @@ import {
 } from "./lib/route-impact.mjs";
 import { discoverReadOnlyFixtures } from "./lib/read-only-fixtures.mjs";
 import { materializeVisualRegistry } from "../tests/visual/visual-registry.mjs";
+import { envelopeFrom } from "./lib/artifact-envelope.mjs";
+import { materializeContractScenarios } from "./lib/evidence-matrix.mjs";
 
 const FRONTEND_ROOT = resolveAppRoot(
   path.join(path.dirname(new URL(import.meta.url).pathname), "..")
@@ -45,19 +48,23 @@ export async function affectedRoutes({
   includeWorkingTree = true,
   environment = process.env,
   inspectLocalData = true,
+  sourceRoots = [],
 } = {}) {
   const changedFiles = changedFilesFromArgs({
     frontendRoot: FRONTEND_ROOT,
     files,
     since,
     includeWorkingTree,
-  }).filter((file) => isRouteImpactCandidate(file, FRONTEND_ROOT));
+  }).filter((file) =>
+    isRouteImpactCandidate(file, FRONTEND_ROOT, sourceRoots)
+  );
   const impact = analyzeRouteImpact({
     frontendRoot: FRONTEND_ROOT,
     changedFiles,
+    sourceRoots,
   });
   const fixtureDiscovery = await discoverReadOnlyFixtures({
-    repoRoot: path.resolve(FRONTEND_ROOT, ".."),
+    repoRoot: resolveRepoRoot(FRONTEND_ROOT),
     environment,
     inspectLocalData,
   });
@@ -78,7 +85,9 @@ export async function affectedRoutes({
     affectedRouteCount: impact.affectedRoutes.length,
     affectedRoutes: impact.affectedRoutes.map(serializableRoute),
     concreteRoutes: visual.routes,
+    contexts: visual.contexts,
     scenarioIds: visual.scenarios.map((scenario) => scenario.scenarioId),
+    scenarios: visual.scenarios,
     fixtureGaps,
     fanOutReasons: impact.fanOutReasons,
     gaps: impact.gaps,
@@ -91,16 +100,100 @@ export async function affectedRoutes({
   };
 }
 
+export function impactedContextArtifact({
+  result,
+  runConfigPath,
+  batchContractPath,
+  batchId,
+}) {
+  if (!runConfigPath || !batchContractPath || !batchId) {
+    throw new Error(
+      "emitir impacted-context exige --run-config, --batch-contract e --batch-id"
+    );
+  }
+  const env = envelopeFrom(path.resolve(runConfigPath), {
+    applicationRoot: FRONTEND_ROOT,
+  });
+  const runConfig = JSON.parse(readFileSync(path.resolve(runConfigPath), "utf8"));
+  const batchContract = JSON.parse(
+    readFileSync(path.resolve(batchContractPath), "utf8")
+  );
+  const scenarioArtifacts = materializeContractScenarios({
+    scenarios: result.scenarios,
+    matrix: runConfig.matrix,
+    batchContract,
+    header: env.header("scenario"),
+  });
+  const contextByPath = new Map(
+    (result.contexts ?? []).map((context) => [context.path, context])
+  );
+  const routes = (result.concreteRoutes ?? []).map(({ path: routePath }) => {
+    const context = contextByPath.get(routePath);
+    if (!context?.componentModule) {
+      throw new Error(`rota materializada sem componentModule: ${routePath}`);
+    }
+    return {
+      path: routePath,
+      componentModule: context.componentModule,
+      dynamic: context.routeKind === "dynamic",
+      fixtureId: context.fixtureId ?? null,
+    };
+  });
+  const plannedFiles = result.changedFiles.map(({ file }) => file);
+  const consumerFiles = [
+    ...new Set([
+      ...plannedFiles,
+      ...(result.contexts ?? []).flatMap((context) =>
+        (context.componentModules ?? []).filter(Boolean)
+      ),
+    ]),
+  ].sort();
+  const uncoveredConsumers = [
+    ...(result.gaps?.deletedChangedFiles ?? []),
+    ...(result.gaps?.unresolvedChangedFiles ?? []),
+    ...(result.gaps?.uncoveredChangedFiles ?? []),
+    ...(result.fixtureGaps ?? []).map(({ pattern }) => pattern),
+  ].sort();
+  return {
+    ...env.header("impacted-context"),
+    batchId,
+    plannedFiles,
+    consumerFiles,
+    routes,
+    scenarioIds: scenarioArtifacts.map(({ scenarioId }) => scenarioId),
+    fanOutReasons: result.fanOutReasons,
+    coverageComplete: result.coverageComplete,
+    uncoveredConsumers,
+  };
+}
+
 async function runCli() {
   const argv = process.argv.slice(2);
   const files = argumentValue(argv, "--files");
   const since = argumentValue(argv, "--since");
+  const runConfigPath = argumentValue(argv, "--run-config");
+  const runConfig = runConfigPath
+    ? JSON.parse(readFileSync(path.resolve(runConfigPath), "utf8"))
+    : null;
   const result = await affectedRoutes({
     files: files ? [files] : [],
     since,
     includeWorkingTree: !argv.includes("--committed-only"),
     inspectLocalData: !argv.includes("--environment-only"),
+    sourceRoots: runConfig?.sourceRoots ?? [],
   });
+  const emitPath = argumentValue(argv, "--emit-artifact");
+  if (emitPath) {
+    const artifact = impactedContextArtifact({
+      result,
+      runConfigPath,
+      batchContractPath: argumentValue(argv, "--batch-contract"),
+      batchId: argumentValue(argv, "--batch-id"),
+    });
+    const absolute = path.resolve(emitPath);
+    mkdirSync(path.dirname(absolute), { recursive: true });
+    writeFileSync(absolute, `${JSON.stringify(artifact, null, 2)}\n`);
+  }
   const routesArgument = result.concreteRoutes
     .map((route) => route.path)
     .join(",");

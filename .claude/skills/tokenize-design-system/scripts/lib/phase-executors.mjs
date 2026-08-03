@@ -310,9 +310,13 @@ export const PHASE_EXECUTORS = Object.freeze({
          * `fixtureGaps` dentro do artefato, então a cobertura incompleta é
          * declarada, não escondida.
          */
-        shell: "node scripts/affected-routes.mjs",
+        script: "../../../../scripts/affected-routes.mjs",
         args: (ctx) => {
-          exigir(ctx, ["runRoot", "batchId"], "affected-routes");
+          exigir(
+            ctx,
+            ["applicationRoot", "runRoot", "runConfigPath", "batchId"],
+            "affected-routes"
+          );
           const lote = JSON.parse(
             readFileSync(`${artefatos(ctx)}/batch-${ctx.batchId}.json`, "utf8")
           );
@@ -322,11 +326,37 @@ export const PHASE_EXECUTORS = Object.freeze({
               `batch ${ctx.batchId} sem plannedFiles — um lote que não declara o que vai tocar não tem impacto verificável`
             );
           }
-          return ["--files", planejados.join(","), "--json", "--allow-gaps"];
+          return [
+            "--root", ctx.applicationRoot,
+            "--files", planejados.join(","),
+            "--json",
+            "--allow-gaps",
+            "--run-config", ctx.runConfigPath,
+            "--batch-contract", `${artefatos(ctx)}/batch-${ctx.batchId}.json`,
+            "--batch-id", ctx.batchId,
+            "--emit-artifact", `${artefatos(ctx)}/impacted-${ctx.batchId}.json`,
+          ];
         },
         emits: "impacted-context",
       },
-      { shell: "node scripts/gen-visual-routes.mjs", args: () => ["--json"], emits: "scenario" },
+      {
+        script: "../../../../scripts/gen-visual-routes.mjs",
+        args: (ctx) => {
+          exigir(
+            ctx,
+            ["applicationRoot", "runRoot", "runConfigPath", "batchId"],
+            "gen-visual-routes"
+          );
+          return [
+            "--root", ctx.applicationRoot,
+            "--json",
+            "--run-config", ctx.runConfigPath,
+            "--batch-contract", `${artefatos(ctx)}/batch-${ctx.batchId}.json`,
+            "--emit-scenarios", `${artefatos(ctx)}/scenarios-${ctx.batchId}.ndjson`,
+          ];
+        },
+        emits: "scenario",
+      },
       {
         /*
          * UM PASSO, nao cinco. A primeira versao deste registro decompunha a
@@ -500,8 +530,10 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "evaluate-absolute-completion.mjs",
         args: (ctx) => {
-          exigir(ctx, ["runRoot"], "evaluate-absolute-completion");
-          return ["--out", `${artefatos(ctx)}/final-proof.json`,
+          exigir(ctx, ["applicationRoot", "runRoot"], "evaluate-absolute-completion");
+          return ["--root", ctx.applicationRoot,
+                  "--run-root", ctx.runRoot,
+                  "--out", `${artefatos(ctx)}/final-proof.json`,
                   "--gap-report", `${artefatos(ctx)}/final-gaps.json`];
         },
         emits: "final-proof",

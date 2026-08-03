@@ -135,6 +135,47 @@ test("discovers nested, merged, dynamic, and wildcard routes from the AST", () =
   }
 });
 
+test("discovers Next App Router pages, omits route groups, and binds ancestor layouts", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "route-impact-next-"));
+  try {
+    write(root, "tsconfig.json", JSON.stringify({ compilerOptions: { jsx: "preserve", paths: { "@/*": ["./*"] } } }));
+    write(root, "app/layout.tsx", `import "./globals.css"; export default function Layout({children}) { return children }`);
+    write(root, "app/globals.css", `:root { --color: red; }`);
+    write(root, "app/page.tsx", `export default function Page(){ return null }`);
+    write(root, "app/(pages)/layout.tsx", `export default function Pages({children}) { return children }`);
+    write(root, "app/(pages)/accounts/page.tsx", `import Card from "@/app/_components/Card"; export default function Page(){ return <Card/> }`);
+    write(root, "app/(pages)/super-r1/[lead_id]/page.tsx", `export default function Page(){ return null }`);
+    write(root, "app/_components/Card.tsx", `export default function Card(){ return null }`);
+
+    const discovery = discoverRoutes({ frontendRoot: root });
+    assert.equal(discovery.routerKind, "next-app-router");
+    assert.deepEqual(discovery.declarationErrors, []);
+    assert.deepEqual(
+      discovery.routes.map((route) => route.pathPattern),
+      ["/", "/accounts", "/super-r1/:lead_id"]
+    );
+    const accounts = discovery.routes.find(
+      (route) => route.pathPattern === "/accounts"
+    );
+    assert.ok(accounts.componentModules.some((file) => file.endsWith("app/layout.tsx")));
+    assert.ok(accounts.componentModules.some((file) => file.endsWith("(pages)/layout.tsx")));
+    assert.match(accounts.componentModule, /accounts\/page\.tsx$/);
+
+    const impact = analyzeRouteImpact({
+      frontendRoot: root,
+      sourceRoots: ["app"],
+      changedFiles: [path.join(root, "app/_components/Card.tsx")],
+    });
+    assert.equal(impact.coverageComplete, true);
+    assert.deepEqual(
+      impact.affectedRoutes.map((route) => route.pathPattern),
+      ["/accounts"]
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("reverse imports select exact consumers and shared layouts fan out", () => {
   const root = fixtureProject();
   try {
@@ -147,6 +188,8 @@ test("reverse imports select exact consumers and shared layouts fan out", () => 
       button.affectedRoutes.map((route) => route.pathPattern),
       ["/", "/login"]
     );
+    assert.ok(button.fanOutReasons.includes("planned-callsite"));
+    assert.ok(button.fanOutReasons.includes("reverse-import"));
 
     const app = analyzeRouteImpact({
       frontendRoot: root,

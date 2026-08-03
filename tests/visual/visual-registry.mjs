@@ -524,6 +524,23 @@ export function materializeVisualRegistry({
   contexts.sort(
     (a, b) => a.path.localeCompare(b.path) || a.name.localeCompare(b.name)
   );
+  // Nomes amigáveis não são identidade suficiente: `/` e `/home`, por
+  // exemplo, convergem legitimamente para `home`. Preservamos o primeiro nome
+  // estável e qualificamos só as colisões posteriores pelo path; scenarioIds
+  // nascem depois desta normalização e portanto nunca divergem do contexto.
+  const seenNames = new Map();
+  for (const context of contexts) {
+    const baseName = context.name;
+    const occurrence = (seenNames.get(baseName) ?? 0) + 1;
+    seenNames.set(baseName, occurrence);
+    if (occurrence > 1) {
+      const routeQualifier = context.path
+        .replace(/^\/+|\/+$/g, "")
+        .replace(/[^A-Za-z0-9]+/g, "_") || "root";
+      context.name = `${baseName}__route_${routeQualifier}`;
+      context.scenarioIds = [`${context.name}/default`];
+    }
+  }
   skipped.sort((a, b) => a.pattern.localeCompare(b.pattern));
   const duplicateNames = contexts
     .map((context) => context.name)

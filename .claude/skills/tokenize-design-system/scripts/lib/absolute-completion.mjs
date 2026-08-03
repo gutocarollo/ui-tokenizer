@@ -1003,7 +1003,10 @@ export function evaluateAbsoluteCompletion({
       comparison.verdict !== "pass" ||
       comparison.exactCoverage !== true ||
       comparison.missingPairCount !== 0 ||
-      comparison.pairs.some(({ policyVerdict }) => policyVerdict !== "pass")
+      comparison.pairs.some(
+        ({ deterministicPolicyVerdict }) =>
+          deterministicPolicyVerdict !== "pass"
+      )
   );
   const incompleteReviews = visualReviews.filter(
     (review) =>

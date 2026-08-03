@@ -154,6 +154,84 @@ export function matrixScenarioId({
   );
 }
 
+/**
+ * Projeta o registro visual na forma `scenario` do contrato durável.
+ *
+ * O ID é o mesmo que o capturador usa; manter esta projeção aqui evita que
+ * impacted-context, scenario e evidence-manifest inventem três matrizes.
+ */
+export function materializeContractScenarios({
+  scenarios,
+  matrix,
+  batchContract,
+  header,
+}) {
+  const themes = nonEmptyStrings(matrix?.themes, "matrix.themes");
+  const projects = nonEmptyStrings(matrix?.projects, "matrix.projects");
+  const locales = nonEmptyStrings(matrix?.locales, "matrix.locales");
+  const writingModes = nonEmptyStrings(
+    matrix?.writingModes,
+    "matrix.writingModes"
+  );
+  const browsers = nonEmptyStrings(matrix?.browsers, "matrix.browsers");
+  if (browsers.length !== 1) {
+    throw new VisualContractError(
+      "A matriz de captura atual não codifica browser no scenarioId; declarar mais de um browser seria evidência ambígua",
+      { browsers }
+    );
+  }
+  const changed = new Set(batchContract?.expectedChangedScenarioIds ?? []);
+  const unchanged = new Set(batchContract?.expectedUnchangedScenarioIds ?? []);
+  const effectFor = (baseId, matrixId) => {
+    if (batchContract?.expectedVisualEffect === "preserve") return "preserve";
+    if (batchContract?.expectedVisualEffect === "change") return "change";
+    if (changed.has(baseId) || changed.has(matrixId)) return "change";
+    if (unchanged.has(baseId) || unchanged.has(matrixId)) return "preserve";
+    throw new VisualContractError(
+      `Cenário ${matrixId} não foi particionado pelo contrato mixed`
+    );
+  };
+  const output = [];
+  for (const scenario of scenarios ?? []) {
+    for (const theme of themes) {
+      for (const project of projects) {
+        for (const locale of locales) {
+          for (const writingMode of writingModes) {
+            const scenarioId = matrixScenarioId({
+              scenarioId: scenario.scenarioId,
+              theme,
+              project,
+              locale,
+              writingMode,
+            });
+            output.push({
+              ...header,
+              artifactType: "scenario",
+              scenarioId,
+              route: scenario.route,
+              routeParams: scenario.routeParams ?? {},
+              fixtureId: scenario.fixtureId,
+              authRole: scenario.authRole,
+              theme,
+              project,
+              browser: browsers[0],
+              locale,
+              writingMode,
+              interactionState: scenario.interactionState,
+              preconditions: scenario.preconditions ?? [],
+              actions: scenario.actions ?? [],
+              assertions: scenario.assertions ?? [],
+              captureRegion: scenario.captureRegion ?? null,
+              expectedVisualEffect: effectFor(scenario.scenarioId, scenarioId),
+            });
+          }
+        }
+      }
+    }
+  }
+  return output.sort((a, b) => a.scenarioId.localeCompare(b.scenarioId));
+}
+
 export function captureStem(matrixId) {
   const readable = matrixId
     .replace(/[^a-zA-Z0-9._-]+/g, "_")

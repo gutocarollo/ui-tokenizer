@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   captureStem,
   fixtureRegistryBindingFingerprint,
+  materializeContractScenarios,
   matrixScenarioId,
   selectEvidenceMatrix,
 } from "./evidence-matrix.mjs";
@@ -19,6 +20,7 @@ const matrix = {
   projects: ["mobile-sm", "desktop"],
   locales: ["en-US"],
   writingModes: ["ltr"],
+  browsers: ["chromium"],
 };
 
 test("matrix selection expands every requested dimension exactly", () => {
@@ -56,6 +58,52 @@ test("matrix selection rejects unknown routes and dimensions", () => {
       }),
     /Unknown themes requested/
   );
+});
+
+test("scenario durável usa o MESMO ID da matriz de captura", () => {
+  const base = {
+    scenarioId: "login/default",
+    route: "/login",
+    routeParams: {},
+    fixtureId: "anonymous-static-v1",
+    authRole: "anonymous",
+    interactionState: "default",
+    preconditions: [],
+    actions: [{ type: "goto", target: null, value: "/login" }],
+    assertions: [{ type: "assert", target: "body", value: "attached" }],
+    captureRegion: null,
+  };
+  const artifacts = materializeContractScenarios({
+    scenarios: [base],
+    matrix: {
+      themes: ["light"],
+      projects: ["desktop"],
+      browsers: ["chromium"],
+      locales: ["en-US"],
+      writingModes: ["ltr"],
+    },
+    batchContract: { expectedVisualEffect: "preserve" },
+    header: {
+      schemaVersion: "1.0.0",
+      runId: "tokenize-test",
+      sourceFingerprint: "a".repeat(64),
+      toolchainFingerprint: "b".repeat(64),
+      generatedAt: "2026-08-03T00:00:00.000Z",
+    },
+  });
+  assert.equal(artifacts.length, 1);
+  assert.equal(
+    artifacts[0].scenarioId,
+    matrixScenarioId({
+      scenarioId: base.scenarioId,
+      theme: "light",
+      project: "desktop",
+      locale: "en-US",
+      writingMode: "ltr",
+    })
+  );
+  assert.equal(artifacts[0].browser, "chromium");
+  assert.equal(artifacts[0].expectedVisualEffect, "preserve");
 });
 
 test("matrix IDs and capture stems are stable and collision-resistant", () => {

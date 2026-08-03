@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 import { discoverRoutes } from "./lib/route-impact.mjs";
 import { discoverReadOnlyFixtures } from "./lib/read-only-fixtures.mjs";
 import { materializeVisualRegistry } from "../tests/visual/visual-registry.mjs";
+import { envelopeFrom } from "./lib/artifact-envelope.mjs";
+import { materializeContractScenarios } from "./lib/evidence-matrix.mjs";
 
 const FRONTEND_ROOT = resolveAppRoot(
   path.join(path.dirname(new URL(import.meta.url).pathname), "..")
@@ -59,7 +61,9 @@ function routeFingerprint(routes, frontendRoot) {
 }
 
 function outputFiles({ discovery, registry, fixtureDiscovery, frontendRoot }) {
-  const routerSource = readFileSync(discovery.routerFile, "utf8");
+  const routerSources = (discovery.routerFiles ?? [discovery.routerFile]).map(
+    (file) => [portableModule(file, frontendRoot), readFileSync(file, "utf8")]
+  );
   const registryFingerprint = routeFingerprint(discovery.routes, frontendRoot);
   const fixtureGapCount = registry.skipped.filter(
     (item) => item.reasonCode === "missing-read-only-fixture"
@@ -67,11 +71,9 @@ function outputFiles({ discovery, registry, fixtureDiscovery, frontendRoot }) {
   const contexts = {
     schemaVersion: registry.schemaVersion,
     readOnly: true,
-    routerFile: path
-      .relative(frontendRoot, discovery.routerFile)
-      .split(path.sep)
-      .join("/"),
-    routerSourceFingerprint: sha256(routerSource),
+    routerFile: portableModule(discovery.routerFile, frontendRoot),
+    routerKind: discovery.routerKind,
+    routerSourceFingerprint: sha256(JSON.stringify(routerSources)),
     routeRegistryFingerprint: registryFingerprint,
     fixtureRegistryFingerprint: registry.fixtureRegistryFingerprint,
     networkFixtureRegistryFingerprint:
@@ -112,7 +114,7 @@ function outputFiles({ discovery, registry, fixtureDiscovery, frontendRoot }) {
 
 export async function generateVisualRoutes({
   frontendRoot = FRONTEND_ROOT,
-  repoRoot = path.resolve(frontendRoot, ".."),
+  repoRoot = resolveRepoRoot(frontendRoot),
   outDir = path.join(frontendRoot, "tests", "visual"),
   environment = process.env,
   inspectLocalData = true,
@@ -183,6 +185,41 @@ export async function generateVisualRoutes({
   };
 }
 
+export function emitScenarioArtifacts({
+  registry,
+  runConfigPath,
+  batchContractPath,
+  outPath,
+}) {
+  if (!runConfigPath || !batchContractPath || !outPath) {
+    throw new Error(
+      "emitir scenario exige --run-config, --batch-contract e --emit-scenarios"
+    );
+  }
+  const absoluteConfig = path.resolve(runConfigPath);
+  const runConfig = JSON.parse(readFileSync(absoluteConfig, "utf8"));
+  const batchContract = JSON.parse(
+    readFileSync(path.resolve(batchContractPath), "utf8")
+  );
+  const env = envelopeFrom(absoluteConfig, { applicationRoot: FRONTEND_ROOT });
+  const artifacts = materializeContractScenarios({
+    scenarios: registry.scenarios,
+    matrix: runConfig.matrix,
+    batchContract,
+    header: env.header("scenario"),
+  });
+  if (!artifacts.length) {
+    throw new Error("registro visual não materializou nenhum scenario durável");
+  }
+  const absoluteOut = path.resolve(outPath);
+  mkdirSync(path.dirname(absoluteOut), { recursive: true });
+  writeFileSync(
+    absoluteOut,
+    `${artifacts.map((artifact) => JSON.stringify(artifact)).join("\n")}\n`
+  );
+  return artifacts;
+}
+
 async function runCli() {
   const argv = process.argv.slice(2);
   const outDirArgument = argumentValue(argv, "--out-dir");
@@ -193,6 +230,15 @@ async function runCli() {
     check: argv.includes("--check"),
     inspectLocalData: !argv.includes("--environment-only"),
   });
+  const emitPath = argumentValue(argv, "--emit-scenarios");
+  const emittedScenarios = emitPath
+    ? emitScenarioArtifacts({
+        registry: result.registry,
+        runConfigPath: argumentValue(argv, "--run-config"),
+        batchContractPath: argumentValue(argv, "--batch-contract"),
+        outPath: emitPath,
+      })
+    : [];
 
   if (argv.includes("--json")) {
     console.log(
@@ -204,6 +250,7 @@ async function runCli() {
           fixtureGaps: result.fixtureGaps,
           staleFiles: result.staleFiles,
           coverageComplete: result.coverageComplete,
+          emittedScenarios: emittedScenarios.length,
         },
         null,
         2
