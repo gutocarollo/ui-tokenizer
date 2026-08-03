@@ -34,7 +34,11 @@ import {
   contratoDoCssFonte, carregarCssBuildado,
 } from "../lib/tailwind-built-css.mjs";
 
-const ALVO = "/home/augusto/code/makers-ai-hub/frontend";
+// O alvo NUNCA e cravado aqui (D4, 2026-08-03: repo alvo-agnostico): vem da
+// env. Sem ela, os testes que exigem um app real dao skip declarado.
+const ALVO = process.env.TOKENIZE_TEST_ROOT
+  ? path.resolve(process.env.TOKENIZE_TEST_ROOT)
+  : "";
 
 /* ------------------------------------------------------ seletor do CSS --- */
 
@@ -125,8 +129,8 @@ test("o fallback ainda enxerga o seletor do CSS fonte — degrada, nao zera", as
 /* ------------------------------------------------ o alvo real, medido --- */
 
 test("alvo real: token DO APP conta, default do Tailwind NAO conta", async (t) => {
-  if (!existsSync(path.join(ALVO, "node_modules/@tailwindcss/node"))) {
-    return t.skip(`alvo ausente em ${ALVO}`);
+  if (!ALVO || !existsSync(path.join(ALVO, "node_modules/@tailwindcss/node"))) {
+    return t.skip(ALVO ? `alvo ausente em ${ALVO}` : "TOKENIZE_TEST_ROOT ausente — teste exige app real");
   }
   const b = await carregarCssBuildado(ALVO);
   /*
@@ -181,6 +185,7 @@ test("alvo real: token DO APP conta, default do Tailwind NAO conta", async (t) =
 });
 
 test("alvo real: o compilador reproduz o dist/index.css buildado", async (t) => {
+  if (!ALVO) return t.skip("TOKENIZE_TEST_ROOT ausente — teste exige app real");
   const dist = path.join(ALVO, "dist/index.css");
   if (!existsSync(dist)) return t.skip("dist/index.css ausente — rode o build do alvo");
   const { readFileSync } = await import("node:fs");

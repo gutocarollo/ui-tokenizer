@@ -9,12 +9,12 @@
 > registro da rodada 1, não como instrução.
 
 > Branch: `v2` do `gutocarollo/ui-tokenizer`, a partir de `1dcaf16`.
-> Nada é alterado no `makers-ai-hub`. O v1 continua rodando lá, intocado, para
+> Nada é alterado no `app-c`. O v1 continua rodando lá, intocado, para
 > comparação.
 
 ## 0. O fato que muda tudo, verificado nesta máquina
 
-`tailwindcss@4.3.3` — **já instalado** em `makers-ai-hub/frontend` — expõe:
+`tailwindcss@4.3.3` — **já instalado** em `<app-alvo>` — expõe:
 
 ```ts
 canonicalizeCandidates(candidates: string[], options?: CanonicalizeOptions): string[]
@@ -64,8 +64,8 @@ o subcaso subset.
 | artefato | commit | conteúdo |
 |---|---|---|
 `/home/augusto/code/ui-tokenizer-v2` (branch `v2`) | `1dcaf16` | 164 arquivos do v1 |
-`/home/augusto/code/fixtures/makershub-main` | `949ba9ae` tag `fixture-baseline` | **12.744** `className` em **701** arquivos |
-`/home/augusto/code/fixtures/makershub-pr193` | `4afa7899` tag `fixture-baseline` | **12.900** `className` em **720** arquivos |
+`/home/augusto/code/fixtures/app-a-main` | `949ba9ae` tag `fixture-baseline` | **12.744** `className` em **701** arquivos |
+`/home/augusto/code/fixtures/app-a-pr193` | `4afa7899` tag `fixture-baseline` | **12.900** `className` em **720** arquivos |
 
 PR-193 vs main: **1200 arquivos, +64.749 / −14.686**. É a tentativa humana de
 fazer exatamente o que este processo automatiza — logo é o **gabarito**, não só
@@ -209,7 +209,7 @@ repo LTR-only e `review-or-policy-required` num repo com RTL medido.
 ### F1 — Preflight e política (bloqueia tudo)
 
 1. Pinar `tailwindcss` **e** `@tailwindcss/node` em versão exata nos dois repos.
-   No `makers-ai-hub`, `@tailwindcss/node` é hoje **dependência só transitiva**
+   No `app-c`, `@tailwindcss/node` é hoje **dependência só transitiva**
    de `@tailwindcss/vite` — se o plugin trocar, o compilador desaparece e o
    normalizador degrada **em silêncio**.
 2. Medir RTL na cobaia: existe `dir=`, `documentElement.dir`, plugin RTL?
@@ -228,7 +228,7 @@ locale RTL (ar/he/fa) ........... ausente
 ```
 
 Os 6 hits de `dir` no código são variáveis locais de direção de animação
-(`const dir: 1 | -1`), não o atributo HTML. **Veredito: makershub é LTR-only,
+(`const dir: 1 | -1`), não o atributo HTML. **Veredito: app-a é LTR-only,
 single-locale.** Política derivada: `logicalToPhysical: true`,
 `policySource: "measured:no-rtl-mechanism"`.
 
@@ -303,7 +303,7 @@ report-only até revalidar; não como gate bloqueante.
 
 ### F8 — Prova visual na cobaia Next
 
-O contrato visual do v1 vale, mas o **impacto de rota** não: makershub é app
+O contrato visual do v1 vale, mas o **impacto de rota** não: app-a é app
 router. Precisa de um resolvedor `app/` → rota, coexistindo com o de
 `createBrowserRouter`. É a peça sem substituto de mercado (Nx e Turborepo fazem
 "affected *packages*", não "affected *routes*").

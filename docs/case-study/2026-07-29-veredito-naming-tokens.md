@@ -89,7 +89,7 @@ elemento.
 
 > **`/login` não aparece: 0 elementos com classe de token.** Confirmação por outra
 > via de um achado anterior — a `AuthScene` do login usa estilo inline com hex
-> cravado (herança do port do makershub) e **não consome token nenhum**. Era por
+> cravado (herança do port do app-a) e **não consome token nenhum**. Era por
 > isso que a captura por valor computado marcava 7 elementos ali: todos
 > coincidência. A tela está inteiramente fora do design system.
 

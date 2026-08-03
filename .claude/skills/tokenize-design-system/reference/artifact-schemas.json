@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:makers-ai-hub:tokenize-design-system:artifact-schemas:1.0.0",
+  "$id": "urn:tokenize-design-system:artifact-schemas:1.0.0",
   "title": "Tokenize design system artifact bundle",
   "description": "Closed schemas for every durable artifact exchanged by the end-to-end tokenization state machine.",
   "oneOf": [

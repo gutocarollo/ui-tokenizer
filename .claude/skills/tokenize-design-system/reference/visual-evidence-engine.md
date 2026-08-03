@@ -7,7 +7,7 @@ decisão, não um descuido. Este arquivo é o manifesto completo: **22 arquivos,
 
 > **Paths.** Neste repositório o motor mora em `scripts/`, `scripts/lib/`,
 > `tests/visual/`, `tools/hooks/` e na raiz. No alvo onde ele foi medido
-> (`makers-ai-hub`) esses mesmos arquivos moram sob `frontend/`. Versões
+> (`app-c`) esses mesmos arquivos moram sob `frontend/`. Versões
 > anteriores deste manifesto listavam os paths com prefixo `frontend/` e o hook
 > em `.harness/hooks/`; nenhum dos dois existe aqui.
 

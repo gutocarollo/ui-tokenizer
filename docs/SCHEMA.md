@@ -9,7 +9,7 @@ deste projeto), não como lista fechada.
 # SCHEMA.md — como a wiki/documentação do REPOSITÓRIO funciona
 
 > Padrão: **Karpathy LLM Wiki**, no nível do **repositório inteiro** — não só de uma categoria
-> especializada. Esta é a constituição da curadoria documental de makers-ai-hub.
+> especializada. Esta é a constituição da curadoria documental de app-c.
 
 ## 0. Objetivo estratégico (por que isto existe)
 

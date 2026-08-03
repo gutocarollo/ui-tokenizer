@@ -37,7 +37,7 @@ background-color · color · border-color · outline-color · box-shadow · fill
 Reproduz com:
 
 ```bash
-cd /home/augusto/code/makers-ai-hub/frontend
+cd <app-alvo>
 node -e 'import("/home/augusto/code/ui-tokenizer-v2/.claude/skills/tokenize-design-system/scripts/score-naming.mjs")
   .then(m => console.log(m.readVocabulary().properties))'
 # [ 'background-color','color','border-color','outline-color','box-shadow','fill','stroke' ]

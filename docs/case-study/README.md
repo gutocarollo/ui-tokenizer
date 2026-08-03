@@ -1,6 +1,6 @@
-# Case study — makers-ai-hub
+# Case study — app-c
 
-Medições **reais** feitas com este processo contra um fork do AnythingLLM em
+Medições **reais** feitas com este processo contra apps-alvo reais (anonimizados; ver seção no fim) em
 processo de rebrand. São fotografias datadas do estado daquele app, não norma:
 quando um doc daqui divergir de `docs/law/GRAMMAR.md`, **a lei ganha** e a
 medição é refeita.
@@ -26,3 +26,10 @@ o lint recusa, de propósito, que um diretório genérico cubra arquivos:
 
 - [`sources/classname-token-mining-v2.md`](sources/classname-token-mining-v2.md) — o minerador AST/JSX e o que ele extrai
 - [`sources/2026-07-26-classname-cluster-triagem.md`](sources/2026-07-26-classname-cluster-triagem.md) — triagem dos clusters minerados
+
+## Anonimização dos alvos (D4, 2026-08-03)
+
+O processo é alvo-agnóstico: nenhum app é nomeado neste repo. Os estudos
+referem-se aos apps por alias — `app-a`/`AppA`/`appA`, `app-b`/`AppB`,
+`app-c`/`AppC` (e `upstream-C` para o upstream do fork do app-c);
+`cliente-x` para o cliente. O mapa alias→app real vive FORA do repo.

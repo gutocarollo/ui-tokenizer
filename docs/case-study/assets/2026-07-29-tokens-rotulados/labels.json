@@ -2819,7 +2819,7 @@
   "path": "/settings/agents",
   "theme": "light",
   "tag": "a",
-  "texto": "MakersAI Agent Docs",
+  "texto": "AppC Agent Docs",
   "rect": {
    "x": 490,
    "y": 638,
@@ -3849,7 +3849,7 @@
   "path": "/settings/branding",
   "theme": "light",
   "tag": "p",
-  "texto": "White-label your MakersAI inst",
+  "texto": "White-label your AppC inst",
   "rect": {
    "x": 294,
    "y": 68,
@@ -6034,7 +6034,7 @@
   "path": "/settings/beta-features",
   "theme": "light",
   "tag": "a",
-  "texto": "docs.makersai.com",
+  "texto": "docs.app-c.com",
   "rect": {
    "x": 581,
    "y": 934,
@@ -7544,7 +7544,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "26augusto.carollo@fazcapital.c",
+  "texto": "26augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 172,
@@ -7589,7 +7589,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 172,
@@ -7649,7 +7649,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "25augusto.carollo@fazcapital.c",
+  "texto": "25augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 220,
@@ -7694,7 +7694,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 220,
@@ -7754,7 +7754,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "24augusto.carollo@fazcapital.c",
+  "texto": "24augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 260,
@@ -7799,7 +7799,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 260,
@@ -7859,7 +7859,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "23augusto.carollo@fazcapital.c",
+  "texto": "23augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 300,
@@ -7904,7 +7904,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 300,
@@ -7964,7 +7964,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "21augusto.carollo@fazcapital.c",
+  "texto": "21augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 340,
@@ -8009,7 +8009,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 340,
@@ -8069,7 +8069,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "20augusto.carollo@fazcapital.c",
+  "texto": "20augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 380,
@@ -8114,7 +8114,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 380,
@@ -8174,7 +8174,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "19augusto.carollo@fazcapital.c",
+  "texto": "19augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 420,
@@ -8219,7 +8219,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 420,
@@ -8279,7 +8279,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "18augusto.carollo@fazcapital.c",
+  "texto": "18augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 460,
@@ -8324,7 +8324,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 460,
@@ -8384,7 +8384,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "17augusto.carollo@fazcapital.c",
+  "texto": "17augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 508,
@@ -8429,7 +8429,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 508,
@@ -8489,7 +8489,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "16augusto.carollo@fazcapital.c",
+  "texto": "16augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 548,
@@ -8534,7 +8534,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 548,
@@ -8594,7 +8594,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "15augusto.carollo@fazcapital.c",
+  "texto": "15augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 588,
@@ -8639,7 +8639,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 588,
@@ -8699,7 +8699,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "14augusto.carollo@fazcapital.c",
+  "texto": "14augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 628,
@@ -8744,7 +8744,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 628,
@@ -8804,7 +8804,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "13augusto.carollo@fazcapital.c",
+  "texto": "13augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 668,
@@ -8849,7 +8849,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 668,
@@ -8909,7 +8909,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "12augusto.carollo@fazcapital.c",
+  "texto": "12augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 708,
@@ -8954,7 +8954,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 708,
@@ -9014,7 +9014,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "11augusto.carollo@fazcapital.c",
+  "texto": "11augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 748,
@@ -9059,7 +9059,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 748,
@@ -9119,7 +9119,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "10augusto.carollo@fazcapital.c",
+  "texto": "10augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 788,
@@ -9164,7 +9164,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 788,
@@ -9224,7 +9224,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "9augusto.carollo@fazcapital.co",
+  "texto": "9augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 828,
@@ -9269,7 +9269,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 828,
@@ -9329,7 +9329,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "8augusto.carollo@fazcapital.co",
+  "texto": "8augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 876,
@@ -9374,7 +9374,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 876,
@@ -9434,7 +9434,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "7augusto.carollo@fazcapital.co",
+  "texto": "7augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 916,
@@ -9479,7 +9479,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 916,
@@ -9539,7 +9539,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "tr",
-  "texto": "6augusto.carollo@fazcapital.co",
+  "texto": "6augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 964,
@@ -9584,7 +9584,7 @@
   "path": "/settings/workspace-chats",
   "theme": "light",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 964,
@@ -10069,7 +10069,7 @@
   "path": "/settings/transcription-preference",
   "theme": "light",
   "tag": "button",
-  "texto": "MakersAI Built-InRun a built-i",
+  "texto": "AppC Built-InRun a built-i",
   "rect": {
    "x": 294,
    "y": 176,
@@ -10094,7 +10094,7 @@
   "path": "/settings/transcription-preference",
   "theme": "light",
   "tag": "div",
-  "texto": "MakersAI Built-In",
+  "texto": "AppC Built-In",
   "rect": {
    "x": 364,
    "y": 188,
@@ -10649,7 +10649,7 @@
   "path": "/settings/mobile-connections",
   "theme": "light",
   "tag": "p",
-  "texto": "Go mobile. Stay local. MakersA",
+  "texto": "Go mobile. Stay local. AppA",
   "rect": {
    "x": 252,
    "y": 316,
@@ -10669,7 +10669,7 @@
   "path": "/settings/mobile-connections",
   "theme": "light",
   "tag": "p",
-  "texto": "MakersAI for mobile allows you",
+  "texto": "AppC for mobile allows you",
   "rect": {
    "x": 252,
    "y": 360,
@@ -16044,7 +16044,7 @@
   "path": "/settings/agents",
   "theme": "dark",
   "tag": "a",
-  "texto": "MakersAI Agent Docs",
+  "texto": "AppC Agent Docs",
   "rect": {
    "x": 490,
    "y": 638,
@@ -17074,7 +17074,7 @@
   "path": "/settings/branding",
   "theme": "dark",
   "tag": "p",
-  "texto": "White-label your MakersAI inst",
+  "texto": "White-label your AppC inst",
   "rect": {
    "x": 294,
    "y": 68,
@@ -19259,7 +19259,7 @@
   "path": "/settings/beta-features",
   "theme": "dark",
   "tag": "a",
-  "texto": "docs.makersai.com",
+  "texto": "docs.app-c.com",
   "rect": {
    "x": 581,
    "y": 934,
@@ -20769,7 +20769,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "26augusto.carollo@fazcapital.c",
+  "texto": "26augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 172,
@@ -20814,7 +20814,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 172,
@@ -20874,7 +20874,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "25augusto.carollo@fazcapital.c",
+  "texto": "25augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 220,
@@ -20919,7 +20919,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 220,
@@ -20979,7 +20979,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "24augusto.carollo@fazcapital.c",
+  "texto": "24augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 260,
@@ -21024,7 +21024,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 260,
@@ -21084,7 +21084,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "23augusto.carollo@fazcapital.c",
+  "texto": "23augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 300,
@@ -21129,7 +21129,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 300,
@@ -21189,7 +21189,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "21augusto.carollo@fazcapital.c",
+  "texto": "21augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 340,
@@ -21234,7 +21234,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 340,
@@ -21294,7 +21294,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "20augusto.carollo@fazcapital.c",
+  "texto": "20augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 380,
@@ -21339,7 +21339,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 380,
@@ -21399,7 +21399,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "19augusto.carollo@fazcapital.c",
+  "texto": "19augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 420,
@@ -21444,7 +21444,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 420,
@@ -21504,7 +21504,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "18augusto.carollo@fazcapital.c",
+  "texto": "18augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 460,
@@ -21549,7 +21549,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 460,
@@ -21609,7 +21609,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "17augusto.carollo@fazcapital.c",
+  "texto": "17augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 508,
@@ -21654,7 +21654,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 508,
@@ -21714,7 +21714,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "16augusto.carollo@fazcapital.c",
+  "texto": "16augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 548,
@@ -21759,7 +21759,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 548,
@@ -21819,7 +21819,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "15augusto.carollo@fazcapital.c",
+  "texto": "15augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 588,
@@ -21864,7 +21864,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 588,
@@ -21924,7 +21924,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "14augusto.carollo@fazcapital.c",
+  "texto": "14augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 628,
@@ -21969,7 +21969,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 628,
@@ -22029,7 +22029,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "13augusto.carollo@fazcapital.c",
+  "texto": "13augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 668,
@@ -22074,7 +22074,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 668,
@@ -22134,7 +22134,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "12augusto.carollo@fazcapital.c",
+  "texto": "12augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 708,
@@ -22179,7 +22179,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 708,
@@ -22239,7 +22239,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "11augusto.carollo@fazcapital.c",
+  "texto": "11augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 748,
@@ -22284,7 +22284,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 748,
@@ -22344,7 +22344,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "10augusto.carollo@fazcapital.c",
+  "texto": "10augusto.carollo@cliente-x.c",
   "rect": {
    "x": 294,
    "y": 788,
@@ -22389,7 +22389,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 788,
@@ -22449,7 +22449,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "9augusto.carollo@fazcapital.co",
+  "texto": "9augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 828,
@@ -22494,7 +22494,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 828,
@@ -22554,7 +22554,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "8augusto.carollo@fazcapital.co",
+  "texto": "8augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 876,
@@ -22599,7 +22599,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 876,
@@ -22659,7 +22659,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "7augusto.carollo@fazcapital.co",
+  "texto": "7augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 916,
@@ -22704,7 +22704,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 916,
@@ -22764,7 +22764,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "tr",
-  "texto": "6augusto.carollo@fazcapital.co",
+  "texto": "6augusto.carollo@cliente-x.co",
   "rect": {
    "x": 294,
    "y": 964,
@@ -22809,7 +22809,7 @@
   "path": "/settings/workspace-chats",
   "theme": "dark",
   "tag": "td",
-  "texto": "augusto.carollo@fazcapital.com",
+  "texto": "augusto.carollo@cliente-x.com",
   "rect": {
    "x": 358,
    "y": 964,
@@ -23294,7 +23294,7 @@
   "path": "/settings/transcription-preference",
   "theme": "dark",
   "tag": "button",
-  "texto": "MakersAI Built-InRun a built-i",
+  "texto": "AppC Built-InRun a built-i",
   "rect": {
    "x": 294,
    "y": 176,
@@ -23319,7 +23319,7 @@
   "path": "/settings/transcription-preference",
   "theme": "dark",
   "tag": "div",
-  "texto": "MakersAI Built-In",
+  "texto": "AppC Built-In",
   "rect": {
    "x": 364,
    "y": 188,
@@ -23874,7 +23874,7 @@
   "path": "/settings/mobile-connections",
   "theme": "dark",
   "tag": "p",
-  "texto": "Go mobile. Stay local. MakersA",
+  "texto": "Go mobile. Stay local. AppA",
   "rect": {
    "x": 252,
    "y": 316,
@@ -23894,7 +23894,7 @@
   "path": "/settings/mobile-connections",
   "theme": "dark",
   "tag": "p",
-  "texto": "MakersAI for mobile allows you",
+  "texto": "AppC for mobile allows you",
   "rect": {
    "x": 252,
    "y": 360,

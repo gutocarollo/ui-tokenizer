@@ -1,6 +1,6 @@
-# Triagem dos clusters de className — makers-ai-hub
+# Triagem dos clusters de className — app-c
 
-Gerado por `yarn classname:mine` → `.harness/lib/classname-miner-v2.mjs`, o miner que **o próprio orions-belt já shipava**. Não há cópia do script neste repo: a primeira versão desta triagem rodou sobre um porte manual do miner do learnhouse em `frontend/scripts/`, que era duplicata — o do harness é o mesmo minerador já generalizado (raiz, saída e tags interativas por flag; aliases lidos do `frontend/jsconfig.json` (no repo alvo) via TS Compiler API). O porte foi apagado e o único patch necessário virou genérico e ficou upstream no belt: `--ext` (ver `.harness/README-FORK.md` (no repo alvo)).
+Gerado por `yarn classname:mine` → `.harness/lib/classname-miner-v2.mjs`, o miner que **o próprio orions-belt já shipava**. Não há cópia do script neste repo: a primeira versão desta triagem rodou sobre um porte manual do miner do app-b em `frontend/scripts/`, que era duplicata — o do harness é o mesmo minerador já generalizado (raiz, saída e tags interativas por flag; aliases lidos do `frontend/jsconfig.json` (no repo alvo) via TS Compiler API). O porte foi apagado e o único patch necessário virou genérico e ficou upstream no belt: `--ext` (ver `.harness/README-FORK.md` (no repo alvo)).
 
 ## Números
 

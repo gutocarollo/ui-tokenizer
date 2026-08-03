@@ -89,7 +89,7 @@ two of them, and a path alone does not say which:
 
 - paths starting with `reference/` or `scripts/` are **this skill**;
 - paths starting with `.harness/lib/`, `frontend/scripts/`, `frontend/tokens/`,
-  or `frontend/tests/` are the **audited target application** (the Makers
+  or `frontend/tests/` are the **audited target application** (the target-app
   worktree listed in section 19), not this repository. In this repository the
   equivalents live under `tools/gates/`, `tools/hooks/`, `tools/mining/`, and
   `scripts/`.
@@ -102,7 +102,7 @@ two of them, and a path alone does not say which:
 | Non-colour token contracts | Existing DTCG scale, motion, system-token files and project guards | ADAPT | Define a schema-versioned property/type/scale contract per in-scope axis; do not force the colour grammar onto typography, motion, or dimensional tokens. |
 | Naming and use scoring | `score-naming.mjs`, `reference/oracle.md` | ADAPT | Add a parity test so prose, weights, and executable scoring cannot diverge. |
 | Owner inference and leftovers | `find-owner.mjs`, `cluster-leftovers.mjs` | ADAPT | Enrich with implicit role, landmark, state, and normalized style fingerprints. |
-| Relational co-occurrence analysis | LearnHouse class-mining NDJSON/Postgres schema | ADAPT | Keep NDJSON as the portable core; enable relational ingestion for large projects and pin one `activeRunId`. |
+| Relational co-occurrence analysis | AppB class-mining NDJSON/Postgres schema | ADAPT | Keep NDJSON as the portable core; enable relational ingestion for large projects and pin one `activeRunId`. |
 | DTCG source and project emitters | Project token JSON and build scripts | USE | Keep the working emitter. Do not replace it during migration merely to standardize tooling. |
 | Token build/check adapter | `validate-token-build.mjs` | USE | Require emitted-class assertions for every batch. |
 | Deterministic design guards | `ds-gate`, naming, cohesion, variety, dead-class, bundle, pair checks | ADAPT | Preserve ratchets, then add absolute completion predicates. |
@@ -1432,8 +1432,8 @@ These four are not forecasts. Each was observed by running the command shown.
   at runtime.
 - Reversibility: disable the resolver-specific projection without changing raw
   occurrences or compiler/computed evidence.
-- Local-pattern fit: respects LearnHouse `apps/web/lib/utils.ts`, where `cn`
-  actually executes `twMerge`, and Makers, where no runtime merge dependency is
+- Local-pattern fit: respects AppB `apps/web/lib/utils.ts`, where `cn`
+  actually executes `twMerge`, and app-a, where no runtime merge dependency is
   currently declared.
 
 ### D3 — Shared dataset versus separate scanners
@@ -1541,7 +1541,7 @@ These four are not forecasts. Each was observed by running the command shown.
   processed in memory.
 - Reversibility: discard and rebuild the relational projection from immutable
   NDJSON; no decision depends solely on database state.
-- Local-pattern fit: ports the LearnHouse class-mining NDJSON/Postgres schema
+- Local-pattern fit: ports the AppB class-mining NDJSON/Postgres schema
   while correcting its historical missing-`activeRunId` query risk.
 
 ### D10 — Majority auto-standardization versus human decision
@@ -1565,7 +1565,7 @@ These four are not forecasts. Each was observed by running the command shown.
 This contract was derived by comparing live code and generated evidence rather
 than treating historical reports as current truth.
 
-Makers sources inspected:
+Target-app sources inspected:
 
 ```text
 .harness/lib/classname-miner-v2.mjs
@@ -1589,12 +1589,12 @@ docs/plans/2026-07-28-design-system-abstraction-plan.md
 docs/plans/2026-07-28-legacy-token-migration-plan.md
 ```
 
-LearnHouse sources inspected as reusable references:
+AppB sources inspected as reusable references:
 
 ```text
 .agents/skills/classname-token-workflow/**
 .claude/skills/ui-evidence/SKILL.md
-LearnHouse historical design-system token plan indexed in its repository wiki
+AppB historical design-system token plan indexed in its repository wiki
 apps/web/tests/visual/**
 the class-mining NDJSON/Postgres schema and ingestion documentation
 ```
@@ -1620,7 +1620,7 @@ Historical counts are useful provenance but are never accepted as current run
 state without reproducing them from the current source fingerprint. Section 20
 now applies that rule to itself.
 
-## 20. Measured baseline from the current Makers audit
+## 20. Measured baseline from the current target-app audit
 
 A measurement is only usable with the command that produced it and the state it
 was produced from. **The numbers previously stored in this section no longer
@@ -1629,7 +1629,7 @@ reading) after they were taken, so the census moved. They are kept below only as
 the delta that proves the point.
 
 Every number here was re-measured on **2026-07-31**, with
-`--root /home/augusto/code/makers-ai-hub/frontend`, against target HEAD
+`--root <app-alvo>`, against target HEAD
 `01fab2a7` with **169 modified entries under `frontend/src`**. That worktree is
 dirty: no commit reproduces these values, and the next run will not either. Treat
 the commands as the durable part and the numbers as a dated sample.

@@ -30,7 +30,7 @@
   },
 
   "$provenance": {
-    "descends_from": "nextlevelbuilder/ui-ux-pro-max (MIT, 112k stars) via the v3.0.0 MakersHub template",
+    "descends_from": "nextlevelbuilder/ui-ux-pro-max (MIT, 112k stars) via the v3.0.0 AppA template",
     "verdict": "docs/law/2026-08-01-ui-ux-pro-max-o-que-serve.md — COMPLEMENTAR: it answers VALUE, we answer NAME",
     "adopted": [
       "the coverage spine: 24 sections as the matrix entity x variant x size x state",

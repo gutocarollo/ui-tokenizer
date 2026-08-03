@@ -114,7 +114,7 @@ def sh(args: list[str]) -> str:
     return subprocess.run(args, cwd=ROOT, capture_output=True, text=True).stdout
 
 ARCHIVE_PREFIXES = set(get_config_csv("REF_INTEGRITY_ARCHIVE_PREFIXES", ["docs/_arquivo/"]))
-ARCHIVE_CONTAINS = set(get_config_csv("IGNORED_TOOL_DIRS", [".understand-anything", ".anythingllm", ".trash-"]))
+ARCHIVE_CONTAINS = set(get_config_csv("IGNORED_TOOL_DIRS", [".understand-anything", ".trash-"]))
 
 
 def load_allowlist() -> set[str]:

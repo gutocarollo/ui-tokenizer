@@ -19,7 +19,7 @@ estrutural seja citado no `index.md` da categoria **e** no `log.md`. Logo cada
 execução do loop deixa um órfão e derruba o lint de lá:
 
 ```
-python3 .harness/lib/docs_wiki_lint.py     # no makers-ai-hub
+python3 .harness/lib/docs_wiki_lint.py     # no app-c
   docs-wiki-lint: FAIL
   - orphan (no mention in index/log): reports/2026-08-01-tokenizacao-rodada.md
 ```

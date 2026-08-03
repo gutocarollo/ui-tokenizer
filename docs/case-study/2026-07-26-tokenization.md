@@ -3,13 +3,13 @@
 > ⚠ **CORRIGIDO em 2026-07-31:** `content` foi banido pela lei (3ª palavra de
 > `FORBIDDEN`, junto de `surface`/`semantic`) — `--color-content-*` saiu do tier 2
 > e qualquer instrução abaixo que o use como destino está superada; é dívida a
-> migrar (mapa: relatório da rodada 2026-07-31 §4, repo makers).
+> migrar (mapa: relatório da rodada 2026-07-31 §4, repo do app-alvo).
 
 > **A wiki vence o source.** Se um componente contradiz esta página, o componente está errado.
 
 ## Fonte de verdade
 
-`makershub@4afa7899` (`origin/FBI-2708`, PR #193) — pinado em `frontend/tokens/SOURCE-PIN.json`.
+`app-a@4afa7899` (`origin/FBI-2708`, PR #193) — pinado em `frontend/tokens/SOURCE-PIN.json`.
 
 **A branch NÃO está mergeada na main** (`rev-list --left-right --count origin/main...origin/FBI-2708` = `0 77`; `ls-tree origin/main frontend/tokens/` = vazio). Toda extração usa `git show <commit>:<path>`, **nunca** o nome da branch — um rebase mudaria valores em silêncio.
 
@@ -67,7 +67,7 @@ O vetor (c) existe porque sem ele apontar a utility direto para a paleta deixari
 
 ## Reconciliação quando o PR #193 mergear (ou for rebasado)
 
-1. `git -C /home/augusto/code/makershub fetch origin`
+1. `git -C <app-alvo> fetch origin`
 2. `node frontend/tokens/parity-with-source.mjs` → lista as divergências contra o pin atual.
 3. Se o merge trouxe mudanças desejadas: atualizar `commit` em `SOURCE-PIN.json`, rodar `yarn tokens:build`, revisar o diff do artefato, capturar evidência e commitar.
 4. Divergência que se **quer** manter vira linha em `tokens/EXCEPTIONS.json` com motivo — nunca silêncio.

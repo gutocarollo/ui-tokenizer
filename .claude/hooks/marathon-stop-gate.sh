@@ -8,7 +8,7 @@
 # marathon-locate.sh. Antes disso o gate procurava SÓ em
 # "$CLAUDE_PROJECT_DIR/.claude/runs/ACTIVE" — e uma maratona que vive em outro
 # working directory era invisível, virando no-op silencioso. Medido: a maratona
-# graph-loop-fechar (em ui-tokenizer-v2, sessão ancorada em learnhouse) rodou
+# graph-loop-fechar (em ui-tokenizer-v2, sessão ancorada em OUTRO diretório-projeto) rodou
 # horas sem produzir UM .stop-strikes. Era esta a causa do "a maratona sempre
 # para".
 set -uo pipefail

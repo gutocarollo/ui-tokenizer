@@ -35,7 +35,7 @@ Control plane completo é exatamente o que existe hoje. Por esse critério,
 
 ## 2. O universo medido
 
-Alvo: `/home/augusto/code/makers-ai-hub/frontend`. Todos os números são de
+Alvo: `<app-alvo>`. Todos os números são de
 medição desta sessão, não estimativa.
 
 ### 2.1 Vetores de estilo — todos, não só `className`
@@ -175,7 +175,7 @@ denominador.
 > medida e a fila de decisão estão em
 > `docs/reports/rodada-grafo.md` **do repo-alvo**, §1.
 
-> **Por que não é link.** Um link relativo daqui para dentro do `makers-ai-hub`
+> **Por que não é link.** Um link relativo daqui para dentro do `app-c`
 > assume que os dois repos são irmãos no disco de quem lê — e quebra para
 > qualquer clone. É a mesma classe de acoplamento cross-repo que produziu o fork
 > da skill: caminho relativo entre repositórios é dependência não declarada.
@@ -229,7 +229,7 @@ USOS DE CLASSE               32826   <- o denominador
 > Reproduz o tamanho do erro sem confiar neste texto:
 >
 > ```bash
-> cd /home/augusto/code/makers-ai-hub/frontend
+> cd <app-alvo>
 > S=/home/augusto/code/ui-tokenizer-v2/.claude/skills/tokenize-design-system/scripts
 > node "$S/measure-coverage.mjs" --root . --json \
 >   | node -pe 'const j=JSON.parse(require("fs").readFileSync(0));
@@ -457,7 +457,7 @@ aplicado conta zero.
 > pares são medição — saíram dos clusters, das cores e dos call sites daquele
 > alvo, e não existem fora dele. Por isso vivem em
 > `<alvo>/docs/reports/validacao-pesos.md` (hoje:
-> `/home/augusto/code/makers-ai-hub/frontend/docs/reports/validacao-pesos.md`).
+> `<app-alvo>/docs/reports/validacao-pesos.md`).
 >
 > **O defeito que isso escondia:** esta seção declarava o gate mais consequente
 > do projeto — F-D0 bloqueia `APPLY` — e **não dizia onde agir**. Quem abrisse

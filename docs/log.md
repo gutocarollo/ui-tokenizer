@@ -37,7 +37,7 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
   planos recentes de todos os repos suspeitando de extravio. O caso que ele ja
   tinha apontado se confirmou e e o pior possivel: `validacao-pesos.md` — o
   questionario de 40 pares do **F-D0, que bloqueia o APPLY** — vive em
-  `makers-ai-hub/frontend/docs/reports/`. Os pesos que ele valida
+  `<app-alvo>/docs/reports/`. Os pesos que ele valida
   (`cor 40 · contrato 25 · componente 15 · owner 10 · funcao 10`) estao cravados
   em `converge-tokens.mjs` Linhas 199-210, deste repo. Decisao do dono, bloqueante,
   parada em repositorio alheio. Agora rastreada em
@@ -49,7 +49,7 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
   silencia a pasta inteira**.
 - **O gerador de relatorio quebra a wiki do alvo a cada run.**
   `tokenization-report.mjs` escreve em `ROOT/../docs/reports/` e nao indexa nada;
-  rodar o loop uma vez hoje bastou para deixar o lint do makers-ai-hub vermelho
+  rodar o loop uma vez hoje bastou para deixar o lint do app-c vermelho
   com um orfao. As rodadas de 07-30 e 07-31 so nao aparecem assim porque alguem
   as indexou a mao. A instancia de hoje foi indexada com ressalva; a causa esta em
   [`pending/relatorio-de-rodada-nasce-orfao-no-alvo.md`](pending/relatorio-de-rodada-nasce-orfao-no-alvo.md).
@@ -115,8 +115,8 @@ Formato: `## [YYYY-MM-DD] tipo · categoria`.
 ## [2026-08-01] cookbook · lei
 
 **O cookbook completo: 643 exemplos, 643 com nota 100.** 9 capítulos gerados por 10 agentes a
-partir de 598 situações medidas nos três produtos (learnhouse, makershub, makers-ai-hub) e da
-extração Figma do makershub (`DESIGN_TOKENS/10-buttons.json`, 27 variantes com node id). Cada
+partir de 598 situações medidas nos três produtos (app-b, app-a, app-c) e da
+extração Figma do app-a (`DESIGN_TOKENS/10-buttons.json`, 27 variantes com node id). Cada
 nome foi submetido ao oráculo antes de entrar; 85 linhas que não passaram estão na seção
 **Exceções** com o motivo escrito, e as lacunas de lei e decisões do dono ficam em blocos
 recolhíveis por capítulo.
@@ -170,13 +170,13 @@ mapeou a maioria para entidade existente e isolou 3 pedidos de entidade nova com
 ## [2026-07-31] medição · processo
 
 **Os números do alvo derivam, e derivaram hoje.** As entradas anteriores deste
-log e as tabelas do `README`/`ESTADO`/`como-funciona` medem o `makers-ai-hub`,
+log e as tabelas do `README`/`ESTADO`/`como-funciona` medem o `app-c`,
 que está **sendo migrado enquanto medimos** (18 arquivos modificados na árvore de
 trabalho do alvo em 2026-07-31). Nenhum número abaixo é retratação de erro: é
 deriva de alvo móvel, e a única defesa é o comando ao lado.
 
 Re-medido hoje, `node .claude/skills/tokenize-design-system/scripts/tokenize.mjs
---root /home/augusto/code/makers-ai-hub/frontend`:
+--root <app-alvo>`:
 
 | grandeza | valor no log anterior | medido 2026-07-31 |
 |---|---:|---:|
@@ -201,7 +201,7 @@ não os 68,9% da entrada de 2026-07-30. `4.886` usos (81,6% de B2) caem em
 famílias **sem slot em §4.3**.
 
 `npm test` neste repo: **125 testes, 118 pass, 4 fail, 3 skip**. Com
-`TOKENIZE_TEST_ROOT=/home/augusto/code/makers-ai-hub/frontend`: **125, 122 pass,
+`TOKENIZE_TEST_ROOT=<app-alvo>`: **125, 122 pass,
 2 fail, 1 skip**. As 2 falhas restantes são de ambiente — `utility-families` e
 `visual-contract` exigem um alvo com `sourceRoots`, e falham fechadas com
 *"No source root found under …"*. O número **45/45** que circulava no `README` e
@@ -310,7 +310,7 @@ Mesmo defeito do `p`/`px`.
 > Reproduz o split 71 = 53 + 18:
 >
 > ```bash
-> cd /home/augusto/code/makers-ai-hub/frontend
+> cd <app-alvo>
 > S=/home/augusto/code/ui-tokenizer-v2/.claude/skills/tokenize-design-system/scripts
 > node --input-type=module -e '
 > const S=process.env.S;
@@ -338,7 +338,7 @@ fusões, 41 contratos); em fixture que exercita as famílias novas, clusters
 cluster sem slot falha fechado antes de derivar nome.
 
 > **Deriva de alvo, mesma data.** Os números desta entrada que medem o
-> `makers-ai-hub` (504/211/41, 7.907 → 7.978, 5.683, 2.295/7.978, 75,5% → 68,9%)
+> `app-c` (504/211/41, 7.907 → 7.978, 5.683, 2.295/7.978, 75,5% → 68,9%)
 > **não reproduzem mais** — o alvo continuou sendo migrado depois desta medição.
 > Valores de hoje e comandos na entrada *medição · processo* do topo. A
 > conclusão da entrada (§4.3 não tem slot para 41 dos 53 prefixos; convergência

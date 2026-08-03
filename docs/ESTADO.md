@@ -5,7 +5,7 @@ Documento de situação. Separa **validado com evidência** de **assumido** e de
 marcado como tal.
 
 > **Aviso de alvo móvel.** Quase todo número deste documento mede o
-> `makers-ai-hub`, que está **sendo migrado enquanto medimos** (18 arquivos
+> `app-c`, que está **sendo migrado enquanto medimos** (18 arquivos
 > modificados na árvore de trabalho dele em 2026-07-31). Número de alvo só vale
 > com data e comando. A tabela de deriva está na entrada *medição · processo* de
 > [`log.md`](log.md).
@@ -19,7 +19,7 @@ publicar biblioteca: fazer com que cada cor e cada espaçamento da interface ten
 um contrato nomeado, e provar no pixel que a migração não regrediu.
 
 O pedido ancorado em `.harness/requests/CURRENT-TASK.md` do app de referência
-(caminho absoluto hoje: `/home/augusto/code/makers-ai-hub/.harness/requests/CURRENT-TASK.md`
+(caminho absoluto hoje: `<app-alvo>/.harness/requests/CURRENT-TASK.md`
 — na raiz do repo alvo, não em `frontend/`):
 
 > EXECUTE TUDO QUE FALTA ATÉ TERMOS SUCESSO INTEGRALMENTE. RODE EM LOOP E CORRIJA
@@ -66,8 +66,8 @@ Três repositórios, com papéis distintos:
 | repo | papel |
 |---|---|
 `ui-tokenizer` branch `v2` | onde o motor evolui. `1dcaf16` é o v1 congelado para comparação; desde 2026-07-31 `origin/main` avançou por fast-forward até `cabf1df` e a tag `v2.0.0` aponta para o mesmo commit |
-`makers-ai-hub` | app de referência, **onde o v1 já rodou**. Não é tocado pelo v2 |
-`fixtures/makershub-{main,pr193}` | cobaias congeladas. `pr193` é a tentativa **humana** do mesmo trabalho, logo é gabarito |
+`app-c` | app de referência, **onde o v1 já rodou**. Não é tocado pelo v2 |
+`fixtures/app-a-{main,pr193}` | cobaias congeladas. `pr193` é a tentativa **humana** do mesmo trabalho, logo é gabarito |
 
 ---
 
@@ -78,7 +78,7 @@ resta no app de referência não é só tokenizar, é **renomear**: as ocorrênc
 violam a lei de naming.
 
 Uma corrida completa **medida em 2026-07-31** —
-`node .claude/skills/tokenize-design-system/scripts/tokenize.mjs --root /home/augusto/code/makers-ai-hub/frontend`:
+`node .claude/skills/tokenize-design-system/scripts/tokenize.mjs --root <app-alvo>`:
 
 | grandeza | valor |
 |---|---:|
@@ -263,7 +263,7 @@ um registro contra seu contrato não prova que ele está ligado; a pergunta que
 faltava era **quem chama**.
 
 ⚠️ **A suíte, medida em 2026-07-31.** `npm test` neste repo: **125 testes, 118
-pass, 4 fail, 3 skip**. Com `TOKENIZE_TEST_ROOT=/home/augusto/code/makers-ai-hub/frontend`:
+pass, 4 fail, 3 skip**. Com `TOKENIZE_TEST_ROOT=<app-alvo>`:
 **125, 122 pass, 2 fail, 1 skip**. As 2 falhas remanescentes são de ambiente e
 falham **fechadas**, com a mensagem certa — `utility-families` e
 `visual-contract` exigem um alvo com `sourceRoots` e dizem *"No source root found

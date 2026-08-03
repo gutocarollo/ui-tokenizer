@@ -6,7 +6,7 @@
 
 ## O fato
 
-`makers-ai-hub` carrega **47 arquivos rastreados** da skill, e seus `npm scripts`
+`app-c` carrega **47 arquivos rastreados** da skill, e seus `npm scripts`
 executam essa cópia — inclusive `tokens:workflow:prove`, que é o **gate de
 conclusão**. Provar conclusão com código divergente prova outra coisa.
 

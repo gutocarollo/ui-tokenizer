@@ -119,13 +119,13 @@ texto puro, zero classe Tailwind, zero componente filho. O risco composicional
 nesta cobaia é **vazio**.
 
 **Correção factual:** a rodada 1 desta rev disse "a cobaia usa `vertical-rl` em 2
-arquivos". Medido: **`makershub-main` tem 1** (`OpportunitiesKanban.tsx:2039`);
+arquivos". Medido: **`app-a-main` tem 1** (`OpportunitiesKanban.tsx:2039`);
 `CandidatesKanban.tsx` **não existe na main** — só no `pr193`. A cobaia que o v2
 reescreve é a **main**.
 
 **E o que isso implica para o v1 já aplicado:** as 7 edições físico→lógico feitas
-à mão no `makers-ai-hub` foram justificadas por "app é LTR-only" — **fato
-errado**. Re-medido: `makers-ai-hub` tem **zero** `writing-mode` em `src/`. A
+à mão no `app-c` foram justificadas por "app é LTR-only" — **fato
+errado**. Re-medido: `app-c` tem **zero** `writing-mode` em `src/`. A
 conclusão sobrevive, a justificativa não. Registrado porque justificativa errada
 que dá resultado certo é a mais perigosa: ela reaparece num repo onde o resultado
 seria errado.
@@ -135,8 +135,8 @@ seria errado.
 | artefato | estado |
 |---|---|
 `ui-tokenizer-v2` branch `v2` | **10 imports pendurados corrigidos** — ver §1.1 |
-`fixtures/makershub-main` | `949ba9ae`, tag `fixture-baseline`, **congelada** |
-`fixtures/makershub-pr193` | `4afa7899`, tag `fixture-baseline`, **congelada** |
+`fixtures/app-a-main` | `949ba9ae`, tag `fixture-baseline`, **congelada** |
+`fixtures/app-a-pr193` | `4afa7899`, tag `fixture-baseline`, **congelada** |
 
 Toolchain da cobaia, lida do lockfile: `tailwindcss@4.3.1` +
 `@tailwindcss/node@4.3.0`, gerenciador **npm** (`package-lock.json`).
@@ -345,7 +345,7 @@ censo contar pares não-adjacentes e `top-0 bottom-0` separadamente.
 
 ### F0 — Spike de runabilidade (NOVO, bloqueia F9)
 
-A prova visual pressupõe o makershub **rodando**. A cobaia tem `backend/` Python
+A prova visual pressupõe o app-a **rodando**. A cobaia tem `backend/` Python
 e `docker-compose`. Se ela não renderiza sem backend semeado, o contrato visual
 desmorona na última fase.
 

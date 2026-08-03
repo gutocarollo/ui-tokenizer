@@ -102,7 +102,7 @@ const captureSchema = {
 };
 
 export const evidenceManifestSchema = {
-  $id: "https://makers-ai-hub.local/schemas/evidence-manifest-v2.json",
+  $id: "https://ui-tokenizer.local/schemas/evidence-manifest-v2.json",
   type: "object",
   additionalProperties: false,
   required: [
@@ -194,7 +194,7 @@ export const evidenceManifestSchema = {
 };
 
 const visualReviewOutputSchema = {
-  $id: "https://makers-ai-hub.local/schemas/visual-review-v2.json",
+  $id: "https://ui-tokenizer.local/schemas/visual-review-v2.json",
   type: "object",
   additionalProperties: false,
   required: [

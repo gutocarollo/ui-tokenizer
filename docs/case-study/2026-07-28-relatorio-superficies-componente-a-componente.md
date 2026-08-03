@@ -106,7 +106,7 @@ certo:
 
 | marca na imagem | classes reais do elemento | o que era |
 |---|---|---|
-| `<span>` "MakersAI" | **nenhuma** | texto branco da cena portada, com hex cravado inline |
+| `<span>` "AppC" | **nenhuma** | texto branco da cena portada, com hex cravado inline |
 | `<button>` "Sign in with Microsoft" | `cursor-pointer` | idem — nenhuma classe de cor |
 | `<html>` / `<body>` | nenhuma / `light` | fundo do tema, invisível sob a cena escura |
 
@@ -157,7 +157,7 @@ erro/sucesso/aviso das tints. Não foi feito. O consumo com proveniência está 
 | posição na imagem | elemento | token(s) | propriedade |
 |---|---|---|---|
 | x0 y0 · 1440×900 | `<html>` "import { injectIntoGlobalHook } from "/@" | `canvas` | background |
-| x428 y345 · 583×210 | `<span>` "MakersAI" | `raised` | texto |
+| x428 y345 · 583×210 | `<span>` "AppC" | `raised` | texto |
 | x606 y570 · 228×32 | `<button>` "Sign in with Microsoft" · `cursor-pointer` | **colisão:** `sunken` + `selected-foreground` + `inset-inverse` + `deep` | texto |
 
 </details>
@@ -167,7 +167,7 @@ erro/sucesso/aviso das tints. Não foi feito. O consumo com proveniência está 
 | posição na imagem | elemento | token(s) | propriedade |
 |---|---|---|---|
 | x0 y0 · 1440×900 | `<html>` "import { injectIntoGlobalHook } from "/@" | `canvas` | background |
-| x428 y345 · 583×210 | `<span>` "MakersAI" | `inset-inverse` | texto |
+| x428 y345 · 583×210 | `<span>` "AppC" | `inset-inverse` | texto |
 | x606 y570 · 228×32 | `<button>` "Sign in with Microsoft" · `cursor-pointer` | **colisão:** `panel/elevated` + `selected-foreground` | background |
 
 </details>
@@ -683,7 +683,7 @@ erro/sucesso/aviso das tints. Não foi feito. O consumo com proveniência está 
 | x0 y0 · 1440×900 | `<html>` "import { injectIntoGlobalHook } from "/@" | `canvas` | background |
 | x270 y16 · 1154×868 | `<main>` "Transcription Model PreferenceThese are " · `relative md:ml-s2 md:mr-content md:my-content md:rounded-ove` | `panel/elevated` | background |
 | x0 y72 · 252×820 | `<nav>` "SettingsAI ProvidersLLMVector DatabaseEm" · `transition-all duration-slow relative mr-content my-content ` | `canvas` | background |
-| x294 y176 · 640×64 | `<button>` "MakersAI Built-InRun a built-in whisper " · `w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rou` | **colisão:** `sunken` + `selected-foreground` + `inset-inverse` + `deep` | background |
+| x294 y176 · 640×64 | `<button>` "AppC Built-InRun a built-in whisper " · `w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rou` | **colisão:** `sunken` + `selected-foreground` + `inset-inverse` + `deep` | background |
 | x8 y308 · 235×32 | `<div>` "Transcription" · `nav-row w-full justify-between nav-row-child nav-row-selecte` | `selected` | background |
 | x294 y416 · 240×39 | `<select>` "Xenova/whisper-smallXenova/whisper-large" · `border-none bg-theme-settings-input-bg text-content-primary ` | **colisão:** `sunken` + `selected-foreground` + `inset-inverse` + `deep` | background |
 
@@ -696,7 +696,7 @@ erro/sucesso/aviso das tints. Não foi feito. O consumo com proveniência está 
 | x0 y0 · 1440×900 | `<html>` "import { injectIntoGlobalHook } from "/@" | `canvas` | background |
 | x270 y16 · 1154×868 | `<main>` "Transcription Model PreferenceThese are " · `relative md:ml-s2 md:mr-content md:my-content md:rounded-ove` | **colisão:** `panel/elevated` + `selected-foreground` | background |
 | x0 y72 · 252×820 | `<nav>` "SettingsAI ProvidersLLMVector DatabaseEm" · `transition-all duration-slow relative mr-content my-content ` | `canvas` | background |
-| x294 y176 · 640×64 | `<button>` "MakersAI Built-InRun a built-in whisper " · `w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rou` | `sunken` | background |
+| x294 y176 · 640×64 | `<button>` "AppC Built-InRun a built-in whisper " · `w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rou` | `sunken` | background |
 | x8 y308 · 235×32 | `<div>` "Transcription" · `nav-row w-full justify-between nav-row-child nav-row-selecte` | `selected` | background |
 | x294 y416 · 240×39 | `<select>` "Xenova/whisper-smallXenova/whisper-large" · `border-none bg-theme-settings-input-bg text-content-primary ` | `sunken` | background |
 | x0 y839 · 251×41 | `<div>` "ABAugusto" · `relative px-s8 pt-s8 border-t border-sidebar-divider` | `selected` | borda |
@@ -726,10 +726,10 @@ erro/sucesso/aviso das tints. Não foi feito. O consumo com proveniência está 
 | x0 y72 · 252×820 | `<nav>` "SettingsAI ProvidersLLMVector DatabaseEm" · `transition-all duration-slow relative mr-content my-content ` | `canvas` | background |
 | x1194 y132 · 182×34 | `<button>` "Register New Device" · `border-none text-xs px-4 py-1 font-semibold rounded-lg bg-pr` | `raised` | texto |
 | x1210 y141 · 150×16 | `<div>` "Register New Device" · `flex items-center justify-center gap-2` | `raised` | texto |
-| x252 y216 · 468×28 | `<p>` "Go mobile. Stay local. MakersAI Mobile." · `text-static-white text-xl font-bold` | `raised` | texto |
-| x252 y260 · 468×168 | `<p>` "MakersAI for mobile allows you to connec" · `text-static-white text-lg` | `raised` | texto |
-| x8 y508 · 235×32 | `<div>` "MakersAI Mobile" · `nav-row w-full justify-between nav-row-child nav-row-selecte` | `selected` | background |
-| x804 y532 · 300×80 | `<p>` "Scan the QR code with the MakersAI Mobil" · `text-static-white text-sm w-[300px] text-center` | `raised` | texto |
+| x252 y216 · 468×28 | `<p>` "Go mobile. Stay local. AppC Mobile." · `text-static-white text-xl font-bold` | `raised` | texto |
+| x252 y260 · 468×168 | `<p>` "AppC for mobile allows you to connec" · `text-static-white text-lg` | `raised` | texto |
+| x8 y508 · 235×32 | `<div>` "AppC Mobile" · `nav-row w-full justify-between nav-row-child nav-row-selecte` | `selected` | background |
+| x804 y532 · 300×80 | `<p>` "Scan the QR code with the AppC Mobil" · `text-static-white text-sm w-[300px] text-center` | `raised` | texto |
 | x914 y593 · 81×17 | `<a>` "Learn more" · `text-cta-button font-semibold` | `raised` | texto |
 
 </details>
@@ -743,10 +743,10 @@ erro/sucesso/aviso das tints. Não foi feito. O consumo com proveniência está 
 | x0 y72 · 252×820 | `<nav>` "SettingsAI ProvidersLLMVector DatabaseEm" · `transition-all duration-slow relative mr-content my-content ` | `canvas` | background |
 | x1194 y132 · 182×34 | `<button>` "Register New Device" · `border-none text-xs px-4 py-1 font-semibold rounded-lg bg-pr` | `inset-inverse` | texto |
 | x1210 y141 · 150×16 | `<div>` "Register New Device" · `flex items-center justify-center gap-2` | `inset-inverse` | texto |
-| x252 y216 · 468×28 | `<p>` "Go mobile. Stay local. MakersAI Mobile." · `text-static-white text-xl font-bold` | `inset-inverse` | texto |
-| x252 y260 · 468×168 | `<p>` "MakersAI for mobile allows you to connec" · `text-static-white text-lg` | `inset-inverse` | texto |
-| x8 y508 · 235×32 | `<div>` "MakersAI Mobile" · `nav-row w-full justify-between nav-row-child nav-row-selecte` | `selected` | background |
-| x804 y532 · 300×80 | `<p>` "Scan the QR code with the MakersAI Mobil" · `text-static-white text-sm w-[300px] text-center` | `inset-inverse` | texto |
+| x252 y216 · 468×28 | `<p>` "Go mobile. Stay local. AppC Mobile." · `text-static-white text-xl font-bold` | `inset-inverse` | texto |
+| x252 y260 · 468×168 | `<p>` "AppC for mobile allows you to connec" · `text-static-white text-lg` | `inset-inverse` | texto |
+| x8 y508 · 235×32 | `<div>` "AppC Mobile" · `nav-row w-full justify-between nav-row-child nav-row-selecte` | `selected` | background |
+| x804 y532 · 300×80 | `<p>` "Scan the QR code with the AppC Mobil" · `text-static-white text-sm w-[300px] text-center` | `inset-inverse` | texto |
 | x914 y593 · 81×17 | `<a>` "Learn more" · `text-cta-button font-semibold` | `inset-inverse` | texto |
 | x0 y839 · 251×41 | `<div>` "ABAugusto" · `relative px-s8 pt-s8 border-t border-sidebar-divider` | `selected` | borda |
 
@@ -996,7 +996,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** 
 - **função:** Pintava o degrade de fundo do cartao de 400px que embrulhava usuario/senha na tela de login (apesar do nome, nunca foi o input e sim o card).
 
-**História.** Veio inteira do upstream AnythingLLM: commit 708068a0 "AnythingLLM UI overhaul (#278)" (2023-10-23) escreveu `linear-gradient(180deg, rgba(61,65,71,.3) 0%, rgba(44,47,53,.3) 100%)` com hex cru. O upstream reescreveu a tela em 11f6419c (2024-04-25) e removeu a classe dos dois divs do card, deixando a regra orfa por ~2 anos. Em 2026-07-26 o nosso ratchet anti-hardcode (372f827f, "zera o ratchet de hardcode (943 -> 0)") tokenizou a regra MORTA escolhendo token por proximidade de hex, nao por papel: rgba(44,47,53)=#2C2F35 virou `--color-surface-raised-rgb` (#282C32 no dark) e rgba(61,65,71)=#3D4147 virou `--color-border-strong-rgb` (#48515E) — nenhum dos dois pares e igual. Se surface.raised mudar de valor, nada quebra: o seletor nunca casa.
+**História.** Veio inteira do upstream do fork: commit 708068a0 "upstream-C UI overhaul (#278)" (2023-10-23) escreveu `linear-gradient(180deg, rgba(61,65,71,.3) 0%, rgba(44,47,53,.3) 100%)` com hex cru. O upstream reescreveu a tela em 11f6419c (2024-04-25) e removeu a classe dos dois divs do card, deixando a regra orfa por ~2 anos. Em 2026-07-26 o nosso ratchet anti-hardcode (372f827f, "zera o ratchet de hardcode (943 -> 0)") tokenizou a regra MORTA escolhendo token por proximidade de hex, nao por papel: rgba(44,47,53)=#2C2F35 virou `--color-surface-raised-rgb` (#282C32 no dark) e rgba(61,65,71)=#3D4147 virou `--color-border-strong-rgb` (#48515E) — nenhum dos dois pares e igual. Se surface.raised mudar de valor, nada quebra: o seletor nunca casa.
 
 **Papel real:** *Nenhum papel vivo — e lastro. O papel historico era 'stop inferior de degrade de cartao de autenticacao sobre fundo escuro', que nao tem relacao com 'menus, popovers, flutuantes' (a descricao do token em frontend/tokens/VOCABULARY.md:17).*
 
@@ -1033,7 +1033,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **token:** `surface.emphasis` · **propriedade:** background
 - **container:** Entrada de `theme.extend.colors` (bloco das cores hex-fixas herdadas do fork, linhas 39-62, logo depois do spread da ponte `...dsTokens.colors` na linha 38). Nao tem container de DOM: gera as utilities `bg-/text-/border-historical-msg-system`, e nenhum arquivo do repo usa qualquer uma delas (grep repo-wide por `historical-msg` retorna so as linhas 43-44 do config e uma linha de relatorio historico em .claude/reports/antes-depois/ANTES-list.txt:470).
 - **páginas:** 
-- **função:** Gerava a utility que, no AnythingLLM original, pintava o fundo da bolha de mensagem do assistente no historico do chat.
+- **função:** Gerava a utility que, no upstream original, pintava o fundo da bolha de mensagem do assistente no historico do chat.
 
 **História.** Alias legado do fork, originalmente com hex cru — o irmao `historical-msg-user` aparece como "#21252b" no relatorio de antes (.claude/reports/antes-depois/ANTES-list.txt:470). O upstream apagou os consumidores na reformulacao v2 do chat (21ac874c, o mesmo commit do fade acima: `git log -S "bg-historical-msg-system"` para nele). O alias sobreviveu e, na Fase 8 de tokens, foi religado a `var(--color-surface-emphasis)` junto com os outros aliases do bloco. Trocar surface.emphasis nao muda um pixel por este caminho.
 
@@ -1132,37 +1132,37 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 
 - **1 — Campo de formulário de Settings: contagem "389 usos downstream" / "389 linhas de JSX mudam" e "~130 componentes"**
   - erro: Número inventado. Nenhuma forma de contar produz 389. O real é 467 linhas / 470 ocorrências de `bg-theme-settings-input-bg` em src/, em 158 arquivos (não ~130). Os subconjuntos plausíveis também não batem: o padrão literal citado `rounded-lg block w-full p-2.5` dá 108 e `block w-full p-2.5` dá 360. O blast radius que a história vende está subestimado em ~17%.
-  - evidência: `grep -ro "bg-theme-settings-input-bg" /home/augusto/code/makers-ai-hub/frontend/src/ | wc -l => 470; grep -rn => 467 linhas; grep -rl => 158 arquivos; filtro "rounded-lg block w-full p-2.5" => 108`
+  - evidência: `grep -ro "bg-theme-settings-input-bg" <app-alvo>/src/ | wc -l => 470; grep -rn => 467 linhas; grep -rl => 158 arquivos; filtro "rounded-lg block w-full p-2.5" => 108`
 - **1 — rota `/settings/chat` na lista `paginas`**
   - erro: Rota FALSA. /settings/chat não renderiza um único `bg-theme-settings-input-bg`. A página monta apenas AutoSubmit, AutoSpeak, SpellCheck, ShowScrollbar e ChatRenderHTML, e nenhum dos cinco contém a string `settings-input`. O componente descrito não existe nessa rota.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/pages/GeneralSettings/Settings/Chat/index.jsx:31-35; grep -rln "settings-input" nos 5 diretórios de componentes => exit 1 (zero arquivos)`
+  - evidência: `<app-alvo>/src/pages/GeneralSettings/Settings/Chat/index.jsx:31-35; grep -rln "settings-input" nos 5 diretórios de componentes => exit 1 (zero arquivos)`
 - **1 — "surface.panel FCFCFB vs sunken F7F7F7 — já são só 1,02:1 de diferença"**
   - erro: Número de contraste errado. Com os hex corretos (que a história acerta), a razão WCAG é 1,04:1, não 1,02:1. L(FCFCFB)=0,9728 e L(F7F7F7)=0,9301 → (0,9728+0,05)/(0,9301+0,05)=1,0435. O valor é apresentado como medição precisa para sustentar o argumento de risco.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/styles/generated/color-tokens.css:372 (--color-surface-panel: #FCFCFB) e :374 (--color-surface-sunken: #F7F7F7)`
+  - evidência: `<app-alvo>/src/styles/generated/color-tokens.css:372 (--color-surface-panel: #FCFCFB) e :374 (--color-surface-sunken: #F7F7F7)`
 - **2 — Gatilho de combobox: citação `Admin/Agents/WebSearchSelection/index.jsx:230`**
   - erro: Linha errada e arquétipo trocado. A linha 230 NÃO é o botão-card 640×64; é o cabeçalho sticky de busca do painel ABERTO, isto é, o arquétipo 3 do próprio relatório — que cita a MESMA linha 230. O gatilho real (`w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg`) está na linha 269.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/pages/Admin/Agents/WebSearchSelection/index.jsx:230 (sticky header) vs :269 (botão 640×64)`
+  - evidência: `<app-alvo>/src/pages/Admin/Agents/WebSearchSelection/index.jsx:230 (sticky header) vs :269 (botão 640×64)`
 - **2 — "(19 linhas com `max-w-[640px] h-[64px]`)"**
   - erro: Contagem errada por fator ~2. Existem 9 ocorrências de `max-w-[640px] h-[64px]` em src/, exatamente uma por arquivo nos 9 arquivos que a própria história enumera. Não há 19.
-  - evidência: `grep -rn "max-w-\[640px\] h-\[64px\]" /home/augusto/code/makers-ai-hub/frontend/src/ | wc -l => 9 (LLMPreference, EmbeddingPreference, TranscriptionPreference, tts, stt, VectorDatabase, WebSearchSelection, WorkspaceLLMSelection, AgentLLMSelection)`
+  - evidência: `grep -rn "max-w-\[640px\] h-\[64px\]" <app-alvo>/src/ | wc -l => 9 (LLMPreference, EmbeddingPreference, TranscriptionPreference, tts, stt, VectorDatabase, WebSearchSelection, WorkspaceLLMSelection, AgentLLMSelection)`
 - **3 — Painel flutuante/dropdown: citação `Admin/AgentBuilder/HeaderMenu/index.jsx:38`**
   - erro: Elemento não é painel flutuante. A linha 38 é a BARRA de toolbar estática do cabeçalho do AgentBuilder (`flex items-center bg-theme-settings-input-bg rounded-md border border-content-inverse/10 pointer-events-auto`), cujo pai imediato é `div.flex.items-center.gap-x-2` — não `div.absolute` nem `div.sticky.top-0.z-internal` como o campo `container` afirma, e não há scrim. Só a linha 82 é dropdown de verdade. O mesmo arquivo ainda tem input-bg nas linhas 33 (botão circular de voltar) e 109 (botão "New Flow"), papel de BOTÃO que nenhuma das 13 histórias cobre.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/pages/Admin/AgentBuilder/HeaderMenu/index.jsx:37-39, :33, :82, :109`
+  - evidência: `<app-alvo>/src/pages/Admin/AgentBuilder/HeaderMenu/index.jsx:37-39, :33, :82, :109`
 - **5 — Painel de lista de documentos: citação `Directory/index.jsx:216` sob papelReal "list container — não é campo de entr**
   - erro: Auto-contradição verificável. A linha 216 é um `<input>` de busca (`search-input bg-theme-settings-input-bg ... pl-9 pr-2.5 py-2 w-[250px] h-[32px]`), ou seja, exatamente o arquétipo 1. Foi agrupada num item cujo papelReal declara literalmente "não é campo de entrada": elemento incompatível dentro do mesmo papelReal.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/components/Modals/ManageWorkspace/Documents/Directory/index.jsx:216`
+  - evidência: `<app-alvo>/src/components/Modals/ManageWorkspace/Documents/Directory/index.jsx:216`
 - **5 — "É a caixa de 560×445 ... e a coluna irmã"**
   - erro: Dimensão generalizada indevidamente. Só WorkspaceDirectory:113 e :133 são 560×445 — e ambas pertencem aos estados de loading/embedding. A coluna irmã (Directory:234) é `w-[560px] h-[310px]` e o painel do fluxo normal (WorkspaceDirectory:195) é `w-full h-full`. A `funcao` descreve uma caixa que quase nunca é a renderizada.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/components/Modals/ManageWorkspace/Documents/Directory/index.jsx:234; .../WorkspaceDirectory/index.jsx:113,133,187,195`
+  - evidência: `<app-alvo>/src/components/Modals/ManageWorkspace/Documents/Directory/index.jsx:234; .../WorkspaceDirectory/index.jsx:113,133,187,195`
 - **5 e 10 — `paginas` restritas a /workspace/:slug e /workspace/:slug/t/:threadSlug**
   - erro: Rotas faltando. O modal ManageWorkspace também é aberto pela engrenagem da SIDEBAR (ActiveWorkspaces chama showModal na linha 194 e monta o modal na 277), e `<Sidebar />` renderiza na home `/`, em `/workspace/:slug/settings/:tab` e em ~18 páginas `/settings/*`. Logo o painel de lista (item 5) e as pílulas Pinned/Cached (item 10) renderizam em muito mais rotas do que as 2 declaradas.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/components/Sidebar/ActiveWorkspaces/index.jsx:194,277; /home/augusto/code/makers-ai-hub/frontend/src/pages/Main/index.jsx:17; /home/augusto/code/makers-ai-hub/frontend/src/pages/WorkspaceSettings/index.jsx:82; /home/augusto/code/makers-ai-hub/frontend/sr`
+  - evidência: `<app-alvo>/src/components/Sidebar/ActiveWorkspaces/index.jsx:194,277; <app-alvo>/src/pages/Main/index.jsx:17; <app-alvo>/src/pages/WorkspaceSettings/index.jsx:82; <app-alvo>/sr`
 - **6 — `funcao` dos chips de código: "destaca o nome literal de uma variável de prompt (ex.: {query})"**
   - erro: Descreve corretamente só 2 das 4 citações. Em ChatQueryRefusalResponse:13 o `<code>` envolve `t("chat.refusal.query")` — o NOME DO MODO de chat, não uma variável de prompt. Em EditEmbedModal:110 o `<code />` é auto-fechado e injetado como componente do `<Trans i18nKey="embeddable.new_modal.script_notice">`, marcando trecho do script de embed. A função foi inferida do primeiro caso e estendida aos demais.
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/pages/WorkspaceSettings/ChatSettings/ChatQueryRefusalResponse/index.jsx:13-15; /home/augusto/code/makers-ai-hub/frontend/src/pages/GeneralSettings/ChatEmbedWidgets/EmbedConfigs/EmbedRow/EditEmbedModal/index.jsx:106-112`
+  - evidência: `<app-alvo>/src/pages/WorkspaceSettings/ChatSettings/ChatQueryRefusalResponse/index.jsx:13-15; <app-alvo>/src/pages/GeneralSettings/ChatEmbedWidgets/EmbedConfigs/EmbedRow/EditEmbedModal/index.jsx:106-112`
 - **8 — "pareado com o `<input type=url>` da linha 84"**
   - erro: Linha errada. O `<input type="url">` com `bg-theme-settings-input-bg` está na linha 86 (a 84 é `value={selectedUrl}`). As linhas 53 e 63 da mesma história estão corretas, assim como a acusação da borda `border-static-white/20` (static-white é #FFFFFF invariante nos 3 blocos de tema).
-  - evidência: `/home/augusto/code/makers-ai-hub/frontend/src/pages/GeneralSettings/Settings/components/FooterCustomization/NewIconForm/index.jsx:86; color-tokens.css:195,556,917`
+  - evidência: `<app-alvo>/src/pages/GeneralSettings/Settings/components/FooterCustomization/NewIconForm/index.jsx:86; color-tokens.css:195,556,917`
 - **11 — "A Fase 10 E O COMMIT 6261447a colapsaram ambos em surface.sunken"**
   - erro: Atribuição histórica falsa. O commit 6261447a NÃO tocou em nenhuma variável `--theme-settings-input-*`: no diff dele essas linhas aparecem como contexto, sem `+`/`-`. O colapso foi 100% do 5bcadea1, que trocou `--theme-settings-input-bg: #17191c`/`#f1f1f1` e `--theme-settings-input-active: rgb(255 255 255 / 0.2)`/`rgb(0 0 0 / 0.2)` por `var(--color-surface-sunken)` nos dois blocos. E 6261447a é titulado "reverte o achatamento das --theme-*", o oposto de colapsar.
   - evidência: `git show 5bcadea1 -- frontend/src/index.css | grep -E "^[+-].*settings-input" => 8 linhas; git show 6261447a -- frontend/src/index.css | grep -E "^[+-].*settings-input" => 0 linhas`
@@ -1182,7 +1182,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** `/settings/llm-preference` · `/settings/embedding-preference` · `/settings/vector-database` · `/settings/transcription-preference` · `/settings/audio-preference` · `/settings/text-splitter-preference` · `/settings/interface` · `/settings/branding` · `/settings/security` · `/settings/chat` · `/settings/api-keys` · `/settings/users` · `/settings/invites` · `/settings/workspaces` · `/settings/agents` · `/settings/agents/builder` · `/settings/agents/builder/:flowId` · `/settings/scheduled-jobs` · `/settings/embed-chat-widgets` · `/settings/system-prompt-variables` · `/settings/default-system-prompt` · `/settings/community-hub/authentication` · `/workspace/:slug/settings/:tab` · `/onboarding/:ste
 - **função:** É a caixa onde o usuário digita ou escolhe o valor de uma configuração — chave de API, Base URL, nome do modelo, temperatura, idioma, tema, nome do workspace.
 
-**História.** A cor está aí porque o alias --theme-settings-input-bg veio inteiro do upstream AnythingLLM (commit 727d8027, "Light/dark mode UI overhaul #2629") com hex cravado, e em 2026-07-26 o commit 5bcadea1 ("Fase 10 — re-aponta os --theme-* para o vocabulário por papel") o apontou para var(--color-surface-sunken). O contrato dessa migração, frontend/tokens/theme-map.json, registra exatamente `--theme-settings-input-bg -> color-surface-sunken` — ou seja, este é um dos 3 casos em que sunken foi escolha DELIBERADA, não deriva. Se mudar, 389 linhas de JSX mudam de uma vez sem tocar em nenhum .jsx; o risco é que o campo perca a diferença contra o painel (`surface.panel` = FCFCFB no light vs sunken F7F7F7 — já são só 1,02:1 de diferença) e a affordance de "aqui se digita" desapareça.
+**História.** A cor está aí porque o alias --theme-settings-input-bg veio inteiro do upstream do fork (commit 727d8027, "Light/dark mode UI overhaul #2629") com hex cravado, e em 2026-07-26 o commit 5bcadea1 ("Fase 10 — re-aponta os --theme-* para o vocabulário por papel") o apontou para var(--color-surface-sunken). O contrato dessa migração, frontend/tokens/theme-map.json, registra exatamente `--theme-settings-input-bg -> color-surface-sunken` — ou seja, este é um dos 3 casos em que sunken foi escolha DELIBERADA, não deriva. Se mudar, 389 linhas de JSX mudam de uma vez sem tocar em nenhum .jsx; o risco é que o campo perca a diferença contra o painel (`surface.panel` = FCFCFB no light vs sunken F7F7F7 — já são só 1,02:1 de diferença) e a affordance de "aqui se digita" desapareça.
 
 **Papel real:** *Fundo de campo de entrada (form field fill) — o papel canônico e majoritário deste token*
 
@@ -1325,7 +1325,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** 
 - **função:** Nada. O alias é declarado nos dois blocos de tema e mapeado no Tailwind, mas nenhum componente o consome.
 
-**História.** É resíduo do upstream: o AnythingLLM tinha um par bg/text para o campo. Na Fase 10, o mapeamento de frontend/tokens/theme-map.json registrou `--theme-settings-input-text -> color-surface-sunken` — ou seja, uma cor de SUPERFÍCIE foi atribuída a um slot de TEXTO. Se alguém escrever `text-theme-settings-input-text` num input, o texto ficará F7F7F7 sobre um fundo F7F7F7 (o próprio --theme-settings-input-bg): 1,0:1, invisível. Está armado e nunca disparou porque ninguém usou. Deletar não quebra nada.
+**História.** É resíduo do upstream: o upstream-C tinha um par bg/text para o campo. Na Fase 10, o mapeamento de frontend/tokens/theme-map.json registrou `--theme-settings-input-text -> color-surface-sunken` — ou seja, uma cor de SUPERFÍCIE foi atribuída a um slot de TEXTO. Se alguém escrever `text-theme-settings-input-text` num input, o texto ficará F7F7F7 sobre um fundo F7F7F7 (o próprio --theme-settings-input-bg): 1,0:1, invisível. Está armado e nunca disparou porque ninguém usou. Deletar não quebra nada.
 
 **Papel real:** *Nenhum — token morto e semanticamente inválido (superfície num slot de texto)*
 
@@ -1349,11 +1349,11 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **token:** `surface.sunken (via --theme-sidebar-footer-icon)` · **propriedade:** background
 - **container:** `div.flex.w-fit` dentro de `div.flex.space-x-4` dentro de `div.flex.justify-center.mb-2` — nunca montado
 - **páginas:** 
-- **função:** Seriam os botões redondos de link externo (GitHub, documentação, Discord) do rodapé da sidebar do AnythingLLM original, mais os ícones customizáveis definidos em /settings/branding.
+- **função:** Seriam os botões redondos de link externo (GitHub, documentação, Discord) do rodapé da sidebar do upstream original, mais os ícones customizáveis definidos em /settings/branding.
 
 **História.** O export default `Footer` não é importado em lugar nenhum: `grep -rn "<Footer" frontend/src/` só acha o Footer local do ClarifyingQuestion, e a sidebar hoje monta `UserFooter` (frontend/src/components/Sidebar/index.jsx:9,94,205). O arquivo sobrevive só porque frontend/src/pages/GeneralSettings/Settings/components/FooterCustomization/NewIconForm/index.jsx:1 importa o export NOMEADO `ICON_COMPONENTS` dele. Ou seja: 4 dos 22 consumos de sunken deste dossiê não pintam pixel nenhum. Mudar o token não tem efeito visual aqui.
 
-**Papel real:** *Nenhum — código órfão remanescente do fork AnythingLLM*
+**Papel real:** *Nenhum — código órfão remanescente do fork*
 
 #### AttachmentItem — chip de arquivo anexado na barra de prompt
 
@@ -1388,7 +1388,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **token:** `surface.sunken (via --theme-file-row-odd, --theme-home-bg-button, --theme-checklist-item-bg)` · **propriedade:** background
 - **container:** Não renderizam. `--theme-file-row-odd` nem sequer está mapeado no frontend/tailwind.config.js (não existe utilitário para ele); `--theme-home-bg-button` (tailwind.config.js:132) e `--theme-checklist-item-bg` (tailwind.config.js:147) têm utilitário mas zero uso em .jsx.
 - **páginas:** 
-- **função:** Seriam, respectivamente: a listra alternada das linhas ímpares de tabela de arquivos, o fundo dos botões de card da home, e o fundo do item da checklist de onboarding do AnythingLLM.
+- **função:** Seriam, respectivamente: a listra alternada das linhas ímpares de tabela de arquivos, o fundo dos botões de card da home, e o fundo do item da checklist de onboarding do upstream.
 
 **História.** São fósseis do upstream. A checklist não existe mais: `grep -rli checklist frontend/src/` só encontra index.css (a família --theme-checklist-* tem 13 variáveis, nenhuma consumida) e uma menção não relacionada no PromptInput. As tabelas de arquivo reais (Directory/FileRow, WorkspaceDirectory/WorkspaceFileRow) não usam zebra: nenhuma delas referencia file-row-odd. Estas 6 linhas de CSS existem porque o commit 6261447a reapontou mecanicamente TODA declaração --theme-* de surface.panel para o nível "certo", sem checar se alguém consumia. Deletar não muda um pixel.
 
@@ -1503,7 +1503,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** `/settings/embed-chats (EmbedChats/index.jsx:133)` · `/settings/embed-config (EmbedConfigs/index.jsx:57)`
 - **função:** Apesar do nome ("fundo do chat"), esta variável nunca pinta fundo nenhum: os dois únicos consumidores a usam como `text-theme-bg-chat`, ou seja, como a COR DA LETRA do botão "Export" (EmbedChats/index.jsx:133, sobre `bg-primary-button`) e do CTAButton "Create embed" (EmbedConfigs/index.jsx:57, sobre `bg-primary` #E60F46).
 
-**História.** Grep estrito por `bg-theme-bg-chat` (sem sufixo) devolve ZERO ocorrências em src/. A área de conversa de fato é pintada por `bg-chatarea-bg` (component token, color-tokens.css:361/722), não por esta variável. Herança do fork AnythingLLM: a variável existia para o fundo do chat, o fundo migrou para um component token e sobraram duas classes de texto que ninguém removeu porque `text-theme-bg-chat` continua compilando. No escuro o valor #17191C sobre o rosa da marca funciona por acidente; no claro vira #F9F9F7 sobre #E60F46 = 4,41:1, abaixo de AA. Trocar o valor de `canvas` muda a cor de dois rótulos de botão, não de nenhum fundo.
+**História.** Grep estrito por `bg-theme-bg-chat` (sem sufixo) devolve ZERO ocorrências em src/. A área de conversa de fato é pintada por `bg-chatarea-bg` (component token, color-tokens.css:361/722), não por esta variável. Herança do fork: a variável existia para o fundo do chat, o fundo migrou para um component token e sobraram duas classes de texto que ninguém removeu porque `text-theme-bg-chat` continua compilando. No escuro o valor #17191C sobre o rosa da marca funciona por acidente; no claro vira #F9F9F7 sobre #E60F46 = 4,41:1, abaixo de AA. Trocar o valor de `canvas` muda a cor de dois rótulos de botão, não de nenhum fundo.
 
 **Papel real:** *Rótulo invertido sobre container colorido (papel de `*-foreground`), não superfície. A variável é lixo semântico: o nome promete fundo de chat e entrega cor de texto.*
 
@@ -1516,7 +1516,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** `nenhuma`
 - **função:** Nada. Grep repo-wide por `black-900` (todos os arquivos, fora de node_modules) devolve exatamente uma linha: a própria definição em tailwind.config.js:39.
 
-**História.** Código morto herdado do fork. No upstream AnythingLLM o valor era `'black-900': '#141414'`; virou `#17191c` e, no commit 372f827f ("zera o ratchet de hardcode 943 -> 0"), foi reescrito para `var(--color-surface-canvas)` porque o hex batia com o valor escuro de `canvas`. A troca foi por IGUALDADE DE HEX, não por papel — e o alias já não tinha consumidor nenhum na época. Apagar não quebra pixel algum; é o único consumo do grupo com risco zero.
+**História.** Código morto herdado do fork. No upstream do fork o valor era `'black-900': '#141414'`; virou `#17191c` e, no commit 372f827f ("zera o ratchet de hardcode 943 -> 0"), foi reescrito para `var(--color-surface-canvas)` porque o hex batia com o valor escuro de `canvas`. A troca foi por IGUALDADE DE HEX, não por papel — e o alias já não tinha consumidor nenhum na época. Apagar não quebra pixel algum; é o único consumo do grupo com risco zero.
 
 **Papel real:** *Nenhum. Alias morto — infla a contagem de consumo de `canvas` sem pintar nada.*
 
@@ -1646,7 +1646,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** `nenhuma`
 - **função:** Nada hoje. A intenção original era um degradê vertical de desvanecimento — `linear-gradient(to bottom, deep@50%, deep 90%)` — para dar borda esfumaçada ao painel de citações expandidas.
 
-**História.** Código morto herdado do fork upstream: `git log -S "fade-up-border"` aponta para o commit 0a2f837f ("improve citations to show all text chunks referred and expand the citation to view full referenced text (#161)"), do AnythingLLM. O elemento que usava a classe foi removido em alguma refatoração posterior e a regra CSS ficou. Estes 2 dos 3 consumos de `deep` são portanto FANTASMAS — e são justamente os que fizeram `deep` ser reclassificado de "morto" para "vivo" na correção §2 do inventário. O inventário mediu certo (a string está lá) e concluiu errado (a string não pinta nada). `deep` continua efetivamente morto no escuro.
+**História.** Código morto herdado do fork upstream: `git log -S "fade-up-border"` aponta para o commit 0a2f837f ("improve citations to show all text chunks referred and expand the citation to view full referenced text (#161)"), do upstream. O elemento que usava a classe foi removido em alguma refatoração posterior e a regra CSS ficou. Estes 2 dos 3 consumos de `deep` são portanto FANTASMAS — e são justamente os que fizeram `deep` ser reclassificado de "morto" para "vivo" na correção §2 do inventário. O inventário mediu certo (a string está lá) e concluiu errado (a string não pinta nada). `deep` continua efetivamente morto no escuro.
 
 **Papel real:** *Nenhum. Código morto — a única razão pela qual `deep` não foi deletado.*
 
@@ -1696,7 +1696,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** `/ (Main) — via NewWorkspace e ManageWorkspace abertos da Sidebar` · `/workspace/:slug — Citation, SetupProvider, AddPresetModal/EditPresetModal, ManageWorkspace` · `/workspace/:slug/settings/:tab — WorkspaceLLMItem, AgentLLMItem` · `/settings/api-keys` · `/settings/browser-extension` · `/settings/embed-chat-widgets` · `/settings/mobile-connections` · `/settings/users` · `/settings/system-prompt-variables` · `/settings/workspaces` · `/settings/agents` · `/settings/invites` · `todas as rotas autenticadas — AccountModal abre do UserButton na Sidebar`
 - **função:** É o alvo de clique que fecha o modal; em repouso é transparente (só o glifo X aparece), então o único sinal de que ali existe um botão é a mancha que surge sob o cursor.
 
-**História.** Essa cor está aí porque o botão não tem fundo em repouso: `bg-transparent` + `border-transparent`. Sem hover ele é um ícone solto, não um controle. A cor veio do migrador `tokens/migrate-classes.mjs` (Linhas 22-23), que mapeou `bg-gray-200..700` do fork AnythingLLM para o nome inventado `surface-hover` — o nome nunca existiu na fonte pinada (tokens/EXCEPTIONS.json Linha 276: "NAO EXISTE na fonte pinada — nem la, nem aqui, ate hoje"). Durante um período o token não emitia CSS nenhum e esses 26 X eram hover MORTO (EXCEPTIONS.json Linha 278: "211 usos em 90 arquivos emitindo ZERO CSS"); o commit 6261447a criou o valor. Se a cor sumisse, os 26 botões voltariam a não ter affordance nenhuma; se ficasse mais escura, o X (`text-content-primary` = #000000 no claro) continuaria legível, então o risco de mudar é baixo — é o consumo mais benigno do grupo.
+**História.** Essa cor está aí porque o botão não tem fundo em repouso: `bg-transparent` + `border-transparent`. Sem hover ele é um ícone solto, não um controle. A cor veio do migrador `tokens/migrate-classes.mjs` (Linhas 22-23), que mapeou `bg-gray-200..700` do fork para o nome inventado `surface-hover` — o nome nunca existiu na fonte pinada (tokens/EXCEPTIONS.json Linha 276: "NAO EXISTE na fonte pinada — nem la, nem aqui, ate hoje"). Durante um período o token não emitia CSS nenhum e esses 26 X eram hover MORTO (EXCEPTIONS.json Linha 278: "211 usos em 90 arquivos emitindo ZERO CSS"); o commit 6261447a criou o valor. Se a cor sumisse, os 26 botões voltariam a não ter affordance nenhuma; se ficasse mais escura, o X (`text-content-primary` = #000000 no claro) continuaria legível, então o risco de mudar é baixo — é o consumo mais benigno do grupo.
 
 **Papel real:** *realce de botão-ícone sem preenchimento em repouso (ghost icon button) — a mancha É a afordância, não um reforço dela*
 
@@ -1955,7 +1955,7 @@ a cor veio, o que quebra se mudar) · **papel real** — que é o insumo para no
 - **páginas:** `todas as rotas autenticadas do app (a variável é global)`
 - **função:** É o apelido `--theme-bg-secondary`: a cor que 162 elementos usam quando querem dizer "não sou o fundo da página".
 
-**História.** Este é o epicentro. `--theme-bg-secondary` vem do fork upstream (AnythingLLM) onde o vocabulário era ordinal — bg-primary/bg-secondary — e não semântico. Em bb3d6ffa o dono repontou `--color-surface-panel` de #FFFFFF para #FCFCFB numa edição só, o que corrigiu 419 call sites sem tocá-los; a ponte sobreviveu intacta. Hoje esses 162 consumos incluem, sem distinção: o `<main>` de 30+ páginas de settings (Chats/index.jsx:109), o corpo de todo modal (ManageWorkspace:83, KeyboardShortcutsHelp:28), o preenchimento de `<input>`/`<textarea>` (PublishEntityModal/SlashCommands:121, :141), o chip `<kbd>` (KeyboardShortcutsHelp:51), o bloco `<pre>` de stack trace (ErrorBoundaryFallback:72), o botão (ErrorBoundaryFallback:56, :80, :87), a linha SELECIONADA de lista (LLMItem:13, VectorDBItem, EmbedderItem) e — o caso mais violento — o SCRIM do drawer mobile a 75% de alfa (Sidebar/index.jsx:167, SettingsSidebar/index.jsx:79). Mudar este valor move todos os sete papéis juntos. Como o scrim é o MESMO tom do painel que ele deveria escurecer, no tema claro o overlay clareia a tela em vez de dimear.
+**História.** Este é o epicentro. `--theme-bg-secondary` vem do fork upstream (upstream-C) onde o vocabulário era ordinal — bg-primary/bg-secondary — e não semântico. Em bb3d6ffa o dono repontou `--color-surface-panel` de #FFFFFF para #FCFCFB numa edição só, o que corrigiu 419 call sites sem tocá-los; a ponte sobreviveu intacta. Hoje esses 162 consumos incluem, sem distinção: o `<main>` de 30+ páginas de settings (Chats/index.jsx:109), o corpo de todo modal (ManageWorkspace:83, KeyboardShortcutsHelp:28), o preenchimento de `<input>`/`<textarea>` (PublishEntityModal/SlashCommands:121, :141), o chip `<kbd>` (KeyboardShortcutsHelp:51), o bloco `<pre>` de stack trace (ErrorBoundaryFallback:72), o botão (ErrorBoundaryFallback:56, :80, :87), a linha SELECIONADA de lista (LLMItem:13, VectorDBItem, EmbedderItem) e — o caso mais violento — o SCRIM do drawer mobile a 75% de alfa (Sidebar/index.jsx:167, SettingsSidebar/index.jsx:79). Mudar este valor move todos os sete papéis juntos. Como o scrim é o MESMO tom do painel que ele deveria escurecer, no tema claro o overlay clareia a tela em vez de dimear.
 
 **Papel real:** *Nenhum papel único — é o balde "tudo que não é o fundo da página". De fato cumpre, ao mesmo tempo: superfície de página, superfície de diálogo, preenchimento de campo, chip de código, fundo de botão, linha selecionada e véu de scrim.*
 
@@ -2475,7 +2475,7 @@ relacionam.
 - Conflito de propriedade duplicada — frontend/src/components/Modals/ManageWorkspace/Documents/Directory/index.jsx:300 declara `text-dark-text text-surface-selected-foreground` no MESMO className (duas cores de texto). O `<button>` pai (linha 299) repete `text-surface-selected-foreground` duas vezes na mesma string. Mesma família do achado anterior.
 - `--theme-bg-chat` tem ZERO consumidores como background — grep estrito por `bg-theme-bg-chat` (sem sufixo) em src/ retorna vazio. A área de conversa real usa `bg-chatarea-bg` (component token, color-tokens.css:361/722). Os únicos 2 consumidores usam `text-theme-bg-chat` (EmbedChats/index.jsx:133, EmbedConfigs/index.jsx:57). Uma variável chamada "fundo do chat" que só pinta letra.
 - Alias `black-900` MORTO — tailwind.config.js:39 é a única linha do repositório inteiro (grep repo-wide, fora de node_modules/.git) onde a string `black-900` aparece. Zero consumidores. Infla a contagem de `canvas` de 22 para 23 sem pintar nada.
-- `.fade-up-border` é CSS MORTO e sustenta 2 dos 3 consumos de `deep` — index.css:389 e 399 definem a classe; grep repo-wide não encontra nenhum elemento com essa className. Herdada do fork AnythingLLM (commit 0a2f837f, "improve citations... (#161)"). Consequência: a correção §2 do inventário (`docs/design-system/2026-07-28-inventario-surface-tokens.md`) reclassificou `deep` de MORTO para VIVO com base em 3 `var()`, mas 2 dos 3 estão em regra sem consumidor. `deep` tem exatamente UM consumo funcional: index.css:512.
+- `.fade-up-border` é CSS MORTO e sustenta 2 dos 3 consumos de `deep` — index.css:389 e 399 definem a classe; grep repo-wide não encontra nenhum elemento com essa className. Herdada do fork (commit 0a2f837f, "improve citations... (#161)"). Consequência: a correção §2 do inventário (`docs/design-system/2026-07-28-inventario-surface-tokens.md`) reclassificou `deep` de MORTO para VIVO com base em 3 `var()`, mas 2 dos 3 estão em regra sem consumidor. `deep` tem exatamente UM consumo funcional: index.css:512.
 - O único consumo vivo de `deep` é invisível — `[data-theme="light"] .show-scrollbar` (index.css:510-512) pinta o trilho com `rgb(var(--color-surface-deep-rgb) / 0.3)` = #F7F7F7 a 30% sobre a área de conversa #F9F9F7 → #F8F8F7. O usuário liga "Show scrollbar" nas preferências e o trilho não aparece. Assimetria adicional: o par escuro (linhas 505-506) usa `static-black/0.1`, não `deep` — a mesma propriedade consome famílias diferentes por tema.
 - As 145 ocorrências renderizadas de `canvas` e as 36 de `deep` no dossiê NÃO são evidência de consumo — `.claude/evidence/surface-occurrences/findings.json` atribui token por VALOR COMPUTADO, sem proveniência de classe. Provas: (a) `<html>` e `<body>` sem className aparecem como `canvas`; (b) `bg-app-bg`, `bg-sidebar-bg` e `bg-chatarea-bg` têm o MESMO hex de `canvas` (#F9F9F7/#17191C — color-tokens.css:354,355,361,715,716,722) e foram contados como `canvas`; (c) as ocorrências de `deep` são na verdade `--theme-settings-input-bg` (= `sunken`), `button-icon-background-color` e `button-container-background-color`, todos #F7F7F7 no claro (color-tokens.css:664,675). No tema claro `deep`, `sunken`,
 - Nenhuma das rotas capturadas contém os consumidores reais deste grupo — as três rotas onde os 20 consumos de classe vivem (`/design-system`, `/settings/scheduled-jobs/:id/runs/:runId`, `/settings/external-connections/telegram`) NÃO estão em `.claude/evidence/surface-occurrences/`. Consequência: 20 dos 23 consumos estáticos de `canvas` e 3 de 3 de `deep` têm ZERO evidência renderizada.
@@ -2531,7 +2531,7 @@ relacionam.
 - O TOKEN NASCEU BRANCO PURO NUM APP ESCURO. Os $description dos 4 tints dark em frontend/tokens/color.tokens.json registram "ERA #FFFFFF" — consequencia direta do colapso acima (o valor dark herdado foi o `bg-white` sem a opacidade). Sobreviveu ate ser corrigido para #3A2226/#1F2A3D/#1C2F26/#3A3226. Que um branco puro tenha passado despercebido num app de fundo escuro e sintoma do achado seguinte.
 - A FAMILIA INTEIRA E CEGA PARA A EVIDENCIA VISUAL. O dossie registra "ocorrencias RENDERIZADAS (0 totais, 0 distintas)" para os QUATRO tokens. Nao e falha do dossie: 34 dos 39 consumos sao estado de :hover ou :group-hover, que o harness de captura nao dispara; os demais dependem de estados transitorios (upload falhado, embedding em andamento) ou estao mortos. Nenhuma regressao nesta familia — nem o #FFFFFF no dark, nem a barra de progresso invisivel, nem os hovers sem delta — pode ser pega pelo protocolo de print. Qualquer renomeacao aqui e feita as cegas se nao houver captura com estado forcado.
 - CLASSE SEM EFEITO ACOMPANHANDO O TINT. ApiCallNode/index.jsx:157 e StartNode/index.jsx:87 declaram `hover:border-content-danger/20` no mesmo className que ja tem `border-none`. `border-none` zera border-style, entao a cor de borda no hover nunca renderiza. E o mesmo bloco copiado 4x dentro de AgentBuilder (ApiCallNode:157, ApiCallNode:240, StartNode:87, BlockList:322) — confirma copy-paste, nao decisao por site.
-- DOSSIE DEFASADO EM RELACAO AO HEAD. As linhas do dossie estao ~2 a ~49 linhas atras do arquivo atual em quase todos os sites (index.css 107->120, ui/Button 24->73, BlockList 283->322, ThreadItem 239->259, VariableRow 106->111, WorkspaceDirectory 590->596). Todas as linhas que reportei foram lidas no HEAD atual (branch rebrand/makersai, e4089129), nao copiadas do dossie.
+- DOSSIE DEFASADO EM RELACAO AO HEAD. As linhas do dossie estao ~2 a ~49 linhas atras do arquivo atual em quase todos os sites (index.css 107->120, ui/Button 24->73, BlockList 283->322, ThreadItem 239->259, VariableRow 106->111, WorkspaceDirectory 590->596). Todas as linhas que reportei foram lidas no HEAD atual (branch rebrand/app-c, e4089129), nao copiadas do dossie.
 
 _87 achados._
 

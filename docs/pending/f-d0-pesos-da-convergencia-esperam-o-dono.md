@@ -32,9 +32,9 @@ confirmar, e da faixa de corte prepara para duvidar. Os dois contaminam.
 ## Por que isto estava invisível
 
 O questionário mora em
-`/home/augusto/code/makers-ai-hub/frontend/docs/reports/validacao-pesos.md` —
+`<app-alvo>/docs/reports/validacao-pesos.md` —
 **no repo do alvo, e fora da wiki dele**. Medido em 2026-08-01: a wiki do
-makers-ai-hub cobre `docs/`, e `frontend/docs/` está fora; o `_stray_covered()`
+app-c cobre `docs/`, e `frontend/docs/` está fora; o `_stray_covered()`
 do lint ainda o dá por coberto porque `reports` e `docs` são genéricos e ele
 sobe até `frontend/`, que alguma página cita. **Uma menção a `frontend/`
 silencia os 13 documentos daquela pasta.**

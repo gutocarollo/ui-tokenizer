@@ -4,7 +4,7 @@
  * POR QUE EXISTE. Cinco scripts da camada visual cravavam
  * `FRONTEND_ROOT = <diretório deste arquivo>/..`, e quatro cravavam também
  * `REPO_ROOT = FRONTEND_ROOT/..`. Isso só vale no layout do alvo
- * (`makers-ai-hub/frontend` dentro de `makers-ai-hub`). Rodados a partir do repo
+ * (`<app>/frontend` dentro do repo do app). Rodados a partir do repo
  * do PROCESSO, `FRONTEND_ROOT` resolve para a raiz deste repositório e
  * `REPO_ROOT` para `/home/augusto/code`, que **não é repositório git nenhum** —
  * e todo `git show` roda fora de qualquer repo, falhando de um jeito que parece

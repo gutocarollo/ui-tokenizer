@@ -166,7 +166,7 @@ ConnectorOption … +117
    light e `#21252B` no dark: inverte junto com a seleção.
 2. **`surface.selected`** — o único consumido em **duas propriedades**: `bg` (8)
    e `border` (6). É a mesma promiscuidade de propriedade que o review do PR #193
-   apontou no makershub, em escala menor.
+   apontou no app-a, em escala menor.
 
 ## 8. O que este inventário não faz
 
@@ -187,5 +187,5 @@ Os números acima existem para que essa decisão seja tomada com o mapa na mão:
 
 O grupo `surface.*` nasceu nos commits `6261447a`, `79610ac0` e `bb3d6ffa` —
 todos meus, todos anunciados como correção de causa raiz. Importei para cá o
-mesmo anti-padrão que o review do PR #193 condenou no makershub: renomeação de
+mesmo anti-padrão que o review do PR #193 condenou no app-a: renomeação de
 valor apresentada como classificação semântica.

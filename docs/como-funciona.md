@@ -3,13 +3,13 @@
 Este documento existe porque os números do relatório — *"480 ocorrências → 293
 clusters → 40 contratos, 192 fusões, 9 para o humano"* — não se explicam
 sozinhos. Cada termo é definido aqui com um caso real do
-[`makers-ai-hub`](https://github.com/gutocarollo), arquivo e linha.
+[`app-c`](https://github.com/gutocarollo), arquivo e linha.
 
 > **Medição de 2026-07-31.** Todo número desta página sai de uma corrida só:
 >
 > ```bash
 > node .claude/skills/tokenize-design-system/scripts/tokenize.mjs \
->   --root /home/augusto/code/makers-ai-hub/frontend
+>   --root <app-alvo>
 > ```
 >
 > O alvo está sendo migrado enquanto medimos, então esses números **derivam** —
@@ -194,7 +194,7 @@ Reproduz esta fusão específica (é a primeira iteração, absorvendo
 `WorkspaceDirectory` em `Directory`):
 
 ```bash
-node -e 'const g=require("/home/augusto/code/makers-ai-hub/frontend/.tokenize/converged.json");
+node -e 'const g=require("<app-alvo>/.tokenize/converged.json");
 console.log(JSON.stringify(g.fusoes.find(f=>f.nome==="button-background-color-hover"),null,1))'
 ```
 
@@ -288,7 +288,7 @@ pretendido e o código cobre a primeira metade:
 | capturar pixel antes/depois por estado | protocolo escrito, **não executado** |
 
 `tokenize.mjs` entrega **proposta e prova**, nunca mutação. Nenhuma linha do
-`makers-ai-hub` foi alterada por ele.
+`app-c` foi alterada por ele.
 
 Detalhe que importa antes de escrever qualquer contrato: o `color.tokens.json` do
 alvo tem hoje **429 nomes públicos distintos**, e **23 deles usam a anatomia
@@ -301,7 +301,7 @@ decisão vem antes.
 Reproduz as duas contagens:
 
 ```bash
-cd /home/augusto/code/makers-ai-hub/frontend
+cd <app-alvo>
 node --input-type=module -e '
 const t=JSON.parse((await import("fs")).readFileSync("tokens/color.tokens.json","utf8"));
 const out=[]; (function w(o,p){for(const[k,v]of Object.entries(o)){if(k.startsWith("$"))continue;

@@ -1,7 +1,7 @@
 import { test as setup } from '@playwright/test'
 import path from 'node:path'
 
-// STUB — o harness não sabe como o projeto "makers-ai-hub" autentica.
+// STUB — o harness não sabe como o app-alvo autentica.
 // PORTADO de apps/web/tests/visual/auth.setup.ts (harness-doador de
 // referência) — plano de resgate §R3 item 5.
 //

@@ -47,7 +47,7 @@ rastrear o que mudou e por quê.
 
 Coleção: `case-study/` — ver [`case-study/README.md`](case-study/README.md).
 
-Execuções reais contra `learnhouse` e `makers-ai-hub`. Inclui as fontes de
+Execuções reais contra `app-b` e `app-c`. Inclui as fontes de
 mineração em `case-study/sources/` e a evidência renderizada em
 `case-study/assets/`.
 

@@ -13,7 +13,7 @@ updated: 2026-08-01
 **294 testes, 262 passam, 29 falham**. Com a variável apontada:
 
 ```
-TOKENIZE_TEST_ROOT=/home/augusto/code/makers-ai-hub/frontend npm test
+TOKENIZE_TEST_ROOT=<app-alvo> npm test
   → 294 tests, 293 pass, 0 fail
 ```
 

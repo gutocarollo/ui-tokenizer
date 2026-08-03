@@ -15,7 +15,7 @@ e desatualizado em relação ao alvo onde o trabalho aconteceu.
 ## O que foi medido
 
 Comparação arquivo a arquivo entre o que o processo executa no alvo
-(`makers-ai-hub/frontend`) e o que existia aqui:
+(`<app-alvo>`) e o que existia aqui:
 
 | estado | arquivos |
 |---|---:|
@@ -87,7 +87,7 @@ Comparação byte a byte de todo `scripts/**`, `tests/visual/**` e
 `playwright.visual.config.ts` contra o alvo:
 
 ```bash
-A=/home/augusto/code/makers-ai-hub/frontend
+A=<app-alvo>
 for f in $(git ls-files 'scripts/*' 'tests/visual/*' 'playwright.visual.config.ts'); do
   [ -f "$A/$f" ] || { echo "SO-AQUI $f"; continue; }
   cmp -s "$f" "$A/$f" && echo "IDENT $f" || echo "DIVERG $f"

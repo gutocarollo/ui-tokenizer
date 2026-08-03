@@ -58,7 +58,7 @@ que um cookbook de 643 exemplos precisa: perguntar "como se chama X" e receber
 receber um nome plausível e falso.
 
 **4. O par container/rótulo como checklist.** O `X` + `On X` dela (linhagem
-Material) é o mesmo contrato dos pares coloridos que o learnhouse já tem — serve
+Material) é o mesmo contrato dos pares coloridos que o app-b já tem — serve
 de confirmação upstream, não de nome a copiar.
 
 **5. Ponte "nome antigo → nome novo".** Os CSVs de stack (`shadcn.csv`,

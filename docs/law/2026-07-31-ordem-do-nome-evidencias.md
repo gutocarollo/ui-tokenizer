@@ -262,7 +262,7 @@ CONTRADIZER (`text-*-background-color` reprova, baseline 0).
 
 ## 6. O que isso revela sobre o estado real do alvo
 
-Medido em `makers-ai-hub/frontend`:
+Medido em `<app-alvo>`:
 
 **Fundos são canônicos.** A família `button` existe e obedece a gramática:
 

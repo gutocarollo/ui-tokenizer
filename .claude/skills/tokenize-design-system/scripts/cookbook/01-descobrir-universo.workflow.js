@@ -113,31 +113,31 @@ Elas so podem aparecer como "nome antigo a eliminar".`
 
 phase('Discover')
 
-const [learnhouse, makershub, makersAiHub, offenders, prohibitionSites, law, reuse] = await parallel([
+const [appB, appA, appC, offenders, prohibitionSites, law, reuse] = await parallel([
   () => agent(`${LEI}
 
-Inventarie o UNIVERSO DE COMPONENTES E SITUACOES VISUAIS do repo /home/augusto/code/learnhouse (frontend em apps/web).
+Inventarie o UNIVERSO DE COMPONENTES E SITUACOES VISUAIS do repo <app-alvo-B> (frontend em apps/web).
 Leia: apps/web/components/ui/ (primitivos shadcn), apps/web/components/Objects/, Dashboard/, Pages/, e apps/web/styles/globals.css.
 Para cada familia de componente, liste as SITUACOES VISUAIS distintas que ela pinta (fundo, texto, borda, sombra, icone), com a classe/var atual e path:linha.
 Seja EXAUSTIVO: quero cobrir o maximo de componentes e situacoes possiveis, incluindo estados (hover/focus/disabled/selected/invalid/loading) e variantes.
 Nao invente: cada situacao precisa de evidencia path:linha real.`,
-    { label: 'inv:learnhouse', phase: 'Discover', model: 'sonnet', schema: COMPONENT_SCHEMA }),
+    { label: 'inv:appB', phase: 'Discover', model: 'sonnet', schema: COMPONENT_SCHEMA }),
 
   () => agent(`${LEI}
 
-Inventarie o UNIVERSO DE COMPONENTES E SITUACOES VISUAIS do repo /home/augusto/code/makershub (Next.js + Tailwind v4 + tema runtime via useTheme + inline styles).
+Inventarie o UNIVERSO DE COMPONENTES E SITUACOES VISUAIS do repo <app-alvo-A> (Next.js + Tailwind v4 + tema runtime via useTheme + inline styles).
 Leia: app/_components/, app/(pages)/*/\_components/, app/styles/ (colors.ts, globals.css, spacing.ts).
 ATENCAO ao stack: esse repo usa MUITO inline style com useTheme() em vez de classe Tailwind — registre isso em stackNote e capture as situacoes mesmo quando a cor vem de objeto JS.
 Para cada familia, liste as SITUACOES VISUAIS distintas com evidencia path:linha. Seja EXAUSTIVO (estados e variantes inclusos).`,
-    { label: 'inv:makershub', phase: 'Discover', model: 'sonnet', schema: COMPONENT_SCHEMA }),
+    { label: 'inv:appA', phase: 'Discover', model: 'sonnet', schema: COMPONENT_SCHEMA }),
 
   () => agent(`${LEI}
 
-Inventarie o UNIVERSO DE COMPONENTES E SITUACOES VISUAIS do repo /home/augusto/code/makers-ai-hub (frontend/, React + Tailwind).
+Inventarie o UNIVERSO DE COMPONENTES E SITUACOES VISUAIS do repo <app-alvo-C> (frontend/, React + Tailwind).
 Leia frontend/src/components/ e frontend/src/pages/, e frontend/src/index.css.
 Este repo e o ALVO ja tokenizado parcialmente: muitas classes usam vocabulario BANIDO (content-*, surface-*). Capture-as no campo currentClassOrToken — sao a coluna "nome antigo" do cookbook.
 Priorize os componentes com mais call sites. Seja EXAUSTIVO em situacoes e estados.`,
-    { label: 'inv:makers-ai-hub', phase: 'Discover', model: 'sonnet', schema: COMPONENT_SCHEMA }),
+    { label: 'inv:app-c', phase: 'Discover', model: 'sonnet', schema: COMPONENT_SCHEMA }),
 
   () => agent(`${LEI}
 
@@ -175,7 +175,7 @@ Em hardRules capture as regras duras que um gerador de exemplos precisa obedecer
   () => agent(`${LEI}
 
 LEI ZERO — antes de escrever um cookbook do zero, ache TUDO que ja existe e pode ser reusado.
-Procure em /home/augusto/code/ui-tokenizer-v2 e /home/augusto/code/makers-ai-hub por material que ja seja cookbook-like:
+Procure em /home/augusto/code/ui-tokenizer-v2 e <app-alvo-C> por material que ja seja cookbook-like:
 - exemplos bons/ruins ja escritos (reference/examples.md, anatomy-property.md, GRAMMAR §exemplos)
 - mapas de rename ja derivados (docs/reports/*tokenizacao-rodada*.md — o "Mapa de rename, por token antigo")
 - artefatos .tokenize/*.json (owners derivados, ocorrencias, clusters)
@@ -186,6 +186,6 @@ Em gaps liste o que o cookbook precisa e nao existe em lugar nenhum.`,
     { label: 'reuso:existente', phase: 'Discover', model: 'sonnet', schema: REUSE_SCHEMA }),
 ])
 
-log(`descoberta: learnhouse ${learnhouse?.families?.length ?? 0} familias · makershub ${makershub?.families?.length ?? 0} · makers-ai-hub ${makersAiHub?.families?.length ?? 0} · ofensores ${offenders?.offenders?.length ?? 0} · sitios ${prohibitionSites?.offenders?.length ?? 0}`)
+log(`descoberta: appB ${appB?.families?.length ?? 0} familias · appA ${appA?.families?.length ?? 0} · app-c ${appC?.families?.length ?? 0} · ofensores ${offenders?.offenders?.length ?? 0} · sitios ${prohibitionSites?.offenders?.length ?? 0}`)
 
-return { learnhouse, makershub, makersAiHub, offenders, prohibitionSites, law, reuse }
+return { appB, appA, appC, offenders, prohibitionSites, law, reuse }

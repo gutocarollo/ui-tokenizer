@@ -224,7 +224,7 @@ function mergeConfidence(a, b) {
    * REGRA DE SUFICIENCIA — decisao do dono, 2026-08-01 (D2), e ela e a unica
    * parte deste calculo que NAO e soma ponderada.
    *
-   * O PROBLEMA MEDIDO. Na corrida contra makers-ai-hub/frontend, 37 dos 129
+   * O PROBLEMA MEDIDO. Na corrida de 2026-08-01 contra o app-alvo, 37 dos 129
    * pares da fila humana tinham `cor = 1` (deltaE 0,00, imperceptivel) E
    * `contrato = 1` (mesmo owner+propriedade+variante+estado) e paravam em
    * confianca 68 ou 69, contra um corte de 70. Perdiam por UM a DOIS pontos

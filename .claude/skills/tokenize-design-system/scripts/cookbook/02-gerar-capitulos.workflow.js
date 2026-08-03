@@ -9,7 +9,7 @@ export const meta = {
 
 const UITK = '/home/augusto/code/ui-tokenizer-v2'
 const SCRIPTS = `${UITK}/.claude/skills/tokenize-design-system/scripts`
-const FATIA = '/tmp/claude-1000/-home-augusto-code-learnhouse/2ee85a04-408d-40a1-9a7f-569fcb87f1e9/scratchpad/cap'
+const FATIA = process.env.FATIA_DIR ?? '/tmp/cookbook-cap'
 
 const LEI = `LEI (a gramatica mudou HOJE — leia ${UITK}/docs/law/cookbook.md, que ja tem o Capitulo 0 pronto
 como modelo de forma, e ${UITK}/docs/law/GRAMMAR.md §4.1-§4.5 para os vocabularios exatos):
@@ -71,7 +71,7 @@ const CAP_SCHEMA = {
 
 const CAPS = [
   ['botao', 'Botão, badge e pill', '`button` · `badge` · `pill`',
-   'A extração Figma real do makershub esta em /home/augusto/code/makershub/DESIGN_TOKENS/10-buttons.json (bloco `colors`: background/border/textColor/iconColor por Type x State, 27 variantes). Traduza-a: background→button.<variante>.background-color[.estado], textColor→button.<variante>.label, iconColor→button.<variante>.icon, border→button.<variante>.border-color. La esta escrito "secundary" (grafia errada; a lei diz secondary) e "Press" (a lei diz active). Size (sm/md/lg) NAO entra em nome de token de cor.'],
+   'A extração Figma real do app-a esta em <app-alvo>/DESIGN_TOKENS/10-buttons.json (bloco `colors`: background/border/textColor/iconColor por Type x State, 27 variantes). Traduza-a: background→button.<variante>.background-color[.estado], textColor→button.<variante>.label, iconColor→button.<variante>.icon, border→button.<variante>.border-color. La esta escrito "secundary" (grafia errada; a lei diz secondary) e "Press" (a lei diz active). Size (sm/md/lg) NAO entra em nome de token de cor.'],
   ['campo', 'Campo, select e controles', '`field` · `select` · `checkbox` · `radio` · `toggle` · `slider` · `search`',
    'placeholder/helper/caret sao anatomias de propriedade UNICA — propriedade omitida. Estados invalid/disabled/focus/checked/on/off. track e thumb do toggle e do slider. O anel de foco NAO e por componente: e a entidade global focus-ring.'],
   ['overlay', 'Modal, drawer, popover, menu e tooltip', '`modal` · `drawer` · `popover` · `menu` · `tooltip` · `overlay`',
@@ -81,7 +81,7 @@ const CAPS = [
   ['shell', 'Shell, navegação e página', '`page` · `sidebar` · `nav-item` · `toolbar` · `logo` · `thread-item` · `workspace-item`',
    'Este capitulo tem os exemplos canonicos da lei: page.background-color e page.foreground-color. nav-item em default/hover/selected/disabled com label e icone.'],
   ['texto', 'Texto autoral e mídia', '`chat-message` · `prompt` · `code-block` · `markdown` · `attachment` · `citation`',
-   'Bolha do usuario x do assistente sao situacoes DISTINTAS (§5.1). O <strong> do markdown tem defeito real de contraste no makers-ai-hub.'],
+   'Bolha do usuario x do assistente sao situacoes DISTINTAS (§5.1). O <strong> do markdown tem defeito real de contraste no app-c.'],
   ['feedback', 'Identidade e feedback', '`avatar` · `banner` · `toast` · `skeleton` · `empty-state`',
    'Banner por variante info/success/warning/destructive — nunca "danger". Avatar: fallback, borda, indicador de status.'],
   ['global', 'Entidades globais', '`divider` · `focus-ring`',

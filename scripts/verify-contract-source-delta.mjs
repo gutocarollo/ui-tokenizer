@@ -55,7 +55,7 @@ import { parse } from "@babel/parser";
  * que o contem — e os dois NAO tem relacao fixa de profundidade.
  *
  * A primeira versao cravava `REPO_ROOT = FRONTEND_ROOT/..`, o que so vale no
- * layout do alvo (`makers-ai-hub/frontend` dentro de `makers-ai-hub`). No repo
+ * layout do alvo (`<app>/frontend` dentro do repo do app). No repo
  * canonico do processo isso resolvia para `/home/augusto/code`, que nao e
  * repositorio git nenhum — e TODAS as chamadas `git show` deste script rodariam
  * fora de qualquer repo, falhando de um jeito que parece "arquivo ausente".

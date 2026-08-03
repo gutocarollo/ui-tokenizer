@@ -255,7 +255,7 @@ method's own hierarchy of evidence.
 does not apply when colour is merely *close* (score 0,5). It requires both
 signals at maximum.
 
-**The measured effect** on `makers-ai-hub/frontend`, same command before and
+**The measured effect** on `<app-alvo>`, same command before and
 after:
 
 | | before | after |

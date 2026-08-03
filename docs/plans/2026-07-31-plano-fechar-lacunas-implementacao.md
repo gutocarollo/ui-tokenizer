@@ -2,7 +2,7 @@
 
 > Evento: 2026-07-31. Fonte: lista de lacunas do dono (8 itens) verificada item a
 > item contra o repo em `b7a0405`, mais as lacunas que a lista não continha.
-> Escopo: repo do processo (`ui-tokenizer-v2`). O repo de teste (`makers-ai-hub`)
+> Escopo: repo do processo (`ui-tokenizer-v2`). O repo de teste (`app-c`)
 > só entra onde o processo o toca (sync da skill vendorizada, paths de steps).
 > Status: AGUARDANDO avaliação do dono após 1 rodada adversarial.
 
@@ -25,7 +25,7 @@
 | 5 | validate-contract.mjs não fecha lei × PREFIX_PROPERTY | **CONFIRMADO — e PIOR que o claim** | zero refs a `PREFIX_PROPERTY` em `validate-contract.mjs`. Correção da rodada adversarial: o invariante hoje não roda em **lugar nenhum** — `lei-x-familias.test.mjs` importa `score-naming.mjs`, cujas Linhas 48-49 executam `resolveProjectLayout(resolveRoot())` no top-level do módulo e crasham fora de um alvo (`project-layout.mjs:36` "No source root found") |
 | 6 | axisMappingSafe só em docs | **CONFIRMADO** | símbolo só em `docs/plans/2026-07-30-v2-upstream-como-oraculo-rev2.md`; `reference/clarification.md:146` já declara honestamente "não implementado" |
 | 7 | SKILL.md omite ~12 scripts; README com 504→311→41 | **JÁ CORRIGIDO em `b7a0405`** | `measure-disposition`/`measure-coverage` citados 8×; README diz 480→293→40/192 (`README.md:43-44`); `docs/ESTADO.md:97` tem a retratação. Resíduo: `lib/*.mjs` (14 módulos internos) sem seção própria |
-| 8 | Drift na cópia vendorizada do alvo | **CONFIRMADO** | `makers-ai-hub/.claude/skills/tokenize-design-system/skill-sync.json` + guard `makers-ai-hub/.harness/lib/skill-drift.py` existem; edits no canônico acusam drift até sync |
+| 8 | Drift na cópia vendorizada do alvo | **CONFIRMADO** | `app-c/.claude/skills/tokenize-design-system/skill-sync.json` + guard `app-c/.harness/lib/skill-drift.py` existem; edits no canônico acusam drift até sync |
 
 **Refinamento** (claim de sessão anterior, re-medido): "5 stale gate paths" no
 `phase-executors.mjs` **NÃO confirmado** — os 13 `steps[].script` existem
@@ -53,7 +53,7 @@ de evidência exige para o bind; idem `compare-evidence.mjs`.
   `reference/anatomy-property.md:112-114` ("not yet legal") — é D[n] do dono,
   não bug silencioso.
 - `b7a0405` local, não pushado; release `v2.0.0` pré-data as correções.
-- Publicação: refs `fazcapital`/`makershub` em `docs/case-study/` alcançáveis
+- Publicação: refs `cliente-x`/`app-a` em `docs/case-study/` alcançáveis
   pela tag — bloqueia release público (repo privado contém).
 - No alvo (fora deste plano): lote 3 (focus ring dos 91 `<select>`), F-D0
   (40 pares, 0/120 respondidos — só o dono destrava).
@@ -179,7 +179,7 @@ intenção; este, da execução.
 ## 3. D[n] que o plano NÃO decide (dono)
 
 - **D-a** `divider` vira owner legal em §4.1? (anatomy-property.md:112 ⚠)
-- **D-b** rename `content-*`→vocabulário novo × paridade makershub
+- **D-b** rename `content-*`→vocabulário novo × paridade app-a
   (`tokens:parity` pinado em `4afa7899`) — A: renomear os dois; B: fork com
   exceções declaradas; C (feito): só consolidação segura.
 - **D-c** propriedade no nome (`bg-page-background-color` estilo M3/Primer) ×
@@ -210,4 +210,4 @@ cópia), ordem A1→A2→A3 correta, A5 real, steps shell existem no alvo.
 Sem re-verificação por segunda rodada — o dono avalia esta versão.
 
 PLAN-ADVERSARIAL-LOOP: 1/1 rodadas, status: PENDENTE
-REVISORES: [rodada 1: subagent novo (learnhouse-adversarial-reviewer, model fable)]
+REVISORES: [rodada 1: subagent novo (app-b-adversarial-reviewer, model fable)]

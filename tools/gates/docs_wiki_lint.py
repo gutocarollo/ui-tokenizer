@@ -70,7 +70,7 @@ DOCS = ROOT / get_config("HARNESS_DOCS_DIR", "docs")
 STRUCTURAL = {"index.md", "log.md", "SCHEMA.md", "README.md"}
 CAPS_OK = {"README.md", "SCHEMA.md", "CLAUDE.md", "AGENTS.md", "LICENSE", "LICENSE.md", "PROVENANCE.md"}
 GENERIC_DIRS = {"sources", "assets", "img", "images", "reports", "docs", "_arquivo"}
-IGNORED_DIRS = set(get_config_csv("IGNORED_TOOL_DIRS", [".understand-anything", ".anythingllm"]))
+IGNORED_DIRS = set(get_config_csv("IGNORED_TOOL_DIRS", [".understand-anything"]))
 # Repo-wide stray sweep (WARN backlog): markdown allowed at the repo ROOT without
 # being a stray — the conventional structural/community files.
 ROOT_ALLOWED_MD = CAPS_OK | {"CONTRIBUTING.md", "CHANGELOG.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "NOTICE.md"}

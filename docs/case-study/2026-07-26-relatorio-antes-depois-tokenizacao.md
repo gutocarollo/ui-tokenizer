@@ -382,7 +382,7 @@
 | Grupo | Tokens | Por que existe |
 |---|---:|---|
 | `static.*` | 7 | Torna a invariância **auditável**: um grep por `static-` lista todo lugar que ignora o tema de propósito. Antes era `bg-white` cru, indistinguível de esquecimento. |
-| `ui.*` | 61 | Tier 3 (`index.css`), paleta legada do AnythingLLM e cores de marca de terceiro (Telegram). |
+| `ui.*` | 61 | Tier 3 (`index.css`), paleta legada do upstream e cores de marca de terceiro (Telegram). |
 | `chart.*` | 22 | Escala **categórica** de dataviz (origem Tremor). Invariante por tema de propósito: trocar hue por tema quebra a leitura de séries entre modos. |
 | `*-inverse` / `*-tint` | 18 | Colapsam o par `X-white light:X-Y` num token só que carrega os DOIS lados. |
 

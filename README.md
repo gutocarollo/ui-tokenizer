@@ -8,7 +8,8 @@ Não é um gerador de tokens. É a **máquina de decidir**: que token deve exist
 que nome ele carrega, onde ele se aplica, e a prova de que a migração não mexeu
 num pixel que não devia.
 
-Extraído de duas execuções reais (`learnhouse` e `makers-ai-hub`). O que está
+Extraído de duas execuções reais contra apps-alvo distintos (anonimizados
+como `app-b` e `app-c` — D4: este repo não nomeia alvos). O que está
 aqui rodou contra código de produção; os números deste README são medidos, não
 estimados.
 
@@ -40,7 +41,7 @@ APPLY       declarado, NÃO implementado
 Flags: `--until <FASE>` para cedo, `--max-uncertainty <n>` move o corte humano,
 `--json` para saída legível por máquina.
 
-Medido no `makers-ai-hub` em **2026-07-31**, uma corrida completa: **480
+Medido no `app-c` em **2026-07-31**, uma corrida completa: **480
 ocorrências → 293 clusters → 40 contratos** em 4 iterações, **192 fusões**
 automáticas (179 por confiança, 13 por outlier), e **9 ocorrências em 8 pares**
 sobrando para decisão humana. O alvo está sendo migrado enquanto medimos, então
@@ -62,7 +63,7 @@ Design artesanal falha de quatro maneiras que ferramenta comum não pega:
    `px-2 gap-2 mb-3` são idênticos e comparação por string não acusa. Pior:
    `p-2 px-1` é equivalente a `py-2 px-1` por sobreposição de cascata.
 2. **Nome de token que não diz nada.** `surface-canvas`, `semantic-color-deep`.
-   Medido no `makers-ai-hub` em 2026-07-31: de **97 nomes**, **41 reprovaram** um
+   Medido no `app-c` em 2026-07-31: de **97 nomes**, **41 reprovaram** um
    oráculo determinístico (média 68,9, corte 70), e **3.902 usos** têm nome que
    não declara dono nem propriedade — `score-naming.mjs --root .`.
 3. **Classe que não existe.** Classe desconhecida no Tailwind emite **zero CSS,
@@ -269,7 +270,7 @@ cp tools/hooks/ui-evidence-gate.sh <alvo>/…   # registrar como Stop hook
 | `tools/mining/` | miner AST de `className` (n-grams por economia, com contexto estrutural) |
 | `tools/hooks/` | Stop hook que bloqueia fim de turno com UI alterada sem evidência |
 | `docs/law/` | a gramática de naming |
-| `docs/case-study/` | as **medições reais** do `makers-ai-hub`: veredito de naming, fila de revisão, inventário, clusters, **68 PNGs** de evidência (`git ls-files 'docs/case-study/**/*.png' \| wc -l`) |
+| `docs/case-study/` | as **medições reais** do `app-c`: veredito de naming, fila de revisão, inventário, clusters, **68 PNGs** de evidência (`git ls-files 'docs/case-study/**/*.png' \| wc -l`) |
 | `docs/SCHEMA.md` | constituição da wiki: naming de doc, status, indexação temporal |
 
 ---
@@ -379,14 +380,14 @@ medição correta é com `extract-design-occurrences.mjs`.
 ### Referência de Stack (shadcn/ui)
 
 - **[shadcn/ui](https://ui.shadcn.com/)** — componentes Radix + Tailwind. Padrão de nomes semânticos canônico para este projeto: `--foreground`, `--muted-foreground`, `--primary-foreground` etc. Utility `text-foreground` para aplicação.
-- **[shadcn/ui Theming](https://ui.shadcn.com/docs/theming)** — convenção de theming com `@theme` inline, split por modo claro/escuro. O path `apps/web/styles/globals.css`, citado aqui antes, é do **outro** repo de onde o processo foi extraído (`learnhouse`); não existe aqui.
+- **[shadcn/ui Theming](https://ui.shadcn.com/docs/theming)** — convenção de theming com `@theme` inline, split por modo claro/escuro. O path `apps/web/styles/globals.css`, citado aqui antes, é do **outro** repo de onde o processo foi extraído (`app-b`); não existe aqui.
 
 ### Auditorias e Evidência Visual
 
 Este projeto exige evidência visual (PNG renderizado) para validar mudanças de token. Referências para captura e comparação:
 
 - **[Playwright Test](https://playwright.dev/)** — motor de captura de screenshots. Neste repo ele vive em [`tests/visual/`](tests/visual/) (specs, registry, mapa de temas) com a config em [`playwright.visual.config.ts`](playwright.visual.config.ts). Os paths `tools/visual/` e `tools/playwright/`, citados aqui antes, **nunca existiram** neste repositório.
-- **[ui-evidence skill](https://github.com/gutocarollo/learnhouse/tree/main/.claude/skills/ui-evidence)** — implementação produção de captura antes/depois com temas múltiplos (light, dark, dracula, alucard) e análise de erros de console.
+- **[ui-evidence skill](https://github.com/gutocarollo/app-b/tree/main/.claude/skills/ui-evidence)** — implementação produção de captura antes/depois com temas múltiplos (light, dark, dracula, alucard) e análise de erros de console.
 
 ### Governança de Repositório
 

@@ -16,7 +16,7 @@
 ```mermaid
 flowchart TD
     L[("LEI<br/>GRAMMAR.md")] --> G2 & G3 & G5 & G6
-    P[("produtos reais<br/>learnhouse · makershub · makers-ai-hub")] --> G1
+    P[("produtos reais<br/>app-b · app-a · app-c")] --> G1
 
     G1["<b>1. DESCOBRIR</b> [modelo]<br/>01-descobrir-universo.workflow.js<br/><i>N agentes medem situação visual<br/>com path:linha</i>"]
     G2["<b>2. FATIAR</b> [determinístico]<br/>slice-and-assemble.mjs slice<br/><i>mapa fixo entidade→capítulo</i>"]

@@ -26,7 +26,7 @@
   "prova": "coincidencia",
   "tag": "body",
   "classes": "light",
-  "text": "MakersAISign in with Microsoft",
+  "text": "AppCSign in with Microsoft",
   "rect": {
    "x": 0,
    "y": 0,
@@ -46,7 +46,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "span",
   "classes": "",
-  "text": "MakersAI",
+  "text": "AppC",
   "rect": {
    "x": 428,
    "y": 345,
@@ -1571,7 +1571,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "main",
   "classes": "relative md:ml-s2 md:mr-content md:my-content md:rounded-overlay bg-theme-bg-secondary w-full h-full overflow-y-scroll p-4 md:p-0",
-  "text": "UI PreferencesSet your UI preferences for MakersAI.ThemeSele",
+  "text": "UI PreferencesSet your UI preferences for AppC.ThemeSele",
   "rect": {
    "x": 270,
    "y": 16,
@@ -2344,7 +2344,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "main",
   "classes": "relative md:ml-s2 md:mr-content md:my-content md:rounded-overlay bg-theme-bg-secondary w-full h-full overflow-y-scroll p-4 md:p-0",
-  "text": "Branding & WhitelabelingWhite-label your MakersAI instance w",
+  "text": "Branding & WhitelabelingWhite-label your AppC instance w",
   "rect": {
    "x": 270,
    "y": 16,
@@ -4506,7 +4506,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "button",
   "classes": "w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rounded-lg flex items-center p-s12 justify-between cursor-pointer border-2 border-transparent hover:bor",
-  "text": "MakersAI Built-InRun a built-in whisper model on this instan",
+  "text": "AppC Built-InRun a built-in whisper model on this instan",
   "rect": {
    "x": 294,
    "y": 176,
@@ -4531,7 +4531,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "button",
   "classes": "w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rounded-lg flex items-center p-s12 justify-between cursor-pointer border-2 border-transparent hover:bor",
-  "text": "MakersAI Built-InRun a built-in whisper model on this instan",
+  "text": "AppC Built-InRun a built-in whisper model on this instan",
   "rect": {
    "x": 294,
    "y": 176,
@@ -4556,7 +4556,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "button",
   "classes": "w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rounded-lg flex items-center p-s12 justify-between cursor-pointer border-2 border-transparent hover:bor",
-  "text": "MakersAI Built-InRun a built-in whisper model on this instan",
+  "text": "AppC Built-InRun a built-in whisper model on this instan",
   "rect": {
    "x": 294,
    "y": 176,
@@ -4581,7 +4581,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "button",
   "classes": "w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rounded-lg flex items-center p-s12 justify-between cursor-pointer border-2 border-transparent hover:bor",
-  "text": "MakersAI Built-InRun a built-in whisper model on this instan",
+  "text": "AppC Built-InRun a built-in whisper model on this instan",
   "rect": {
    "x": 294,
    "y": 176,
@@ -4790,7 +4790,7 @@
   "prova": "coincidencia",
   "tag": "div",
   "classes": "nav-row w-full justify-between nav-row-child nav-row-selected",
-  "text": "MakersAI Mobile",
+  "text": "AppC Mobile",
   "rect": {
    "x": 8,
    "y": 508,
@@ -4888,7 +4888,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "p",
   "classes": "text-static-white text-xl font-bold",
-  "text": "Go mobile. Stay local. MakersAI Mobile.",
+  "text": "Go mobile. Stay local. AppC Mobile.",
   "rect": {
    "x": 252,
    "y": 216,
@@ -4912,7 +4912,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "p",
   "classes": "text-static-white text-lg",
-  "text": "MakersAI for mobile allows you to connect to your workspace'",
+  "text": "AppC for mobile allows you to connect to your workspace'",
   "rect": {
    "x": 252,
    "y": 260,
@@ -4936,7 +4936,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "p",
   "classes": "text-static-white text-sm w-[300px] text-center",
-  "text": "Scan the QR code with the MakersAI Mobile app to enable live",
+  "text": "Scan the QR code with the AppC Mobile app to enable live",
   "rect": {
    "x": 804,
    "y": 532,
@@ -7078,7 +7078,7 @@
   "prova": "coincidencia",
   "tag": "body",
   "classes": "",
-  "text": "MakersAISign in with Microsoft",
+  "text": "AppCSign in with Microsoft",
   "rect": {
    "x": 0,
    "y": 0,
@@ -7098,7 +7098,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "span",
   "classes": "",
-  "text": "MakersAI",
+  "text": "AppC",
   "rect": {
    "x": 428,
    "y": 345,
@@ -8221,7 +8221,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "main",
   "classes": "relative md:ml-s2 md:mr-content md:my-content md:rounded-overlay bg-theme-bg-secondary w-full h-full overflow-y-scroll p-4 md:p-0",
-  "text": "UI PreferencesSet your UI preferences for MakersAI.ThemeSele",
+  "text": "UI PreferencesSet your UI preferences for AppC.ThemeSele",
   "rect": {
    "x": 270,
    "y": 16,
@@ -8244,7 +8244,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "main",
   "classes": "relative md:ml-s2 md:mr-content md:my-content md:rounded-overlay bg-theme-bg-secondary w-full h-full overflow-y-scroll p-4 md:p-0",
-  "text": "UI PreferencesSet your UI preferences for MakersAI.ThemeSele",
+  "text": "UI PreferencesSet your UI preferences for AppC.ThemeSele",
   "rect": {
    "x": 270,
    "y": 16,
@@ -8990,7 +8990,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "main",
   "classes": "relative md:ml-s2 md:mr-content md:my-content md:rounded-overlay bg-theme-bg-secondary w-full h-full overflow-y-scroll p-4 md:p-0",
-  "text": "Branding & WhitelabelingWhite-label your MakersAI instance w",
+  "text": "Branding & WhitelabelingWhite-label your AppC instance w",
   "rect": {
    "x": 270,
    "y": 16,
@@ -9013,7 +9013,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "main",
   "classes": "relative md:ml-s2 md:mr-content md:my-content md:rounded-overlay bg-theme-bg-secondary w-full h-full overflow-y-scroll p-4 md:p-0",
-  "text": "Branding & WhitelabelingWhite-label your MakersAI instance w",
+  "text": "Branding & WhitelabelingWhite-label your AppC instance w",
   "rect": {
    "x": 270,
    "y": 16,
@@ -10586,7 +10586,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "button",
   "classes": "w-full max-w-[640px] h-[64px] bg-theme-settings-input-bg rounded-lg flex items-center p-s12 justify-between cursor-pointer border-2 border-transparent hover:bor",
-  "text": "MakersAI Built-InRun a built-in whisper model on this instan",
+  "text": "AppC Built-InRun a built-in whisper model on this instan",
   "rect": {
    "x": 294,
    "y": 176,
@@ -10720,7 +10720,7 @@
   "prova": "coincidencia",
   "tag": "div",
   "classes": "nav-row w-full justify-between nav-row-child nav-row-selected",
-  "text": "MakersAI Mobile",
+  "text": "AppC Mobile",
   "rect": {
    "x": 8,
    "y": 508,
@@ -10866,7 +10866,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "p",
   "classes": "text-static-white text-xl font-bold",
-  "text": "Go mobile. Stay local. MakersAI Mobile.",
+  "text": "Go mobile. Stay local. AppC Mobile.",
   "rect": {
    "x": 252,
    "y": 216,
@@ -10890,7 +10890,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "p",
   "classes": "text-static-white text-lg",
-  "text": "MakersAI for mobile allows you to connect to your workspace'",
+  "text": "AppC for mobile allows you to connect to your workspace'",
   "rect": {
    "x": 252,
    "y": 260,
@@ -10914,7 +10914,7 @@
   "prova": "outra-fonte-mesmo-valor",
   "tag": "p",
   "classes": "text-static-white text-sm w-[300px] text-center",
-  "text": "Scan the QR code with the MakersAI Mobile app to enable live",
+  "text": "Scan the QR code with the AppC Mobile app to enable live",
   "rect": {
    "x": 804,
    "y": 532,

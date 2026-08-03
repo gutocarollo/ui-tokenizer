@@ -27,9 +27,13 @@ import test from "node:test";
 
 const SCRIPTS = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const REPO = path.resolve(SCRIPTS, "../../../..");
+// So o node_modules do ALVO serve: propose-entities resolve typescript/parser
+// DO alvo, e trocar por outro (ex.: o deste repo) muda o AST e o veredito da
+// auditoria — medido 2026-08-03. Sem env, skip declarado (D4: nada cravado).
 const NODE_MODULES = [
-  path.join(REPO, "frontend/node_modules"),
-  "/home/augusto/code/makers-ai-hub/frontend/node_modules",
+  ...(process.env.TOKENIZE_TEST_ROOT
+    ? [path.join(path.resolve(process.env.TOKENIZE_TEST_ROOT), "node_modules")]
+    : []),
 ].find((p) => existsSync(path.join(p, "typescript")));
 
 const LABEL_MB3 = "block font-semibold mb-3 text-content-primary text-sm";
