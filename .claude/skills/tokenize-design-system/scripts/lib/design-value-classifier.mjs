@@ -78,8 +78,8 @@ export function isSimplePhysicalLiteral(occurrence) {
   return false;
 }
 
-export function isArbitraryPhysicalUtility(normalized) {
-  return (normalized?.candidates ?? []).some((candidate) => {
+export function arbitraryPhysicalCandidates(normalized) {
+  return (normalized?.candidates ?? []).filter((candidate) => {
     const value = String(candidate.value ?? "");
     if (!/^\[.*\]$/s.test(value)) return false;
     const inner = value.slice(1, -1).trim();
@@ -89,6 +89,10 @@ export function isArbitraryPhysicalUtility(normalized) {
       /gradient\(/i.test(inner)
     );
   });
+}
+
+export function isArbitraryPhysicalUtility(normalized) {
+  return arbitraryPhysicalCandidates(normalized).length > 0;
 }
 
 function terminal(status, reason) {

@@ -299,6 +299,22 @@ export const PHASE_EXECUTORS = Object.freeze({
         },
         emits: "design-occurrence",
       },
+      {
+        script: "cluster-design-values.mjs",
+        args: (ctx) => {
+          exigir(ctx, ["runConfigPath", "runRoot"], "cluster-design-values");
+          return [
+            "--run-config", ctx.runConfigPath,
+            "--classified", `${artefatos(ctx)}/classified-design-occurrences.ndjson`,
+            "--normalized", `${artefatos(ctx)}/normalized-occurrences.ndjson`,
+            "--out", artefatos(ctx),
+          ];
+        },
+        outcomes: {
+          2: "clusters de baixa confianca preservados; fila high continua processavel",
+        },
+        emits: "cluster-packet",
+      },
     ],
   },
 

@@ -19,7 +19,10 @@ import { envelopeFrom } from "../../../../scripts/lib/artifact-envelope.mjs";
 import {
   designRecordSha256,
 } from "./lib/design-occurrence-lineage.mjs";
-import { classifyDesignOccurrence } from "./lib/design-value-classifier.mjs";
+import {
+  arbitraryPhysicalCandidates,
+  classifyDesignOccurrence,
+} from "./lib/design-value-classifier.mjs";
 
 const argv = process.argv.slice(2);
 const arg = (flag, fallback = null) => {
@@ -109,22 +112,84 @@ for (const record of raw) {
   ].join("\0");
   atomicBySite.set(key, record.occurrenceId);
 }
-const classified = raw.map((record) => {
+const preliminary = new Map();
+const recurrence = new Map();
+const arbitraryRecurrence = new Map();
+const reuseKey = (record) => [
+  record.context?.component ||
+    path.basename(record.location.file, path.extname(record.location.file)),
+  record.axis,
+  record.property,
+  String(record.rawValue).trim(),
+].join("\0");
+for (const record of raw) {
   const duplicateKey = [
     record.location.file,
     record.location.line,
     record.property,
     record.rawValue,
   ].join("\0");
-  const duplicateOf =
-    record.occurrenceKind === "typography"
-      ? (atomicBySite.get(duplicateKey) ?? null)
-      : null;
   const verdict = classifyDesignOccurrence(record, {
     normalized: normalizedByDesignId.get(record.occurrenceId) ?? null,
     authoredClasses,
-    duplicateOf,
+    duplicateOf:
+      record.occurrenceKind === "typography"
+        ? (atomicBySite.get(duplicateKey) ?? null)
+        : null,
   });
+  preliminary.set(record.occurrenceId, verdict);
+  if (verdict.disposition === "actionable" && record.occurrenceKind !== "utility-class") {
+    const key = reuseKey(record);
+    recurrence.set(key, (recurrence.get(key) ?? 0) + 1);
+  }
+  if (verdict.disposition === "actionable" && record.occurrenceKind === "utility-class") {
+    const owner =
+      record.context?.component ||
+      path.basename(record.location.file, path.extname(record.location.file));
+    for (const candidate of arbitraryPhysicalCandidates(
+      normalizedByDesignId.get(record.occurrenceId)
+    )) {
+      const key = [owner, candidate.utilityRoot, candidate.value].join("\0");
+      arbitraryRecurrence.set(key, (arbitraryRecurrence.get(key) ?? 0) + 1);
+    }
+  }
+}
+const classified = raw.map((record) => {
+  let verdict = preliminary.get(record.occurrenceId);
+  if (
+    verdict.disposition === "actionable" &&
+    record.occurrenceKind !== "utility-class" &&
+    recurrence.get(reuseKey(record)) === 1
+  ) {
+    verdict = {
+      disposition: "terminal",
+      status: "approved-out-of-scope",
+      reason:
+        "valor aparece uma vez neste owner+property; centraliza-lo custa um token e um callsite sem reutilizacao (breakeven minimo: 2)",
+    };
+  }
+  if (verdict.disposition === "actionable" && record.occurrenceKind === "utility-class") {
+    const owner =
+      record.context?.component ||
+      path.basename(record.location.file, path.extname(record.location.file));
+    const arbitrary = arbitraryPhysicalCandidates(
+      normalizedByDesignId.get(record.occurrenceId)
+    );
+    if (
+      arbitrary.length > 0 &&
+      arbitrary.every(
+        (candidate) =>
+          arbitraryRecurrence.get([owner, candidate.utilityRoot, candidate.value].join("\0")) === 1
+      )
+    ) {
+      verdict = {
+        disposition: "terminal",
+        status: "approved-out-of-scope",
+        reason:
+          "utility arbitraria aparece uma vez neste owner+property; nao atinge breakeven de reutilizacao 2",
+      };
+    }
+  }
   counts[verdict.disposition] += 1;
   counts.byStatus[verdict.status] = (counts.byStatus[verdict.status] ?? 0) + 1;
   return {
