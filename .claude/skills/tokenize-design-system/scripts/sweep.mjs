@@ -136,10 +136,11 @@ export function contadoresDe(residualJson, runRoot) {
 
 export function depsReais({ root, runRoot }) {
   return {
-    // O contrato de contexto do registro é `applicationRoot` (não `root`) —
-    // divergir aqui foi o 1º achado do smoke real (2026-08-03): o mesmo par
-    // contrato×produtor de sempre, pego RODANDO.
-    executar: (fase) => execute(fase, { applicationRoot: root, runRoot }),
+    // O contrato de contexto do registro (medido nos exigir() dele):
+    // applicationRoot, runRoot, runId, runConfigPath, batchId. Divergir de
+    // NOME aqui foi o 1º achado do smoke real; faltar CHAVE foi o 3º — por
+    // isso o contexto vem montado pelo laço, por iteração, do status vivo.
+    executar: (fase, contexto) => execute(fase, contexto),
     estado: () => runCli(["status", "--root", root, "--run-root", runRoot]),
     transicionar: ({ para, motivo, artefatos = [], reentrada = null, lote = null }) =>
       runCli([
@@ -311,7 +312,21 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
       );
     }
 
-    const ex = d.executar(proxima);
+    let ex;
+    try {
+      ex = d.executar(proxima, {
+        applicationRoot: root,
+        runRoot,
+        runId: st.runId,
+        runConfigPath: path.join(runRoot, "config.json"),
+        ...(st.activeBatchId ? { batchId: st.activeBatchId } : {}),
+      });
+    } catch (e) {
+      // resolveSteps recusa contexto insuficiente LANÇANDO — recusa é saída
+      // limpa do driver, nunca stack trace no colo do operador.
+      anotar({ evento: "falha-de-fase", fase: proxima, blocker: e.message });
+      return sair(1, `contexto/passos de ${proxima} recusados: ${e.message}`);
+    }
     if (!ex.ok) {
       const falha = ex.steps?.find((s) => s.exitCode !== 0 && !s.outcome);
       anotar({ evento: "falha-de-fase", fase: proxima, blocker: ex.blocker ?? null });
@@ -331,7 +346,13 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
         artefatos: tipos.map((t) => mapa.get(t)[0]),
       });
     } catch (e) {
-      return sair(1, `transição ${atual}→${proxima} recusada pelo contrato: ${e.message}`);
+      // ArtifactContractError carrega a LISTA de violações — engolir e só
+      // repassar e.message foi como o 5º achado do smoke ficou opaco.
+      const violacoes = e.violations?.slice(0, 5) ?? null;
+      anotar({ evento: "transicao-recusada", fase: proxima, violacoes });
+      return sair(1, `transição ${atual}→${proxima} recusada pelo contrato: ${e.message}`, {
+        violacoes: e.violations ?? null,
+      });
     }
     anotar({ evento: "transicao", fase: proxima });
   }

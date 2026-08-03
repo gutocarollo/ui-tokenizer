@@ -77,6 +77,45 @@ function exigir(ctx, campos, rotulo) {
   }
 }
 
+/**
+ * Argumentos que pertencem ao RUN-CONFIG, o dono ancorado (4º e 5º achados do
+ * 1º smoke real, 2026-08-03, os dois da mesma família "dois donos"):
+ *
+ * - `--source-roots`: o extrator tem default próprio ("src") — a âncora dizia
+ *   `app` e o censo varria pasta inexistente.
+ * - `--toolchain-fingerprint`: o extrator DETECTA um por algoritmo próprio,
+ *   diferente do da âncora — `toolchain-freshness` recusava TODA transição.
+ *   O override é a interface que o próprio extrator declara para orquestrador
+ *   (extract-design-occurrences.mjs, "Header override supplied by an
+ *   orchestrator"); o valor único vem do config.
+ *
+ * Config ilegível LANÇA — recusa visível, nunca censo com identidade errada.
+ */
+function sourceRootsDoConfig(ctx) {
+  const cfg = JSON.parse(readFileSync(ctx.runConfigPath, "utf8"));
+  const roots = cfg?.sourceRoots;
+  return [
+    ...(Array.isArray(roots) && roots.length ? ["--source-roots", roots.join(",")] : []),
+    ...(cfg?.toolchainFingerprint ? ["--toolchain-fingerprint", cfg.toolchainFingerprint] : []),
+  ];
+}
+
+/**
+ * `--configured-axes` idem (6º achado, mesma família): o discover-axes tem um
+ * registro DEFAULT de 13 eixos; o contrato compara `configuredAxes` com o
+ * `axisRegistry` ANCORADO — divergiu, recusa. Eixo descoberto fora do registro
+ * ancorado cai em `uncoveredAxes` (declarado satisfaz o contrato).
+ */
+function eixosDoConfig(ctx) {
+  const cfg = JSON.parse(readFileSync(ctx.runConfigPath, "utf8"));
+  // axisRegistry é LISTA de entradas { axis, tokenTypes, validator, ... } —
+  // Object.keys numa lista devolve índices ("0,1,2,3"), o 7º achado do smoke.
+  const eixos = (Array.isArray(cfg?.axisRegistry) ? cfg.axisRegistry : [])
+    .map((e) => e?.axis)
+    .filter(Boolean);
+  return eixos.length ? ["--configured-axes", eixos.join(",")] : [];
+}
+
 export const PHASE_EXECUTORS = Object.freeze({
   ANCHORED: {
     kind: "human",
@@ -89,14 +128,22 @@ export const PHASE_EXECUTORS = Object.freeze({
     kind: "deterministic",
     artifacts: [],
     steps: [
-      { shell: "yarn tokens:build", args: () => [], emits: "token-build" },
+      /*
+       * Um passo só, ciente de alvo VIRGEM (1º smoke real, 2026-08-03). O
+       * anterior cravava `yarn tokens:build`: gerenciador de UM alvo (a
+       * cobaia usa npm) e alvo sem pipeline falhava como quebra de ambiente.
+       * `preflight-tokens.mjs` detecta o gerenciador pelo lockfile, roda
+       * build+validação quando o pipeline existe, e declara VIRGEM (exit 2)
+       * quando não existe — censo/classificação não precisam de tokens; o
+       * scaffold nasce no 1º lote. Pipeline PARCIAL continua exit 1.
+       */
       {
-        script: "validate-token-build.mjs",
-        args: (ctx) => {
-          exigir(ctx, ["applicationRoot"], "validate-token-build");
-          return ["--root", ctx.applicationRoot, "--check"];
-        },
+        script: "preflight-tokens.mjs",
+        args: (ctx) => comRaiz(ctx, "preflight-tokens"),
         emits: "token-build",
+        outcomes: {
+          2: "alvo VIRGEM — sem pipeline de tokens; censo segue, scaffold nasce no 1º lote (MIGRATED)",
+        },
       },
     ],
   },
@@ -108,8 +155,8 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "extract-design-occurrences.mjs",
         args: (ctx) => {
-          exigir(ctx, ["applicationRoot", "runRoot", "runId"], "extract-design-occurrences");
-          return ["--root", ctx.applicationRoot, "--out", artefatos(ctx), "--run-id", ctx.runId];
+          exigir(ctx, ["applicationRoot", "runRoot", "runId", "runConfigPath"], "extract-design-occurrences");
+          return ["--root", ctx.applicationRoot, "--out", artefatos(ctx), "--run-id", ctx.runId, ...sourceRootsDoConfig(ctx)];
         },
         /*
          * EXIT 2 NAO E FALHA, e a distincao esta no proprio extrator:
@@ -128,11 +175,12 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "discover-axes.mjs",
         args: (ctx) => {
-          exigir(ctx, ["runRoot"], "discover-axes");
+          exigir(ctx, ["runRoot", "runConfigPath"], "discover-axes");
           return [
             "--occurrences", `${artefatos(ctx)}/design-occurrences.ndjson`,
             "--extraction-summary", `${artefatos(ctx)}/extraction-summary.json`,
             "--out", `${artefatos(ctx)}/axis-discovery.json`,
+            ...eixosDoConfig(ctx),
           ];
         },
         // Mesmo vocabulário do extrator: 2 = artefato escrito, eixo sem cobertura
@@ -400,11 +448,11 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "extract-design-occurrences.mjs",
         args: (ctx) => {
-          exigir(ctx, ["applicationRoot", "runRoot", "runId"], "extract-design-occurrences/re");
+          exigir(ctx, ["applicationRoot", "runRoot", "runId", "runConfigPath"], "extract-design-occurrences/re");
           // Sai em `reinventory/`, nao por cima do inventario inicial: o laco de
           // residuo COMPARA os dois, e sobrescrever a origem apagaria o termo de
           // comparacao — a iteracao passaria a convergir contra si mesma.
-          return ["--root", ctx.applicationRoot, "--out", `${artefatos(ctx)}/reinventory`, "--run-id", ctx.runId];
+          return ["--root", ctx.applicationRoot, "--out", `${artefatos(ctx)}/reinventory`, "--run-id", ctx.runId, ...sourceRootsDoConfig(ctx)];
         },
         outcomes: { 2: "ocorrencias opacas a reconciliar; artefatos escritos" },
         emits: "design-occurrence",
@@ -412,11 +460,12 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "discover-axes.mjs",
         args: (ctx) => {
-          exigir(ctx, ["runRoot"], "discover-axes/re");
+          exigir(ctx, ["runRoot", "runConfigPath"], "discover-axes/re");
           const base = `${artefatos(ctx)}/reinventory`;
           return ["--occurrences", `${base}/design-occurrences.ndjson`,
                   "--extraction-summary", `${base}/extraction-summary.json`,
-                  "--out", `${base}/axis-discovery.json`];
+                  "--out", `${base}/axis-discovery.json`,
+                  ...eixosDoConfig(ctx)];
         },
         // Mesmo vocabulário do extrator: 2 = artefato escrito, eixo sem cobertura
         // DECLARADO em `uncoveredAxes` (o contrato aceita declarar; exige só que

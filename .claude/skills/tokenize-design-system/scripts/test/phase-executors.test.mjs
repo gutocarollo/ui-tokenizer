@@ -54,6 +54,25 @@ writeFileSync(
   })
 );
 
+/*
+ * O run-config precisa EXISTIR no fixture, porque três argumentos vêm dele e de
+ * mais ninguém: `--source-roots`, `--toolchain-fingerprint` e
+ * `--configured-axes`. Medido em 2026-08-03 (1º smoke real): quando o passo
+ * usava o default do próprio script em vez da âncora, o censo varria pasta
+ * inexistente e `toolchain-freshness` recusava TODA transição. A âncora é o
+ * dono desses três; o fixture declara um, em vez de o código aceitar a ausência.
+ */
+writeFileSync(
+  path.join(RUN_ROOT, "config.json"),
+  JSON.stringify({
+    artifactType: "run-config",
+    runId: "tokenize-x",
+    sourceRoots: ["src"],
+    toolchainFingerprint: "f".repeat(64),
+    axisRegistry: [{ axis: "color" }, { axis: "spacing" }],
+  })
+);
+
 const CTX = {
   applicationRoot: "/tmp/app",
   runRoot: RUN_ROOT,

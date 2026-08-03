@@ -613,6 +613,30 @@ Verify:
 
 Environment or credential failures produce `BLOCKED`, not an empty inventory.
 
+**Virgin target (no token pipeline at all) is a declared state at preflight,
+not a failure** (measured 2026-08-03, first real run against a frozen
+fixture): a target with neither a `tokens:build` script nor
+`tokens/*.tokens.json` passes preflight with the outcome recorded as *virgin*,
+because the census does not read the token file. A *partial* pipeline (script
+without file, or file without script) is breakage, not a state, and still
+fails closed.
+
+**Open fork — where the scaffold is created.** The same run then proved the
+question is not settled: `CLASSIFIED` refuses a virgin target, because
+`resolveProjectLayout` requires a DTCG file (`lib/project-layout.mjs`). Two
+readings conflict and the resolution is the owner's:
+
+- Deferring the scaffold to the first batch honours *"nothing written to the
+  target outside a reversible batch"*, but then `CLASSIFIED` — three phases
+  upstream of `MIGRATED` — is unreachable, so no batch ever exists.
+- Scaffolding at preflight makes the pipeline reachable, but writes to the
+  target before any batch exists to revert.
+
+Until it is decided, do not weaken the layout guard to make a run advance:
+the guard's own message (*"Add tokenization.config.json with tokenFile"*)
+names the operator action, and relaxing a fail-closed check to reach a later
+phase is how a run reports progress it did not earn.
+
 ### Phase 2 — Capture the immutable global baseline
 
 Before modifying code:
