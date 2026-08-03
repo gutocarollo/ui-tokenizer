@@ -24,7 +24,7 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { resolveRoot } from "./lib/paths.mjs";
+import { resolveRoot, resolveSourceRoots } from "./lib/paths.mjs";
 import { classNameAttributes } from "./lib/classname-extract.mjs";
 import { pareceClasseUtil } from "./lib/bundle-census.mjs";
 
@@ -66,8 +66,10 @@ const novo = new Map();
  * diferentes de nascenca; comparar o delta de um com o universo do outro seria
  * atribuir a correcao do parser uma diferenca que e de ESCOPO.
  */
-const ESCOPO = argv.includes("--all") ? ROOT : path.join(ROOT, "src");
-const arquivos = walk(ESCOPO);
+// Escopo restrito = as raízes de fonte da TOPOLOGIA do alvo, não `src` cravado
+// (o 1º alvo de fora tinha `app`). `--all` continua sendo a árvore inteira.
+const ESCOPOS = argv.includes("--all") ? [ROOT] : resolveSourceRoots(ROOT);
+const arquivos = ESCOPOS.flatMap((e) => walk(e));
 for (const f of arquivos) {
   let t; try { t = readFileSync(f, "utf8"); } catch { continue; }
 
@@ -160,7 +162,7 @@ R.gate = {
 
 if (JSON_OUT) { console.log(JSON.stringify(R, null, 1)); process.exit(0); }
 
-console.log(`audit-extraction-delta · ${ESCOPO}  (${arquivos.length} arquivos)\n`);
+console.log(`audit-extraction-delta · ${ESCOPOS.join(", ")}  (${arquivos.length} arquivos)\n`);
 console.log(`universo de usos de classe`);
 console.log(`  extrator ANTIGO, cru            ${R.universo.antigoBruto}`);
 console.log(`  extrator ANTIGO + paliativo     ${R.universo.antigoFiltrado}   <- o que measure-disposition imprimia`);

@@ -23,8 +23,17 @@ function readConfiguration(root) {
  * tokenization.config.json may provide sourceRoots, tokenFile, bridgeFile, and
  * tailwindConfig. Relative paths are rooted at --root.
  */
-export function resolveProjectLayout(root) {
-  const { file: configurationFile, values } = readConfiguration(root);
+/**
+ * As raízes de fonte do alvo, em absoluto — FONTE ÚNICA desta resolução.
+ *
+ * Separada de `resolveProjectLayout` de propósito (2026-08-03): quem só precisa
+ * saber ONDE está o código não pode ser obrigado a ter arquivo DTCG. Antes
+ * disso, sete scripts cravavam `path.join(root, "src")` — e `src` é o layout de
+ * UM app: o primeiro alvo de fora tinha `app`, e cada um deles morria com
+ * ENOENT no meio da fase em vez de recusar de forma legível.
+ */
+export function resolveSourceRoots(root) {
+  const { values } = readConfiguration(root);
   const configuredRoots = values.sourceRoots ?? values.sourceRoot;
   const sourceRootValues = Array.isArray(configuredRoots)
     ? configuredRoots
@@ -35,6 +44,12 @@ export function resolveProjectLayout(root) {
   if (!sourceRoots.length) {
     throw new Error("No source root found under " + root + ". Add tokenization.config.json with sourceRoots.");
   }
+  return sourceRoots;
+}
+
+export function resolveProjectLayout(root) {
+  const { file: configurationFile, values } = readConfiguration(root);
+  const sourceRoots = resolveSourceRoots(root);
 
   const tokenCandidate = values.tokenFile
     ? path.resolve(root, values.tokenFile)

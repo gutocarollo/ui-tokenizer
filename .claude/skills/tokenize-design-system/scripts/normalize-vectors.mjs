@@ -24,7 +24,7 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { resolveRoot } from "./lib/paths.mjs";
+import { resolveRoot, resolveSourceRoots } from "./lib/paths.mjs";
 
 const ROOT = resolveRoot();
 const APPLY = process.argv.includes("--apply");
@@ -145,7 +145,8 @@ function walk(d, out = []) {
   return out;
 }
 const bundles = new Map();
-for (const f of walk(path.join(ROOT, "src"))) {
+// Raízes da topologia do alvo, nunca `src` cravado.
+for (const f of resolveSourceRoots(ROOT).flatMap((raiz) => walk(raiz))) {
   let t; try { t = readFileSync(f, "utf8"); } catch { continue; }
   for (const m of t.matchAll(STYLE)) {
     const decls = [];

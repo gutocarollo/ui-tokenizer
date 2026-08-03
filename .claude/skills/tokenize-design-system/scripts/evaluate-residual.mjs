@@ -44,7 +44,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSy
 import path from "node:path";
 
 import { envelopeFrom } from "../../../../scripts/lib/artifact-envelope.mjs";
-import { resolveRoot } from "./lib/paths.mjs";
+import { resolveRoot, resolveSourceRoots } from "./lib/paths.mjs";
 import { ABSOLUTE_REPORT_PREDICATES, absoluteReportId } from "./lib/absolute-completion-contract.mjs";
 
 const argv = process.argv.slice(2);
@@ -82,8 +82,16 @@ const env = envelopeFrom(runConfigPath);
 function medirVocabularioLegado() {
   const proibidas = ["surface", "semantic", "content", "label", "foreground"];
   const rx = new RegExp(`(?<![\\w-])[a-z-]+-(?:${proibidas.join("|")})-[a-z0-9-]+`, "g");
-  const src = path.join(ROOT, "src");
-  if (!existsSync(src)) return null;
+  // Raízes da topologia do alvo, nunca `src` cravado: com `src` inexistente
+  // este medidor devolvia null (= NÃO MEDIDO) num alvo perfeitamente medível,
+  // e "não medido" é o que faz o laço recusar COMPLETE.
+  let raizes = [];
+  try {
+    raizes = resolveSourceRoots(ROOT).filter((r) => existsSync(r));
+  } catch {
+    return null;
+  }
+  if (!raizes.length) return null;
   let populacao = 0;
   let residuo = 0;
   const walk = (dir) => {
@@ -98,8 +106,12 @@ function medirVocabularioLegado() {
       }
     }
   };
-  walk(src);
-  return { populacao, residuo, como: "varredura de src/ por classe com palavra banida (§3.1)" };
+  for (const raiz of raizes) walk(raiz);
+  return {
+    populacao,
+    residuo,
+    como: `varredura de ${raizes.map((r) => path.relative(ROOT, r)).join(", ")} por classe com palavra banida (§3.1)`,
+  };
 }
 
 /** Compara os contratos convergidos com o que o DTCG do alvo já define. */

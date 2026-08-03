@@ -82,7 +82,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { resolveRoot } from "./lib/paths.mjs";
+import { resolveRoot, resolveSourceRoots } from "./lib/paths.mjs";
 import { findUseOwner } from "./find-owner.mjs";
 import { readVocabulary } from "./score-naming.mjs";
 import { elementFacts } from "./lib/jsx-element.mjs";
@@ -92,7 +92,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const TARGET = resolveRoot();
 /** Arvore ANALISADA. Igual ao alvo em `--baseline worktree`; copia de `HEAD` em `--baseline head`. */
 let ROOT = TARGET;
-let SRC = path.join(ROOT, "src");
+// Raízes da topologia, nunca `src` cravado. Lista, porque um alvo pode ter mais
+// de uma raiz declarada — e no modo `head` a resolução roda sobre a CÓPIA.
+let SRC_ROOTS = resolveSourceRoots(ROOT);
 
 const argv = process.argv.slice(2);
 const arg = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
@@ -105,8 +107,10 @@ function die(msg) {
 
 /* ============================================================== 0. preflight = */
 
-if (!existsSync(SRC) || !statSync(SRC).isDirectory()) {
-  die(`nao existe \`src/\` em ${ROOT}. Rode do diretorio do ALVO com --root .`);
+// `resolveSourceRoots` já falha fechado quando nenhuma raiz existe; aqui só
+// resta garantir que o que ela devolveu é diretório.
+if (!SRC_ROOTS.every((r) => existsSync(r) && statSync(r).isDirectory())) {
+  die(`raiz de fonte declarada nao e diretorio em ${ROOT}: ${SRC_ROOTS.join(", ")}`);
 }
 const CLUSTERS_SCRIPT = path.join(HERE, "context-clusters.mjs");
 if (!existsSync(CLUSTERS_SCRIPT)) die(`context-clusters.mjs ausente em ${HERE}`);
@@ -215,7 +219,7 @@ function materializeHead() {
 let baselineMode;
 if (BASELINE === "head") {
   ROOT = materializeHead();
-  SRC = path.join(ROOT, "src");
+  SRC_ROOTS = resolveSourceRoots(ROOT);
   baselineMode = "head";
 } else if (BASELINE === "worktree") {
   baselineMode = "worktree";
@@ -717,7 +721,7 @@ function* walk(dir) {
 const PRECEDENTE = { roleButton: 0, onClick: 0, tooltip: 0, arquivos: 0 };
 /** Evidencia de que o grupo e EXCLUSIVO (`radio`) e nao multi (`checkbox`). */
 const EXCLUSIVOS = [];
-for (const f of walk(SRC)) {
+for (const f of SRC_ROOTS.flatMap((raiz) => walk(raiz))) {
   const t = readFileSync(f, "utf8");
   PRECEDENTE.arquivos++;
   PRECEDENTE.roleButton += (t.match(/\brole=["']button["']/g) ?? []).length;
