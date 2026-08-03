@@ -15,6 +15,7 @@ import {
 import path from "node:path";
 
 import { envelopeFrom } from "../../../../scripts/lib/artifact-envelope.mjs";
+import { applicationRelativePathspecs } from "../../../../scripts/lib/git-pathspecs.mjs";
 import { fingerprintSourceRoots } from "../../../../scripts/lib/source-fingerprint.mjs";
 
 const argv = process.argv.slice(2);
@@ -60,7 +61,6 @@ if (measuredBefore.fingerprint !== batch.rollbackSourceFingerprint) {
 }
 
 const git = (...args) => execFileSync("git", ["-C", applicationRoot, ...args], { encoding: "utf8" }).trim();
-const repoRoot = git("rev-parse", "--show-toplevel");
 if (git("status", "--porcelain")) fail("arvore do alvo precisa estar limpa antes de criar branch do lote");
 if (git("rev-parse", "HEAD") !== applyPlan.baseCommit) fail("HEAD nao e o baseCommit congelado no lote");
 const branch = `tokenize/${env.runId}/${batchId.toLowerCase()}`;
@@ -301,10 +301,14 @@ mkdirSync(path.join(artifacts, batchId), { recursive: true });
 const manifestPath = path.join(artifacts, batchId, "mutation-manifest.json");
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-const repoFiles = actualMutationFiles.map((file) =>
-  path.relative(repoRoot, path.join(applicationRoot, file))
+// `git` executa com `-C applicationRoot`; portanto os pathspecs também são
+// relativos ao app. Converter para a raiz Git duplicava o prefixo em monorepos
+// (`frontend/frontend/...`) e deixava a mutação pronta, mas sem commit.
+const gitPathspecs = applicationRelativePathspecs(
+  applicationRoot,
+  actualMutationFiles.map((file) => path.join(applicationRoot, file))
 );
-git("add", "--", ...repoFiles);
+git("add", "--", ...gitPathspecs);
 git("commit", "-m", `tokenize(${batchId}): ${proposal.proposedName}`);
 const commit = git("rev-parse", "HEAD");
 console.log(JSON.stringify({ batchId, branch, commit, cssVariable, value, occurrences: occurrences.length, files: actualMutationFiles, manifest: manifestPath }, null, 2));
