@@ -216,6 +216,24 @@ test("a fase de referência e a de mutação pedem fases DIFERENTES ao preparado
   assert.equal(fase("AFTER_CAPTURED")[fase("AFTER_CAPTURED").indexOf("--phase") + 1], "after");
 });
 
+test("COMPARED usa o comparador do processo e o batch-contract como policy única", () => {
+  const [passo] = resolveSteps("COMPARED", CTX);
+  assert.equal(passo.command, process.execPath);
+  assert.equal(
+    passo.argv[0],
+    path.resolve("scripts/compare-evidence.mjs")
+  );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--policy") + 1],
+    path.join(RUN_ROOT, "artifacts", "batch-B0001.json")
+  );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--out") + 1],
+    path.join(RUN_ROOT, "artifacts", "B0001", "comparison.json")
+  );
+  assert.equal(passo.outcomes[3], "comparacao deterministica concluida; revisao visual ainda obrigatoria");
+});
+
 test("o reinventário NÃO escreve por cima do inventário inicial", () => {
   /*
    * O laço de resíduo COMPARA os dois. Sobrescrever a origem apagaria o termo de

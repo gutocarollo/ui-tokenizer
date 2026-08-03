@@ -482,27 +482,27 @@ export const PHASE_EXECUTORS = Object.freeze({
     artifacts: ["comparison"],
     steps: [
       {
-        shell: "node scripts/compare-evidence.mjs",
+        /*
+         * Comparador é ferramenta do PROCESSO, não do alvo. O registro antigo
+         * usava `node scripts/...` com cwd no app e por isso exigia que toda
+         * cobaia copiasse a implementação do harness. O batch-contract já é a
+         * policy declarada: contém preserve/change e a partição exata dos
+         * cenários, logo não nasce um terceiro arquivo com a mesma decisão.
+         */
+        script: "../../../../scripts/compare-evidence.mjs",
         args: (ctx) => {
           exigir(ctx, ["runRoot", "batchId"], "compare-evidence");
           const base = `${artefatos(ctx)}/${ctx.batchId}`;
           return ["--before", `${base}/before/manifest.json`,
                   "--after", `${base}/after/manifest.json`,
-                  "--out", `${base}/comparison`,
+                  "--policy", `${artefatos(ctx)}/batch-${ctx.batchId}.json`,
+                  "--out", `${base}/comparison.json`,
                   // O pacote de revisao sai AQUI, mas quem o preenche e a fase
                   // REVIEWED, que e `model`: script nenhum fecha veredito visual.
                   "--review-input", `${base}/visual-review-input.json`];
         },
-        emits: "comparison",
-      },
-      {
-        shell: "node scripts/evidence-report.mjs",
-        args: (ctx) => {
-          exigir(ctx, ["runRoot", "batchId"], "evidence-report");
-          const base = `${artefatos(ctx)}/${ctx.batchId}`;
-          return ["--before", `${base}/before/manifest.json`,
-                  "--after", `${base}/after/manifest.json`,
-                  "--out", `${base}/report`];
+        outcomes: {
+          3: "comparacao deterministica concluida; revisao visual ainda obrigatoria",
         },
         emits: "comparison",
       },

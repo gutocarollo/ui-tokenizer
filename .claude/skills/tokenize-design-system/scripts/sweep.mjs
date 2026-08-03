@@ -123,6 +123,25 @@ export function artefatosDaFonteAtiva(runRoot, sourceFingerprint) {
   );
 }
 
+/**
+ * Candidatos de tipos exigidos que pertencem à fonte ativa.
+ *
+ * Um tipo não identifica uma instância: `evidence-manifest`, por exemplo,
+ * existe para `before` e `after`. Escolher `[0]` fazia AFTER_CAPTURED receber
+ * o manifesto `before` só porque ele vinha primeiro na enumeração. O driver
+ * continua sem julgar suficiência/fase; ele apenas não omite candidatos frescos
+ * que o contrato precisa inspecionar.
+ */
+export function artefatosExigidosDaFonteAtiva(mapa, tipos, sourceFingerprint) {
+  return tipos.flatMap((tipo) =>
+    (mapa.get(tipo) ?? []).filter(
+      (artifactPath) =>
+        !sourceFingerprint ||
+        fingerprintDoArtefato(artifactPath) === sourceFingerprint
+    )
+  );
+}
+
 /** Próximo id de lote: maior B\d{4,} visto nos batch-contract do run root + 1. */
 export function proximoLote(runRoot, ler = (p) => readFileSync(p, "utf8")) {
   const achados = artefatosPorTipo(["batch-contract"], runRoot).get("batch-contract") ?? [];
@@ -419,7 +438,11 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
     // O conjunto é TODO artefato da fonte ativa (as invariantes são de conjunto),
     // com os tipos exigidos que EXISTEM garantidos dentro dele.
     const doConjunto = artefatosDaFonteAtiva(runRoot, st.sourceFingerprint);
-    const exigidos = tipos.flatMap((t) => (mapa.get(t) ?? []).slice(0, 1));
+    const exigidos = artefatosExigidosDaFonteAtiva(
+      mapa,
+      tipos,
+      st.sourceFingerprint
+    );
     const artefatos = [...new Set([...doConjunto, ...exigidos])];
     try {
       d.transicionar({

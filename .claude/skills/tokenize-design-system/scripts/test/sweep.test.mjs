@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
+  artefatosExigidosDaFonteAtiva,
   contadoresDe,
   proximoLote,
   reentradaMaisAMontante,
@@ -147,6 +148,44 @@ test("contadoresDe: sem medição sai null (nunca zero); com legado mede tokeniz
   });
   const json = { detalhe: [{ predicateId: "tokens.legacy-vocabulary-zero", residuo: 480, populacao: 3400 }] };
   assert.deepEqual(contadoresDe(json, runRoot), { tokenizados: 2920, restantes: 480, travados: 1 });
+});
+
+test("tipos repetidos apresentam só todas as instâncias da fonte ativa, nunca o primeiro path arbitrário", () => {
+  const runRoot = novoRunRoot();
+  const fonteAntiga = "a".repeat(64);
+  const fonteAtiva = "b".repeat(64);
+  escreverArtefato(runRoot, "before.json", {
+    artifactType: "evidence-manifest",
+    phase: "before",
+    sourceFingerprint: fonteAntiga,
+  });
+  escreverArtefato(runRoot, "after.json", {
+    artifactType: "evidence-manifest",
+    phase: "after",
+    sourceFingerprint: fonteAtiva,
+  });
+  escreverArtefato(runRoot, "after-2.json", {
+    artifactType: "evidence-manifest",
+    phase: "after",
+    sourceFingerprint: fonteAtiva,
+  });
+  const mapa = new Map([
+    [
+      "evidence-manifest",
+      ["before.json", "after.json", "after-2.json"].map((nome) =>
+        path.join(runRoot, "artifacts", nome)
+      ),
+    ],
+  ]);
+
+  assert.deepEqual(
+    artefatosExigidosDaFonteAtiva(
+      mapa,
+      ["evidence-manifest"],
+      fonteAtiva
+    ).map((p) => path.basename(p)),
+    ["after.json", "after-2.json"]
+  );
 });
 
 /* ─────────────────────────────────────────────── o laço com deps fake ────── */
