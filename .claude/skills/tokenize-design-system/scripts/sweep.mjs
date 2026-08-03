@@ -207,7 +207,7 @@ export function depsReais({ root, runRoot }) {
           "--run-root",
           runRoot,
           "--out",
-          path.join(runRoot, "artifacts"),
+          path.join(runRoot, "final"),
           "--json",
         ],
         { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
@@ -285,6 +285,34 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
         return sair(4, "residual tem predicado SEM MEDIDOR — falta capacidade (L4), não volta");
       }
       if (r.exitCode === 0) {
+        // COMPLETE também é uma fase determinística: o final-proof é SAÍDA do
+        // avaliador absoluto, não pré-condição que o operador deve fabricar.
+        // A versão anterior saltava execute(COMPLETE), exigia o proof já no
+        // disco e então apenas transicionava — o teste passava porque plantava
+        // um proof falso. Executar antes de coletar os tipos fecha o caminho
+        // real e mantém a validação da transição como segunda barreira.
+        let ex;
+        try {
+          ex = d.executar("COMPLETE", {
+            applicationRoot: root,
+            runRoot,
+            runId: st.runId,
+            runConfigPath: path.join(runRoot, "config.json"),
+            ...(st.activeBatchId ? { batchId: st.activeBatchId } : {}),
+          });
+        } catch (e) {
+          anotar({ evento: "falha-de-fase", fase: "COMPLETE", blocker: e.message });
+          return sair(1, `contexto/passos de COMPLETE recusados: ${e.message}`);
+        }
+        if (!ex.ok) {
+          const falha = ex.steps?.find((s) => s.exitCode !== 0 && !s.outcome);
+          anotar({ evento: "falha-de-fase", fase: "COMPLETE", blocker: ex.blocker ?? null });
+          return sair(
+            1,
+            ex.blocker ??
+              `passo falhou em COMPLETE: ${falha?.stderr?.slice(0, 400) ?? "sem stderr"}`
+          );
+        }
         const tipos = REQUIRED_TRANSITION_ARTIFACTS.COMPLETE ?? [];
         const mapa = artefatosPorTipo(tipos, runRoot);
         const faltando = tipos.filter((t) => !(mapa.get(t) ?? []).length);
@@ -298,7 +326,11 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
             artefatos: tipos.map((t) => mapa.get(t)[0]),
           });
         } catch (e) {
-          return sair(1, `transição para COMPLETE recusada: ${e.message}`);
+          const violacoes = e.violations?.slice(0, 5) ?? null;
+          anotar({ evento: "transicao-recusada", fase: "COMPLETE", violacoes });
+          return sair(1, `transição para COMPLETE recusada: ${e.message}`, {
+            violacoes: e.violations ?? null,
+          });
         }
         anotar({ evento: "transicao", fase: "COMPLETE", contadores: contadoresDe(r.json, runRoot) });
         continue;

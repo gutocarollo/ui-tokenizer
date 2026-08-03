@@ -533,8 +533,8 @@ export const PHASE_EXECUTORS = Object.freeze({
           exigir(ctx, ["applicationRoot", "runRoot"], "evaluate-absolute-completion");
           return ["--root", ctx.applicationRoot,
                   "--run-root", ctx.runRoot,
-                  "--out", `${artefatos(ctx)}/final-proof.json`,
-                  "--gap-report", `${artefatos(ctx)}/final-gaps.json`];
+                  "--out", `${ctx.runRoot}/final-proof.json`,
+                  "--gap-report", `${ctx.runRoot}/final-proof.gaps.json`];
         },
         emits: "final-proof",
       },
@@ -754,20 +754,38 @@ export function execute(phase, context = {}, options = {}) {
 export function artefatosPorTipo(tipos, runRoot) {
   const achados = new Map(tipos.map((tipo) => [tipo, []]));
   if (!tipos.length || !runRoot) return achados;
-  const dir = `${runRoot}/artifacts`;
-  let arquivos = [];
-  try { arquivos = readdirSync(dir); } catch { return achados; }
-  for (const nome of arquivos) {
-    if (!/\.(json|ndjson)$/.test(nome)) continue;
+  const pendentes = [`${runRoot}/artifacts`, `${runRoot}/final`];
+  const arquivos = [];
+  while (pendentes.length) {
+    const dir = pendentes.pop();
+    let entradas = [];
+    try { entradas = readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const entrada of entradas) {
+      const alvo = `${dir}/${entrada.name}`;
+      if (entrada.isDirectory()) pendentes.push(alvo);
+      else if (entrada.isFile() && /\.(json|ndjson)$/.test(entrada.name)) {
+        arquivos.push(alvo);
+      }
+    }
+  }
+  arquivos.push(`${runRoot}/final-proof.json`);
+  for (const caminho of arquivos) {
     let texto = "";
-    try { texto = readFileSync(`${dir}/${nome}`, "utf8"); } catch { continue; }
-    const caminho = `${dir}/${nome}`;
-    for (const linha of texto.split("\n")) {
-      const corte = linha.indexOf('"artifactType"');
-      if (corte < 0) continue;
-      const m = /"artifactType"\s*:\s*"([^"]+)"/.exec(linha.slice(corte));
-      if (!m || !achados.has(m[1])) continue;
-      const lista = achados.get(m[1]);
+    try { texto = readFileSync(caminho, "utf8"); } catch { continue; }
+    let objetos = [];
+    try {
+      const raiz = JSON.parse(texto);
+      objetos = Array.isArray(raiz) ? raiz : [raiz];
+    } catch {
+      for (const linha of texto.split(/\r?\n/)) {
+        if (!linha.trim()) continue;
+        try { objetos.push(JSON.parse(linha)); } catch { /* arquivo não-artefato */ }
+      }
+    }
+    for (const objeto of objetos) {
+      const tipo = objeto?.artifactType;
+      if (!achados.has(tipo)) continue;
+      const lista = achados.get(tipo);
       if (!lista.includes(caminho)) lista.push(caminho);
     }
   }

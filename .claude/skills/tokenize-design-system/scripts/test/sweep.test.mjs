@@ -207,18 +207,27 @@ test("artefato exigido pela transição AUSENTE do run root → exit 1, sem tran
   );
 });
 
-test("REINVENTORIED + residual exit 0 → transiciona COMPLETE com os 4 artefatos exigidos", () => {
+test("REINVENTORIED + residual exit 0 EXECUTA COMPLETE antes de transicionar", () => {
   const runRoot = novoRunRoot();
   // O contrato de COMPLETE não confere só o TIPO: exige matriz final, checks
   // final, review final SATISFEITA e prova DONE — um de cada.
   escreverArtefato(runRoot, "ev.json", { artifactType: "evidence-manifest", phase: "final" });
   escreverArtefato(runRoot, "checks.json", { artifactType: "deterministic-checks", scope: "final" });
   escreverArtefato(runRoot, "adv.json", { artifactType: "adversarial-review", scope: "final", verdict: "satisfied" });
-  escreverArtefato(runRoot, "proof.json", { artifactType: "final-proof", verdict: "done" });
   const m = maquina("REINVENTORIED");
   m.deps.residual = () => ({ exitCode: 0, json: { medidos: 14, detalhe: [], naoMedidos: [] } });
+  const executadas = [];
+  m.deps.executar = (fase) => {
+    executadas.push(fase);
+    escreverArtefato(runRoot, "proof.json", {
+      artifactType: "final-proof",
+      verdict: "done",
+    });
+    return { phase: fase, kind: "deterministic", executed: true, ok: true, steps: [] };
+  };
   const r = varrer({ root: "/x", runRoot }, m.deps);
   assert.equal(r.exitCode, 0);
+  assert.deepEqual(executadas, ["COMPLETE"]);
   assert.equal(m.transicoes[0].para, "COMPLETE");
   assert.equal(m.transicoes[0].artefatos.length, 4);
 });

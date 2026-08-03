@@ -27,6 +27,7 @@ import {
   verifyCaptureFile,
 } from "../lib/absolute-completion.mjs";
 import { runAbsoluteCompletionCli } from "../evaluate-absolute-completion.mjs";
+import { varrer } from "../sweep.mjs";
 
 const SKILL_ROOT = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
@@ -428,7 +429,7 @@ function buildFixture({
         at: GENERATED.reinventory,
         reason: "Absolute residual reports generated",
         reentryCode: null,
-        artifactRefs: [reportRef],
+        artifactRefs: [designRef, axisRef, reportRef],
       },
     ],
     artifacts: [
@@ -441,6 +442,22 @@ function buildFixture({
     ],
   };
   writeJson(statePath, state);
+  // O runner durável recupera sempre do journal append-only; state.json sozinho
+  // é snapshot não confiável. A fixture do avaliador não precisava disso, mas
+  // o L5 deliberadamente atravessa o runner real.
+  const stateBytes = Buffer.from(`${JSON.stringify(state, null, 2)}\n`, "utf8");
+  writeFileSync(
+    path.join(runRoot, "journal.ndjson"),
+    `${JSON.stringify({
+      journalVersion: "1.0.0",
+      eventSequence: 1,
+      operation: "transition",
+      recordedAt: GENERATED.reinventory,
+      recoveredFromEventSequence: null,
+      stateSha256: sha256Bytes(stateBytes),
+      state,
+    })}\n`
+  );
 
   const pngPath = path.join(runRoot, "final/assets/root.png");
   mkdirSync(path.dirname(pngPath), { recursive: true });
@@ -790,5 +807,33 @@ test("a captura resolve pela base do MANIFESTO e continua contida no run root", 
     gaps[0],
     /escapes the run root/,
     "a contenção no run root sobrevive à troca de base"
+  );
+});
+
+test("L5: sweep real executa o avaliador, grava proof e faz a transição durável COMPLETE", () => {
+  const fixture = buildFixture();
+  assert.equal(existsSync(path.join(fixture.runRoot, "final-proof.json")), false);
+
+  const result = varrer(
+    { root: fixture.applicationRoot, runRoot: fixture.runRoot },
+    {
+      // O medidor tem suíte própria; esta fixture isola a fiação que antes era
+      // falsa: executor real -> avaliador real -> proof real -> runner real.
+      residual: () => ({
+        exitCode: 0,
+        json: { medidos: 14, detalhe: [], naoMedidos: [], residuoTotal: 0 },
+        stderr: "",
+      }),
+    }
+  );
+
+  assert.equal(result.exitCode, 0, JSON.stringify(result, null, 2));
+  const proofPath = path.join(fixture.runRoot, "final-proof.json");
+  assert.equal(existsSync(proofPath), true);
+  assert.equal(JSON.parse(readFileSync(proofPath, "utf8")).verdict, "done");
+  assert.equal(
+    JSON.parse(readFileSync(path.join(fixture.runRoot, "state.json"), "utf8"))
+      .currentPhase,
+    "COMPLETE"
   );
 });

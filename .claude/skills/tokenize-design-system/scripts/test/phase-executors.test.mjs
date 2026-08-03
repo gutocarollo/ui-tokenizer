@@ -28,6 +28,7 @@ import {
 import {
   PHASE_EXECUTORS,
   NON_EXECUTABLE_PHASES,
+  artefatosPorTipo,
   auditRegistry,
   execute,
   executorFor,
@@ -239,6 +240,44 @@ test("COMPLETE passa as duas raízes obrigatórias ao avaliador absoluto", () =>
     passo.argv[passo.argv.indexOf("--run-root") + 1],
     CTX.runRoot
   );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--out") + 1],
+    path.join(CTX.runRoot, "final-proof.json")
+  );
+});
+
+test("scanner de artefatos alcança lotes aninhados, final/ e final-proof canônico", () => {
+  const runRoot = mkdtempSync(path.join(os.tmpdir(), "phase-exec-topology-"));
+  mkdirSync(path.join(runRoot, "artifacts", "B0001"), { recursive: true });
+  mkdirSync(path.join(runRoot, "final"), { recursive: true });
+  writeFileSync(
+    path.join(runRoot, "artifacts", "B0001", "comparison.json"),
+    JSON.stringify({ artifactType: "comparison" })
+  );
+  writeFileSync(
+    path.join(runRoot, "final", "evidence-manifest.json"),
+    JSON.stringify({ artifactType: "evidence-manifest" })
+  );
+  writeFileSync(
+    path.join(runRoot, "final", "review.json"),
+    JSON.stringify({
+      artifactType: "adversarial-review",
+      reviewedArtifactRefs: [
+        { artifactType: "evidence-manifest", path: "final/evidence-manifest.json" },
+      ],
+    }, null, 2)
+  );
+  writeFileSync(
+    path.join(runRoot, "final-proof.json"),
+    JSON.stringify({ artifactType: "final-proof" })
+  );
+  const found = artefatosPorTipo(
+    ["comparison", "evidence-manifest", "final-proof"],
+    runRoot
+  );
+  assert.equal(found.get("comparison").length, 1);
+  assert.equal(found.get("evidence-manifest").length, 1);
+  assert.equal(found.get("final-proof").length, 1);
 });
 
 test("fase que declara emitir artefato e não emite NÃO pode devolver ok", () => {
