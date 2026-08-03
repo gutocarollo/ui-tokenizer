@@ -121,20 +121,44 @@ function outputFiles({ discovery, registry, fixtureDiscovery, frontendRoot, netw
   ]);
 }
 
-function neutralizeExternalRegistry(registry) {
+function csvEnvironment(value) {
+  return new Set(
+    String(value ?? "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  );
+}
+
+export function neutralizeExternalRegistry(registry, environment = {}) {
+  const defaultAuthRole =
+    String(environment.UI_EVIDENCE_DEFAULT_AUTH_ROLE ?? "").trim() || null;
+  const anonymousRoutes = csvEnvironment(
+    environment.UI_EVIDENCE_ANONYMOUS_ROUTES
+  );
+  const authRoleFor = (route, currentRole) =>
+    defaultAuthRole && !anonymousRoutes.has(route)
+      ? defaultAuthRole
+      : currentRole;
   const networkFixtureRegistryFingerprint = sha256(EMPTY_NETWORK_FIXTURES);
   const contexts = registry.contexts.map((context) => ({
     ...context,
+    authRole: authRoleFor(context.path, context.authRole),
     fixtureId: context.networkFixtureId
-      ? (context.authRole === "anonymous" ? "anonymous-static-v1" : `${context.authRole}-session-v1`)
+      ? (authRoleFor(context.path, context.authRole) === "anonymous"
+          ? "anonymous-static-v1"
+          : `${authRoleFor(context.path, context.authRole)}-session-v1`)
       : context.fixtureId,
     networkFixtureId: null,
     fixtureSource: context.networkFixtureId ? "route-declaration" : context.fixtureSource,
   }));
   const scenarios = registry.scenarios.map((scenario) => ({
     ...scenario,
+    authRole: authRoleFor(scenario.route, scenario.authRole),
     fixtureId: scenario.networkFixtureId
-      ? (scenario.authRole === "anonymous" ? "anonymous-static-v1" : `${scenario.authRole}-session-v1`)
+      ? (authRoleFor(scenario.route, scenario.authRole) === "anonymous"
+          ? "anonymous-static-v1"
+          : `${authRoleFor(scenario.route, scenario.authRole)}-session-v1`)
       : scenario.fixtureId,
     networkFixtureId: null,
     preconditions: [],
@@ -197,7 +221,7 @@ export async function generateVisualRoutes({
   });
   const externalTarget = path.resolve(frontendRoot) !== PROCESS_ROOT;
   const registry = externalTarget
-    ? neutralizeExternalRegistry(materializedRegistry)
+    ? neutralizeExternalRegistry(materializedRegistry, environment)
     : materializedRegistry;
   if (!registry.exactDeclarationCoverage) {
     throw new Error(

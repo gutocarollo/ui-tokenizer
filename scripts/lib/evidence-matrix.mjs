@@ -92,8 +92,10 @@ export function fixtureContractSourceFingerprint({
   repoRoot,
   networkFixtures,
   scenarios,
+  registrySources = [],
 }) {
   const declaredSources = [
+    ...registrySources,
     ...(networkFixtures?.fixtures ?? []).flatMap(
       (fixture) => fixture.contractSources ?? []
     ),
@@ -405,6 +407,36 @@ export function fingerprintPaths(root, targets) {
   return hash.digest("hex");
 }
 
+export function fingerprintDeclaredPathState(root, targets) {
+  if (!Array.isArray(targets) || targets.length === 0) {
+    throw new VisualContractError("Declared path state requires at least one target");
+  }
+  const hash = createHash("sha256");
+  for (const target of [...new Set(targets)].sort()) {
+    const absolute = path.resolve(root, target);
+    const relative = path.relative(root, absolute).split(path.sep).join("/");
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new VisualContractError(`Declared path escapes fingerprint root: ${target}`);
+    }
+    const files = [];
+    walkFiles(absolute, files);
+    hash.update(relative);
+    hash.update("\0");
+    if (!files.length) {
+      hash.update("ABSENT");
+      hash.update("\0");
+      continue;
+    }
+    for (const filePath of files.sort((a, b) => a.localeCompare(b))) {
+      hash.update(path.relative(root, filePath).split(path.sep).join("/"));
+      hash.update("\0");
+      hash.update(readFileSync(filePath));
+      hash.update("\0");
+    }
+  }
+  return hash.digest("hex");
+}
+
 function gitText(repoRoot, args) {
   return execFileSync("git", args, {
     cwd: repoRoot,
@@ -449,6 +481,9 @@ export function buildEvidenceBindings({
     repoRoot,
     networkFixtures,
     scenarios,
+    registrySources: [contextPath, scenarioPath, networkFixturePath].map((file) =>
+      path.relative(repoRoot, file).split(path.sep).join("/")
+    ),
   });
   for (const [registryName, registry] of [
     ["contexts", contexts],
@@ -476,12 +511,24 @@ export function buildEvidenceBindings({
       path.relative(repoRoot, path.join(frontendRoot, "src")),
       path.relative(repoRoot, path.join(frontendRoot, "index.html")),
     ]);
+  const tokenizationConfigPath = [
+    path.join(frontendRoot, "tokenization.config.json"),
+    path.join(frontendRoot, "tokens/tokenization.config.json"),
+  ].find(existsSync);
+  const tokenizationConfig = tokenizationConfigPath
+    ? readJson(tokenizationConfigPath)
+    : {};
+  const tokenSourceTarget = tokenizationConfig.tokenFile
+    ? path.join(frontendRoot, tokenizationConfig.tokenFile)
+    : path.join(frontendRoot, "tokens");
+  const generatedCssTarget = tokenizationConfig.themeFile
+    ? path.join(frontendRoot, tokenizationConfig.themeFile)
+    : path.join(frontendRoot, "src/styles/generated");
   const tokenSourceFingerprint = fingerprintPaths(repoRoot, [
-    path.relative(repoRoot, path.join(frontendRoot, "tokens")),
+    path.relative(repoRoot, tokenSourceTarget),
   ]);
-  const generatedCssFingerprint = fingerprintPaths(repoRoot, [
-    path.relative(repoRoot, path.join(frontendRoot, "src/index.css")),
-    path.relative(repoRoot, path.join(frontendRoot, "src/styles/generated")),
+  const generatedCssFingerprint = fingerprintDeclaredPathState(repoRoot, [
+    path.relative(repoRoot, generatedCssTarget),
   ]);
   const toolchainFingerprint =
     header?.toolchainFingerprint ??

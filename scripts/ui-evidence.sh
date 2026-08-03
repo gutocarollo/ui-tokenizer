@@ -111,8 +111,9 @@ if [ -z "$code" ] || [[ "$code" =~ ^0+$ ]] || [ "${#code}" -lt 3 ]; then
   echo "Start the development stack or set PLAYWRIGHT_WEB_URL explicitly." >&2
   exit 1
 fi
-if ! compgen -G "${HOME}/.cache/ms-playwright/chromium-*" >/dev/null; then
-  echo "ui-evidence: Playwright Chromium is absent." >&2
+PLAYWRIGHT_EXECUTABLE="$(cd "$TOOL_ROOT" && node --input-type=module -e 'import { chromium } from "playwright"; process.stdout.write(chromium.executablePath())' 2>/dev/null || true)"
+if [ -z "$PLAYWRIGHT_EXECUTABLE" ] || [ ! -x "$PLAYWRIGHT_EXECUTABLE" ]; then
+  echo "ui-evidence: the Chromium revision required by this Playwright is absent (${PLAYWRIGHT_EXECUTABLE:-unresolved})." >&2
   echo "Run: cd $WEB_DIR && npx playwright install chromium" >&2
   exit 1
 fi
@@ -193,6 +194,10 @@ fi
 if ! node "$TOOL_ROOT/scripts/prepare-evidence-run.mjs" "${PREPARE_ARGS[@]}"; then
   failed_stage "matrix preparation failed"
   exit 1
+fi
+
+if [ -z "$PROJECTS" ]; then
+  PROJECTS="$(node -e 'const fs=require("fs"); const s=JSON.parse(fs.readFileSync(process.argv[1])); process.stdout.write((s.projects||[]).join(","))' "$SELECTION_FILE")"
 fi
 
 PROJECT_ARGS=()

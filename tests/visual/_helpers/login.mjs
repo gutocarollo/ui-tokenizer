@@ -22,10 +22,37 @@
  *   pixels do login como a rota pedida.
  */
 
-export async function loginForVisualEvidence() {
+export async function loginForVisualEvidence(context) {
+  const cookieName = process.env.UI_EVIDENCE_AUTH_COOKIE_NAME;
+  const cookieValue = process.env.UI_EVIDENCE_AUTH_COOKIE_VALUE;
+  const storageKey = process.env.UI_EVIDENCE_AUTH_STORAGE_KEY;
+  const storageValue = process.env.UI_EVIDENCE_AUTH_STORAGE_VALUE;
+  const webUrl = process.env.PLAYWRIGHT_WEB_URL;
+
+  if (cookieName && cookieValue && webUrl) {
+    const url = new URL(webUrl);
+    await context.addCookies([
+      {
+        name: cookieName,
+        value: cookieValue,
+        domain: url.hostname,
+        path: "/",
+        secure: url.protocol === "https:",
+        sameSite: "Lax",
+      },
+    ]);
+    if (storageKey && storageValue) {
+      await context.addInitScript(
+        ({ key, value }) => localStorage.setItem(key, value),
+        { key: storageKey, value: storageValue }
+      );
+    }
+    return { method: "environment-cookie", cookieName, storageKey: storageKey ?? null };
+  }
+
   throw new Error(
-    "ui-evidence: este é o stub do PROCESSO — o app-alvo fornece " +
-      "tests/visual/_helpers/login.mjs na cópia vendorizada dele " +
-      "(contrato: loginForVisualEvidence(context) autentica e aplica a sessão)."
+    "ui-evidence: o alvo não forneceu autenticação. Vendorize " +
+      "tests/visual/_helpers/login.mjs no alvo ou declare " +
+      "UI_EVIDENCE_AUTH_COOKIE_NAME/UI_EVIDENCE_AUTH_COOKIE_VALUE/PLAYWRIGHT_WEB_URL."
   );
 }

@@ -1,13 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import {
   captureStem,
   fixtureRegistryBindingFingerprint,
+  fingerprintDeclaredPathState,
   materializeContractScenarios,
   matrixScenarioId,
   selectEvidenceMatrix,
 } from "./evidence-matrix.mjs";
+
+test("path de CSS declarado e ausente tem fingerprint não-vácuo e muda quando nasce", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "declared-css-state-"));
+  const absent = fingerprintDeclaredPathState(root, ["app/styles/generated/theme.css"]);
+  assert.match(absent, /^[a-f0-9]{64}$/);
+  mkdirSync(path.join(root, "app/styles/generated"), { recursive: true });
+  writeFileSync(path.join(root, "app/styles/generated/theme.css"), "@theme {}\n");
+  const present = fingerprintDeclaredPathState(root, ["app/styles/generated/theme.css"]);
+  assert.notEqual(absent, present);
+});
 
 const registry = {
   scenarios: [
