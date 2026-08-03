@@ -96,7 +96,15 @@ export function isArbitraryPhysicalUtility(normalized) {
 }
 
 function terminal(status, reason) {
-  return { disposition: "terminal", status, reason };
+  return {
+    disposition: "terminal",
+    status,
+    reason,
+    decisionId:
+      status === "approved-token" || status === "approved-contract"
+        ? `policy:design-value-classifier.v1:${status}`
+        : null,
+  };
 }
 
 /**

@@ -792,10 +792,22 @@ function checkSourceFreshness(index, records, runConfig, violations) {
     }
   }
 
+  /*
+   * A versão anterior filtrava o censo inteiro para CADA projeção. No smoke
+   * de 70.237 ocorrências + 13.131 projeções isso passou de 1,8 bilhão de
+   * comparações e deixou a transição CLASSIFIED ocupando um core por minutos.
+   * A relação continua idêntica; muda apenas a estrutura de acesso de O(n*m)
+   * para O(n+m).
+   */
+  const designsByOccurrenceId = new Map();
+  for (const { artifact } of index.get("design-occurrence") ?? []) {
+    if (!designsByOccurrenceId.has(artifact.occurrenceId)) {
+      designsByOccurrenceId.set(artifact.occurrenceId, []);
+    }
+    designsByOccurrenceId.get(artifact.occurrenceId).push(artifact);
+  }
   for (const { artifact } of index.get("normalized-occurrence") ?? []) {
-    const designs = (index.get("design-occurrence") ?? [])
-      .map((record) => record.artifact)
-      .filter((item) => item.occurrenceId === artifact.designOccurrenceId);
+    const designs = designsByOccurrenceId.get(artifact.designOccurrenceId) ?? [];
     const design = designs.find(
       (item) => item.sourceFingerprint === artifact.sourceFingerprint
     );
@@ -826,10 +838,21 @@ function checkSourceFreshness(index, records, runConfig, violations) {
     }
   }
 
+  /* Milhares de clusters costumam citar os mesmos dois arquivos. Resolver o
+   * mesmo ref filtrando `records` inteiro por packet era outra multiplicação
+   * O(packets*records); a identidade do ref já é uma chave de cache completa. */
+  const referencedTargetsCache = new Map();
+  const targetsFor = (artifactRef) => {
+    const key = `${artifactRef.artifactType}\0${artifactRef.path}`;
+    if (!referencedTargetsCache.has(key)) {
+      referencedTargetsCache.set(key, referencedTargets(records, artifactRef));
+    }
+    return referencedTargetsCache.get(key);
+  };
   for (const type of ["inventory-report", "cluster-packet", "decision"]) {
     for (const { artifact } of index.get(type) ?? []) {
       for (const artifactRef of collectArtifactRefs(artifact)) {
-        for (const target of referencedTargets(records, artifactRef)) {
+        for (const target of targetsFor(artifactRef)) {
           sourceMismatch(
             violations,
             "source-freshness",

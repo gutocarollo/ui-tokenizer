@@ -203,7 +203,7 @@ const classified = raw.map((record) => {
     },
     reconciliation: {
       status: verdict.status,
-      decisionId: null,
+      decisionId: verdict.decisionId ?? null,
       exceptionId: null,
       reason: verdict.reason,
     },

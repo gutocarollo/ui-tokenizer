@@ -26,10 +26,12 @@ test("referencias centrais nao sao chamadas de hardcode", () => {
     "{color.primitive.gray-900}",
   ]) {
     assert.equal(isCentralReference(value), true, value);
+    const verdict = classifyDesignOccurrence(occurrence({ rawValue: value }));
+    assert.equal(verdict.status, "approved-contract", value);
     assert.equal(
-      classifyDesignOccurrence(occurrence({ rawValue: value })).status,
-      "approved-contract",
-      value
+      verdict.decisionId,
+      "policy:design-value-classifier.v1:approved-contract",
+      "aprovação precisa declarar a política que decidiu"
     );
   }
 });
@@ -66,14 +68,16 @@ test("SVG encapsulado, assets e comportamento nao inflam hardcodes", () => {
 test("utility so e terminal com prova de CSS compilado", () => {
   const utility = occurrence({ occurrenceKind: "utility-class", property: null, rawValue: "bg-card" });
   assert.equal(classifyDesignOccurrence(utility).disposition, "unresolved");
-  assert.equal(
-    classifyDesignOccurrence(utility, {
+  const verdict = classifyDesignOccurrence(utility, {
       normalized: {
         reconciliationStatus: "valid",
         fingerprints: { compiledCssFingerprint: "a".repeat(64) },
       },
-    }).status,
-    "approved-token"
+    });
+  assert.equal(verdict.status, "approved-token");
+  assert.equal(
+    verdict.decisionId,
+    "policy:design-value-classifier.v1:approved-token"
   );
 });
 
