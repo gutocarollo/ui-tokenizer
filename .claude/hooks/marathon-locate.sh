@@ -1,49 +1,69 @@
 #!/usr/bin/env bash
 # marathon-locate — where the active marathon lives, resolved ONCE.
 #
-# WHY IT EXISTS. Each of the three marathon hooks resolved its root as
-# "$CLAUDE_PROJECT_DIR" and stopped there. That assumes the run directory lives
-# inside the session's project directory. When a session is opened in one repo
-# and the work happens in another working directory, all three degrade to a
-# SILENT no-op: the gate does not block, the reinject does not reinject, and the
-# precompact does not stamp the journal.
+# MATERIALIZATION (orions-belt): a copy of engine/hooks/marathon-locate.sh
+# (the authoring/testing source inside the orions-belt repo) for the target
+# project. Byte-identical to the source except for this header — this file
+# takes no dependency on _tooling_conf.py or any other in-repo path, so
+# nothing needs adapting when it lands outside orions-belt.
 #
-# MEASURED 2026-08-01. A marathon whose run directory lived in a second working
-# directory, driven from a session anchored on a different project directory, ran
-# for hours and produced ZERO `.stop-strikes` files, and a compaction of that
-# session injected no <marathon-run-state> at all. The report from the field —
-# "the marathon gate never re-arms and it always stops" — is exactly this
-# mechanism, and nothing in the hooks said so out loud.
+# WHY IT EXISTS. Each of the three marathon hooks resolved its root as
+# "$CLAUDE_PROJECT_DIR" (or the Codex equivalent) and stopped there. That
+# assumes the run directory lives inside the session's project directory.
+# When a session is opened in one repo and the work happens in another
+# working directory, all three degrade to a SILENT no-op: the gate does not
+# block, the reinject does not reinject, and the precompact does not stamp
+# the journal.
+#
+# MEASURED 2026-08-01 (learnhouse field report). A marathon whose run
+# directory lived in a second working directory, driven from a session
+# anchored on a different project directory, ran for hours and produced ZERO
+# `.stop-strikes` files, and a compaction of that session injected no
+# <marathon-run-state> at all. The report from the field — "the marathon gate
+# never re-arms and it always stops" — is exactly this mechanism, and
+# nothing in the hooks said so out loud.
 #
 # The failure is silent BY CONSTRUCTION: `[ -f "$ACTIVE" ] || exit 0` cannot
-# distinguish "there is no marathon" (the correct state in the vast majority of
-# sessions, and the reason the hook must stay quiet) from "the marathon exists
-# somewhere I never looked". Both take the same branch.
+# distinguish "there is no marathon" (the correct state in the vast majority
+# of sessions, and the reason the hook must stay quiet) from "the marathon
+# exists somewhere I never looked". Both take the same branch.
 #
 # TWO SOURCES, tried in this order:
 #
 #   1. $ROOT/$RUNS_DIR/ACTIVE — the local file. Its content may be a SLUG
-#      (historical behaviour, unchanged) or an ABSOLUTE PATH to a run directory
-#      (cross-repo pointer, new). A path is accepted verbatim, so a project can
-#      point at a marathon that lives in a sibling repository without any of the
-#      hooks guessing.
+#      (historical behaviour, unchanged) or an ABSOLUTE PATH to a run
+#      directory (cross-repo pointer, new). A path is accepted verbatim, so
+#      a project can point at a marathon that lives in a sibling repository
+#      without any of the hooks guessing.
 #
-#   2. $HOME/.claude/marathon-active — the user-level registry, one absolute run
-#      directory path per line. This is what makes a marathon portable across
-#      repositories WITHOUT scanning the filesystem: the marathon skill appends
-#      a line at bootstrap and deletes it at teardown. Discovery by globbing
-#      sibling directories was rejected — it would block a session because of an
-#      unrelated repository's forgotten ACTIVE, and a gate with false positives
-#      gets disabled by its owner, which is worse than a gate that under-fires.
+#   2. $HOME/.harness/marathon-active — the user-level registry, one
+#      absolute run directory path per line. This is what makes a marathon
+#      portable across repositories WITHOUT scanning the filesystem: the
+#      marathon skill appends a line at bootstrap and deletes it at
+#      teardown. Discovery by globbing sibling directories was rejected — it
+#      would block a session because of an unrelated repository's forgotten
+#      ACTIVE, and a gate with false positives gets disabled by its owner,
+#      which is worse than a gate that under-fires.
 #
-# PRUNING DEAD ENTRIES. The registry is durable state living OUTSIDE any repo, so
-# it rots: one forgotten teardown would block unrelated future sessions forever.
-# An entry whose RUN.md has not been touched for more than
-# HARNESS_MARATHON_STALE_DAYS (default 7) is REMOVED from the registry and
-# ignored, as is an entry whose RUN.md no longer exists. The cut is on the mtime
-# of RUN.md, not of the directory: the skill requires updating RUN.md every time
-# an item closes, so that mtime IS the marathon's sign of life — the same signal
-# the strike counter already trusts to tell progress from spinning.
+#      Registry path is $HOME/.harness/ (not $HOME/.claude/): this project
+#      installs on Claude, Codex and Antigravity (use_claude/use_codex/
+#      use_antigravity in copier.yml) — a Codex-only or Antigravity-only
+#      install has no ".claude" anywhere, and a registry named after one
+#      runtime would be invisible to, or confusing from, the others. Every
+#      project-level shared directory in this framework is already ".harness/"
+#      for the same reason; the user-level registry follows the same rule.
+#
+# PRUNING DEAD ENTRIES. The registry is durable state living OUTSIDE any
+# repo, so it rots: one forgotten teardown would block unrelated future
+# sessions forever. An entry whose RUN.md has not been touched for more than
+# HARNESS_MARATHON_STALE_DAYS (default 7, read by the caller from
+# .harness/harness.conf and exported before sourcing this file — this
+# library itself takes no dependency on _tooling_conf.py, so it stays
+# testable standalone) is REMOVED from the registry and ignored, as is an
+# entry whose RUN.md no longer exists. The cut is on the mtime of RUN.md,
+# not of the directory: the skill requires updating RUN.md every time an
+# item closes, so that mtime IS the marathon's sign of life — the same
+# signal the strike counter already trusts to tell progress from spinning.
 #
 # USAGE (sourced by the hooks):
 #   . "$(dirname "$0")/marathon-locate.sh"
@@ -62,14 +82,14 @@ MARATHON_SLUG=""
 MARATHON_SOURCE_KIND=""
 MARATHON_ACTIVE_FILE=""
 
-# Captured AT SOURCE TIME. Inside a sourced file "$0" is the CONSUMER (the hook
-# doing the sourcing), not this file — so a teardown hint built from "$0" told
-# the user to run `bash marathon-stop-gate.sh unregister …`, a command that does
-# not exist. Caught by running the real gate, not by reading it.
+# Captured AT SOURCE TIME. Inside a sourced file "$0" is the CONSUMER (the
+# hook doing the sourcing), not this file — so a teardown hint built from
+# "$0" would tell the user to run `bash marathon-stop-gate.sh unregister …`,
+# a command that does not exist.
 MARATHON_LOCATE_SELF="${BASH_SOURCE[0]}"
 
 marathon_registry_path() {
-  echo "${MARATHON_REGISTRY:-$HOME/.claude/marathon-active}"
+  echo "${MARATHON_REGISTRY:-$HOME/.harness/marathon-active}"
 }
 
 # Accept a candidate run directory. A directory without RUN.md is NOT a
@@ -86,9 +106,9 @@ _marathon_accept() {
   return 0
 }
 
-# Walk the registry: prune dead lines, keep live ones, and adopt the first live
-# entry. Rewrites the file only when something actually changed, so a healthy
-# registry is never touched.
+# Walk the registry: prune dead lines, keep live ones, and adopt the first
+# live entry. Rewrites the file only when something actually changed, so a
+# healthy registry is never touched.
 _marathon_scan_registry() {
   local reg="$1" stale_days now cutoff line mtime kept="" changed=0 hit=1
   [ -f "$reg" ] || return 1
@@ -102,7 +122,7 @@ _marathon_scan_registry() {
       \#*) kept="${kept}${line}"$'\n'; continue ;;
     esac
     if [ ! -f "$line/RUN.md" ]; then changed=1; continue; fi
-    mtime="$(stat -c %Y "$line/RUN.md" 2>/dev/null || echo 0)"
+    mtime="$(stat -c %Y "$line/RUN.md" 2>/dev/null || stat -f %m "$line/RUN.md" 2>/dev/null || echo 0)"
     if [ "$mtime" -lt "$cutoff" ]; then changed=1; continue; fi
     kept="${kept}${line}"$'\n'
     if [ "$hit" -ne 0 ]; then
