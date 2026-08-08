@@ -12,6 +12,7 @@ import path from "node:path";
 import Ajv from "ajv";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
+import { normalizeVolatileDiagnosticSignal } from "./request-policy.mjs";
 
 /*
  * A VERSÃO DO MOTOR, e ela deixou de aparecer em artefato (2026-08-01).
@@ -201,6 +202,9 @@ const visualReviewOutputSchema = {
     "schemaVersion",
     "artifactType",
     "runId",
+    "sourceFingerprint",
+    "toolchainFingerprint",
+    "generatedAt",
     "batchId",
     "comparisonFingerprint",
     "reviewerId",
@@ -216,6 +220,9 @@ const visualReviewOutputSchema = {
       type: "string",
       pattern: "^tokenize-[a-zA-Z0-9._-]+$",
     },
+    sourceFingerprint: SHA256,
+    toolchainFingerprint: SHA256,
+    generatedAt: NON_EMPTY_STRING,
     batchId: { type: "string", pattern: "^B[0-9]{4,}$" },
     comparisonFingerprint: SHA256,
     reviewerId: NON_EMPTY_STRING,
@@ -1029,19 +1036,38 @@ function multisetAdded(before, after) {
 }
 
 export function calculateErrorDelta(before, after) {
+  // Normalize volatile identity only. Multiplicity remains evidence: one
+  // semantic error before and two after is an increased runtime error count,
+  // even when both after entries carry different stacks or loopback ports.
+  const normalizedSignals = (values) =>
+    values.map(normalizeVolatileDiagnosticSignal).sort((left, right) =>
+      left.localeCompare(right)
+    );
+  const beforeSignals = {
+    console: normalizedSignals(before.consoleErrors),
+    page: normalizedSignals(before.pageErrors),
+    network: normalizedSignals(before.networkFailures),
+    axe: normalizedSignals(before.axeViolationIds),
+  };
+  const afterSignals = {
+    console: normalizedSignals(after.consoleErrors),
+    page: normalizedSignals(after.pageErrors),
+    network: normalizedSignals(after.networkFailures),
+    axe: normalizedSignals(after.axeViolationIds),
+  };
   const added = {
-    console: multisetAdded(before.consoleErrors, after.consoleErrors),
-    page: multisetAdded(before.pageErrors, after.pageErrors),
-    network: multisetAdded(before.networkFailures, after.networkFailures),
-    axe: multisetAdded(before.axeViolationIds, after.axeViolationIds),
+    console: multisetAdded(beforeSignals.console, afterSignals.console),
+    page: multisetAdded(beforeSignals.page, afterSignals.page),
+    network: multisetAdded(beforeSignals.network, afterSignals.network),
+    axe: multisetAdded(beforeSignals.axe, afterSignals.axe),
   };
   const overflowIntroduced = !before.overflow && after.overflow;
   return {
     counts: {
-      console: after.consoleErrors.length - before.consoleErrors.length,
-      page: after.pageErrors.length - before.pageErrors.length,
-      network: after.networkFailures.length - before.networkFailures.length,
-      axe: after.axeViolationIds.length - before.axeViolationIds.length,
+      console: afterSignals.console.length - beforeSignals.console.length,
+      page: afterSignals.page.length - beforeSignals.page.length,
+      network: afterSignals.network.length - beforeSignals.network.length,
+      axe: afterSignals.axe.length - beforeSignals.axe.length,
       overflow: Number(after.overflow) - Number(before.overflow),
     },
     added,
@@ -1406,6 +1432,7 @@ export function compareEvidenceManifests({
   afterManifestPath,
   policy,
   outputDirectory,
+  artifactReferenceRoot = outputDirectory,
 }) {
   const beforeCaptures = verifyEvidenceManifestFiles(
     beforeManifest,
@@ -1531,12 +1558,12 @@ export function compareEvidenceManifests({
     beforeManifest: contractArtifactRef(
       "evidence-manifest",
       beforeManifestPath,
-      outputDirectory
+      artifactReferenceRoot
     ),
     afterManifest: contractArtifactRef(
       "evidence-manifest",
       afterManifestPath,
-      outputDirectory
+      artifactReferenceRoot
     ),
     beforeBindings: Object.fromEntries(
       FINGERPRINT_FIELDS.map((field) => [field, beforeManifest[field]])

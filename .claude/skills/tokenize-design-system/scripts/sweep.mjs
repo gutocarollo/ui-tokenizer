@@ -47,6 +47,7 @@ import {
 import { artefatosPorTipo, execute, executorFor } from "./lib/phase-executors.mjs";
 import {
   deParaDasDecisoes,
+  batchIdsDoArtefato,
   fingerprintDoArtefato,
   lerProgresso,
   objetosDoArquivo,
@@ -140,6 +141,15 @@ export function artefatosExigidosDaFonteAtiva(mapa, tipos, sourceFingerprint) {
         fingerprintDoArtefato(artifactPath) === sourceFingerprint
     )
   );
+}
+
+/** Artefato global pertence a toda rodada; artefato com batchId pertence só ao
+ * lote ativo. Sem este filtro, a segunda rodada entregava manifests B0001 e
+ * B0002 juntos e o contrato recusava corretamente a mistura. */
+export function artefatoDoLoteOuGlobal(artifactPath, batchId) {
+  if (!batchId) return true;
+  const batches = new Set(batchIdsDoArtefato(artifactPath));
+  return batches.size === 0 || (batches.size === 1 && batches.has(batchId));
 }
 
 /** Próximo id de lote: maior B\d{4,} visto nos batch-contract do run root + 1. */
@@ -408,6 +418,7 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
         runRoot,
         runId: st.runId,
         runConfigPath: path.join(runRoot, "config.json"),
+        sourceFingerprint: st.sourceFingerprint,
         ...(st.activeBatchId ? { batchId: st.activeBatchId } : {}),
       });
     } catch (e) {
@@ -437,11 +448,15 @@ export function varrer({ root, runRoot, maxRodadas = 50 }, depsInjetadas = {}) {
     const mapa = artefatosPorTipo(tipos, runRoot);
     // O conjunto é TODO artefato da fonte ativa (as invariantes são de conjunto),
     // com os tipos exigidos que EXISTEM garantidos dentro dele.
-    const doConjunto = artefatosDaFonteAtiva(runRoot, st.sourceFingerprint);
+    const doConjunto = artefatosDaFonteAtiva(runRoot, st.sourceFingerprint).filter(
+      (artifactPath) => artefatoDoLoteOuGlobal(artifactPath, st.activeBatchId)
+    );
     const exigidos = artefatosExigidosDaFonteAtiva(
       mapa,
       tipos,
       st.sourceFingerprint
+    ).filter((artifactPath) =>
+      artefatoDoLoteOuGlobal(artifactPath, st.activeBatchId)
     );
     const artefatos = [...new Set([...doConjunto, ...exigidos])];
     try {

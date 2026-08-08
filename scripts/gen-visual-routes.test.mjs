@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  applyExternalFixtureScenarios,
   applyRouteEvidencePolicy,
+  externalFixtureRegistry,
   neutralizeExternalRegistry,
 } from "./gen-visual-routes.mjs";
+import { selectImpactedScenarios } from "./lib/impacted-evidence-selection.mjs";
 
 function registry() {
   return {
@@ -45,6 +48,39 @@ function registry() {
   };
 }
 
+test("registro durável de cenários é projetado no impacted-context", () => {
+  const selected = selectImpactedScenarios({
+    scenarios: registry().scenarios,
+    impactedBaseIds: ["private/default"],
+  });
+  assert.deepEqual(selected.map(({ scenarioId }) => scenarioId), [
+    "private/default",
+  ]);
+});
+
+test("projeção de cenários recusa ID impactado ausente", () => {
+  assert.throws(
+    () =>
+      selectImpactedScenarios({
+        scenarios: registry().scenarios,
+        impactedBaseIds: ["missing/default"],
+      }),
+    /absent from the visual registry/
+  );
+});
+
+test("projeção de cenários recusa IDs duplicados no registro", () => {
+  const duplicate = registry().scenarios[0];
+  assert.throws(
+    () =>
+      selectImpactedScenarios({
+        scenarios: [...registry().scenarios, duplicate],
+        impactedBaseIds: ["private/default"],
+      }),
+    /duplicate scenarioId/
+  );
+});
+
 test("external target may declare a default authenticated role with explicit public routes", () => {
   const result = neutralizeExternalRegistry(registry(), {
     UI_EVIDENCE_DEFAULT_AUTH_ROLE: "authenticated",
@@ -65,6 +101,86 @@ test("external target may declare a default authenticated role with explicit pub
       { route: "/auth/signin", authRole: "anonymous" },
     ]
   );
+});
+
+test("external read-only network fixture survives neutralization and owns its interaction", () => {
+  const document = {
+    semanticReadTransports: {
+      "/lead/:id": [
+        {
+          method: "POST",
+          path: "/api/v1/private/query",
+          contractSources: ["server/private-query.ts"],
+        },
+      ],
+    },
+    fixtures: [
+      {
+        id: "lead-v1",
+        routePattern: "/lead/:id",
+        routeParams: { id: "stable" },
+        scenario: {
+          interactionState: "details-open",
+          actions: [
+            { type: "goto", target: null, value: "$route" },
+            { type: "click", target: "[aria-label='details']", value: null },
+          ],
+          assertions: [
+            { type: "assert", target: "[role='dialog']", value: "visible" },
+          ],
+        },
+      },
+    ],
+  };
+  assert.deepEqual(externalFixtureRegistry(document), {
+    "/lead/:id": [
+      {
+        fixtureId: "lead-v1",
+        networkFixtureId: "lead-v1",
+        name: "lead-v1",
+        params: { id: "stable" },
+        source: "target-versioned-network-read-only",
+      },
+    ],
+  });
+
+  const base = registry();
+  base.contexts[0].fixtureId = "lead-v1";
+  base.contexts[0].networkFixtureId = "lead-v1";
+  base.scenarios[0].fixtureId = "lead-v1";
+  base.scenarios[0].networkFixtureId = "lead-v1";
+  base.scenarios[0].route = "/lead/stable";
+  base.scenarios[0].routePattern = "/lead/:id";
+  // Simula uma fixture estática pertencente ao processo, não ao alvo. Ela não
+  // pode escapar só porque `visual-registry.mjs` a conhece.
+  base.contexts[1].fixtureId = "onboarding-home-v1";
+  base.contexts[1].networkFixtureId = "onboarding-home-v1";
+  base.scenarios[1].fixtureId = "onboarding-home-v1";
+  base.scenarios[1].networkFixtureId = "onboarding-home-v1";
+  const neutral = neutralizeExternalRegistry(
+    base,
+    { UI_EVIDENCE_DEFAULT_AUTH_ROLE: "authenticated" },
+    new Set(["lead-v1"])
+  );
+  assert.equal(neutral.contexts[0].networkFixtureId, "lead-v1");
+  assert.equal(neutral.scenarios[0].networkFixtureId, "lead-v1");
+  assert.equal(neutral.contexts[1].networkFixtureId, null);
+  assert.equal(neutral.scenarios[1].networkFixtureId, null);
+  assert.equal(neutral.contexts[1].fixtureId, "authenticated-session-v1");
+
+  const result = applyExternalFixtureScenarios(neutral, document);
+  assert.equal(result.scenarios[0].interactionState, "details-open");
+  assert.deepEqual(result.scenarios[0].actions, [
+    { type: "goto", target: null, value: "/lead/stable" },
+    { type: "click", target: "[aria-label='details']", value: null },
+  ]);
+  assert.deepEqual(result.scenarios[0].semanticReadTransports, [
+    {
+      method: "POST",
+      path: "/api/v1/private/query",
+      contractSources: ["server/private-query.ts"],
+    },
+  ]);
 });
 
 test("route evidence policy masks only declared dynamic regions and is fingerprint-bound", () => {

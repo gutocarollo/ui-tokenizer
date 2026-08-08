@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 
-export const NETWORK_FIXTURE_FILE = fileURLToPath(
-  new URL("./network-fixtures.json", import.meta.url)
-);
+export const NETWORK_FIXTURE_FILE = process.env.UI_EVIDENCE_NETWORK_FIXTURE_FILE
+  ? path.resolve(process.env.UI_EVIDENCE_NETWORK_FIXTURE_FILE)
+  : fileURLToPath(new URL("./network-fixtures.json", import.meta.url));
 
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) {
@@ -22,7 +22,7 @@ function requireNonEmptyString(value, field) {
   }
 }
 
-function validateFixtureDocument(document, filePath) {
+export function validateFixtureDocument(document, filePath) {
   if (!document || typeof document !== "object" || Array.isArray(document)) {
     throw new Error(`Network fixture file must contain an object: ${filePath}`);
   }
@@ -157,6 +157,24 @@ function exactApiMatcher(apiPath) {
   return new RegExp(`${escapedPath}(?:\\?.*)?$`);
 }
 
+function corsHeaders(request) {
+  const headers = request.headers();
+  const origin = headers.origin;
+  if (!origin) return {};
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-credentials": "true",
+    "access-control-allow-methods": "GET, OPTIONS",
+    ...(headers["access-control-request-headers"]
+      ? {
+          "access-control-allow-headers":
+            headers["access-control-request-headers"],
+        }
+      : {}),
+    vary: "Origin",
+  };
+}
+
 export async function installReadOnlyNetworkFixture(context, fixtureId) {
   if (fixtureId === null || fixtureId === undefined) return [];
   if (!context || typeof context.route !== "function") {
@@ -168,13 +186,26 @@ export async function installReadOnlyNetworkFixture(context, fixtureId) {
     await context.route(exactApiMatcher(response.path), async (route) => {
       const request = route.request();
       const pathname = new URL(request.url()).pathname;
-      if (request.method() !== "GET" || pathname !== response.path) {
+      if (pathname !== response.path) {
+        await route.continue();
+        return;
+      }
+      if (request.method() === "OPTIONS") {
+        await route.fulfill({
+          status: 204,
+          headers: corsHeaders(request),
+          body: "",
+        });
+        return;
+      }
+      if (request.method() !== "GET") {
         await route.continue();
         return;
       }
       await route.fulfill({
         status: response.status,
         contentType: "application/json",
+        headers: corsHeaders(request),
         body: JSON.stringify(response.body),
       });
     });

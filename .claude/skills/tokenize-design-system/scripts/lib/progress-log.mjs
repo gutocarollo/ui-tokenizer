@@ -84,9 +84,24 @@ export function fingerprintDoArtefato(caminho) {
  */
 export function tipoDoArtefato(caminho) {
   return primeiroBloco(caminho, (texto) => {
-    const m = /"artifactType"\s*:\s*"([^"]+)"/.exec(texto);
+    const primeiroCampo = /^\s*\{\s*"([^"]+)"/.exec(texto)?.[1] ?? null;
+    if (!["schemaVersion", "artifactType"].includes(primeiroCampo)) return null;
+    const m = /"artifactType"\s*:\s*"([^"]+)"/.exec(texto.slice(0, 4096));
     return m ? m[1] : null;
   });
+}
+
+/** `batchId` também pertence ao cabeçalho lógico de cada registro. Ler o
+ * arquivo inteiro para descobrir que um censo de 70 MB é global tornava cada
+ * transição O(total de bytes de todas as gerações). */
+export function batchIdsDoArtefato(caminho) {
+  return primeiroBloco(caminho, (texto) => {
+    const ids = new Set();
+    for (const match of texto.matchAll(/"batchId"\s*:\s*"(B[0-9]{4,})"/g)) {
+      ids.add(match[1]);
+    }
+    return [...ids];
+  }) ?? [];
 }
 
 export function lerProgresso(runRoot) {

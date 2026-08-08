@@ -21,11 +21,13 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
 import { dispensaDeClusterPacket } from "./artifact-contract.mjs";
+import { generationArtifactsDir } from "./active-generation.mjs";
+import { tipoDoArtefato } from "./progress-log.mjs";
 
 /** Diretório dos scripts da skill, derivado deste arquivo (lib/ -> scripts/). */
 const DEFAULT_SCRIPTS_DIR = path.resolve(
@@ -62,6 +64,23 @@ const DEFAULT_PROCESS_ROOT = path.resolve(DEFAULT_SCRIPTS_DIR, "../../../..");
  * adiante.
  */
 const artefatos = (ctx) => `${ctx.runRoot}/artifacts`;
+
+/**
+ * O reinventory inaugura uma geração nova, identificada pelo fingerprint vivo
+ * do state. Normalização e classificação dessa geração não podem ler nem
+ * sobrescrever os artefatos ancorados: isso compararia a fonte nova contra si
+ * mesma e apagaria a origem. A divergência state×config é o sinal durável de
+ * que o laço está depois de uma mutação aceita.
+ */
+function artefatosDaGeracao(ctx) {
+  exigir(ctx, ["runConfigPath", "sourceFingerprint"], "geração de artefatos");
+  const cfg = JSON.parse(readFileSync(ctx.runConfigPath, "utf8"));
+  return generationArtifactsDir({
+    runRoot: ctx.runRoot,
+    configuredSourceFingerprint: cfg.sourceFingerprint,
+    activeSourceFingerprint: ctx.sourceFingerprint,
+  });
+}
 
 /** `--root <app>` mais o resto. Cinco scripts da fase CLASSIFIED leem a raiz por
  *  `resolveRoot()`, que sem a flag cai no `cwd` — e o `cwd` do executor nao e o
@@ -103,13 +122,14 @@ function exigir(ctx, campos, rotulo) {
  *
  * Config ilegível LANÇA — recusa visível, nunca censo com identidade errada.
  */
-function sourceRootsDoConfig(ctx) {
+function sourceRootsDoConfig(ctx, { sourceFingerprint = null } = {}) {
   const cfg = JSON.parse(readFileSync(ctx.runConfigPath, "utf8"));
   const roots = cfg?.sourceRoots;
+  const effectiveSourceFingerprint = sourceFingerprint ?? cfg?.sourceFingerprint;
   return [
     ...(Array.isArray(roots) && roots.length ? ["--source-roots", roots.join(",")] : []),
     ...(cfg?.toolchainFingerprint ? ["--toolchain-fingerprint", cfg.toolchainFingerprint] : []),
-    ...(cfg?.sourceFingerprint ? ["--source-fingerprint", cfg.sourceFingerprint] : []),
+    ...(effectiveSourceFingerprint ? ["--source-fingerprint", effectiveSourceFingerprint] : []),
   ];
 }
 
@@ -127,6 +147,27 @@ function eixosDoConfig(ctx) {
     .map((e) => e?.axis)
     .filter(Boolean);
   return eixos.length ? ["--configured-axes", eixos.join(",")] : [];
+}
+
+/**
+ * Os dois artefatos centrais pertencem ao escopo de MUTACAO do lote, mas não
+ * ao escopo de ROTAS. Sem separar as duas perguntas, um CSS gerado global
+ * transforma qualquer migração local em fan-out visual do produto inteiro.
+ */
+function artefatosCentraisDoAlvo(ctx) {
+  exigir(ctx, ["applicationRoot"], "topologia de tokens");
+  const candidatos = [
+    path.join(ctx.applicationRoot, "tokenization.config.json"),
+    path.join(ctx.applicationRoot, "tokens/tokenization.config.json"),
+  ];
+  const configPath = candidatos.find((candidate) => existsSync(candidate));
+  const config = configPath
+    ? JSON.parse(readFileSync(configPath, "utf8"))
+    : {};
+  return new Set([
+    config.tokenFile ?? "tokens/color.tokens.json",
+    config.themeFile ?? "app/styles/generated/theme.css",
+  ]);
 }
 
 export const PHASE_EXECUTORS = Object.freeze({
@@ -215,11 +256,12 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "normalize-occurrences.mjs",
         args: (ctx) => {
-          exigir(ctx, ["applicationRoot", "runRoot"], "normalize-occurrences");
+          exigir(ctx, ["applicationRoot", "runRoot", "runConfigPath", "sourceFingerprint"], "normalize-occurrences");
+          const generation = artefatosDaGeracao(ctx);
           return [
             "--root", ctx.applicationRoot,
-            "--input", `${artefatos(ctx)}/design-occurrences.ndjson`,
-            "--out", artefatos(ctx),
+            "--input", `${generation}/design-occurrences.ndjson`,
+            "--out", generation,
           ];
         },
         /*
@@ -269,10 +311,12 @@ export const PHASE_EXECUTORS = Object.freeze({
          */
         script: "context-clusters.mjs",
         args: (ctx) => {
-          exigir(ctx, ["applicationRoot", "runConfigPath", "runRoot"], "context-clusters");
+          exigir(ctx, ["applicationRoot", "runConfigPath", "runRoot", "sourceFingerprint"], "context-clusters");
           return ["--root", ctx.applicationRoot, "--all",
-                  "--emit-artifacts", artefatos(ctx),
-                  "--run-config", ctx.runConfigPath];
+                  "--emit-artifacts", artefatosDaGeracao(ctx),
+                  "--run-config", ctx.runConfigPath,
+                  "--run-root", ctx.runRoot,
+                  "--source-fingerprint", ctx.sourceFingerprint];
         },
         emits: "cluster-packet",
       },
@@ -286,13 +330,15 @@ export const PHASE_EXECUTORS = Object.freeze({
          */
         script: "classify-design-occurrences.mjs",
         args: (ctx) => {
-          exigir(ctx, ["applicationRoot", "runConfigPath", "runRoot"], "classify-design-occurrences");
+          exigir(ctx, ["applicationRoot", "runConfigPath", "runRoot", "sourceFingerprint"], "classify-design-occurrences");
+          const generation = artefatosDaGeracao(ctx);
           return [
             "--root", ctx.applicationRoot,
             "--run-config", ctx.runConfigPath,
-            "--input", `${artefatos(ctx)}/design-occurrences.ndjson`,
-            "--normalized", `${artefatos(ctx)}/normalized-occurrences.ndjson`,
-            "--out", `${artefatos(ctx)}/classified-design-occurrences.ndjson`,
+            "--input", `${generation}/design-occurrences.ndjson`,
+            "--normalized", `${generation}/normalized-occurrences.ndjson`,
+            "--out", `${generation}/classified-design-occurrences.ndjson`,
+            "--source-fingerprint", ctx.sourceFingerprint,
           ];
         },
         outcomes: {
@@ -303,12 +349,14 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "cluster-design-values.mjs",
         args: (ctx) => {
-          exigir(ctx, ["runConfigPath", "runRoot"], "cluster-design-values");
+          exigir(ctx, ["runConfigPath", "runRoot", "sourceFingerprint"], "cluster-design-values");
+          const generation = artefatosDaGeracao(ctx);
           return [
             "--run-config", ctx.runConfigPath,
-            "--classified", `${artefatos(ctx)}/classified-design-occurrences.ndjson`,
-            "--normalized", `${artefatos(ctx)}/normalized-occurrences.ndjson`,
-            "--out", artefatos(ctx),
+            "--classified", `${generation}/classified-design-occurrences.ndjson`,
+            "--normalized", `${generation}/normalized-occurrences.ndjson`,
+            "--out", generation,
+            "--source-fingerprint", ctx.sourceFingerprint,
           ];
         },
         outcomes: {
@@ -355,7 +403,7 @@ export const PHASE_EXECUTORS = Object.freeze({
         args: (ctx) => {
           exigir(
             ctx,
-            ["applicationRoot", "runRoot", "runConfigPath", "batchId"],
+            ["applicationRoot", "runRoot", "runConfigPath", "batchId", "sourceFingerprint"],
             "affected-routes"
           );
           const lote = JSON.parse(
@@ -367,14 +415,24 @@ export const PHASE_EXECUTORS = Object.freeze({
               `batch ${ctx.batchId} sem plannedFiles — um lote que não declara o que vai tocar não tem impacto verificável`
             );
           }
+          const centrais = artefatosCentraisDoAlvo(ctx);
+          const sementesDeRota = planejados.filter(
+            (arquivo) => !centrais.has(arquivo)
+          );
+          if (!sementesDeRota.length) {
+            throw new Error(
+              `batch ${ctx.batchId} sem callsite planejado — token/theme não provam impacto de rota`
+            );
+          }
           return [
             "--root", ctx.applicationRoot,
-            "--files", planejados.join(","),
+            "--files", sementesDeRota.join(","),
             "--json",
             "--allow-gaps",
             "--run-config", ctx.runConfigPath,
             "--batch-contract", `${artefatos(ctx)}/batch-${ctx.batchId}.json`,
             "--batch-id", ctx.batchId,
+            "--source-fingerprint", ctx.sourceFingerprint,
             "--emit-artifact", `${artefatos(ctx)}/impacted-${ctx.batchId}.json`,
           ];
         },
@@ -385,7 +443,7 @@ export const PHASE_EXECUTORS = Object.freeze({
         args: (ctx) => {
           exigir(
             ctx,
-            ["applicationRoot", "runRoot", "runConfigPath", "batchId"],
+            ["applicationRoot", "runRoot", "runConfigPath", "batchId", "sourceFingerprint"],
             "gen-visual-routes"
           );
           return [
@@ -393,6 +451,8 @@ export const PHASE_EXECUTORS = Object.freeze({
             "--json",
             "--run-config", ctx.runConfigPath,
             "--batch-contract", `${artefatos(ctx)}/batch-${ctx.batchId}.json`,
+            "--impacted-context", `${artefatos(ctx)}/impacted-${ctx.batchId}.json`,
+            "--source-fingerprint", ctx.sourceFingerprint,
             "--emit-scenarios", `${artefatos(ctx)}/scenarios-${ctx.batchId}.ndjson`,
           ];
         },
@@ -421,7 +481,8 @@ export const PHASE_EXECUTORS = Object.freeze({
           // `--run-config`, nunca `--run-id`: o identificador vem da ancora.
           return [path.join(DEFAULT_PROCESS_ROOT, "scripts/ui-evidence.sh"), "before", "--root", ctx.applicationRoot,
                   "--run-root", ctx.runRoot, "--run-config", ctx.runConfigPath,
-                  "--batch-id", ctx.batchId, "--phase", "before"];
+                  "--batch-id", ctx.batchId, "--phase", "before",
+                  "--impacted-context", `${artefatos(ctx)}/impacted-${ctx.batchId}.json`];
         },
         emits: "evidence-manifest",
       },
@@ -470,7 +531,8 @@ export const PHASE_EXECUTORS = Object.freeze({
           // `--run-config`, nunca `--run-id`: o identificador vem da ancora.
           return [path.join(DEFAULT_PROCESS_ROOT, "scripts/ui-evidence.sh"), "after", "--root", ctx.applicationRoot,
                   "--run-root", ctx.runRoot, "--run-config", ctx.runConfigPath,
-                  "--batch-id", ctx.batchId, "--phase", "after"];
+                  "--batch-id", ctx.batchId, "--phase", "after",
+                  "--impacted-context", `${artefatos(ctx)}/impacted-${ctx.batchId}.json`];
         },
         emits: "evidence-manifest",
       },
@@ -495,8 +557,11 @@ export const PHASE_EXECUTORS = Object.freeze({
           const base = `${artefatos(ctx)}/${ctx.batchId}`;
           return ["--before", `${base}/before/manifest.json`,
                   "--after", `${base}/after/manifest.json`,
+                  "--run-root", ctx.runRoot,
                   "--policy", `${artefatos(ctx)}/batch-${ctx.batchId}.json`,
                   "--scenarios", `${artefatos(ctx)}/scenarios-${ctx.batchId}.ndjson`,
+                  "--application-root", ctx.applicationRoot,
+                  "--apply-plan", `${artefatos(ctx)}/apply-${ctx.batchId}.json`,
                   "--out", `${base}/comparison.json`,
                   // O pacote de revisao sai AQUI, mas quem o preenche e a fase
                   // REVIEWED, que e `model`: script nenhum fecha veredito visual.
@@ -531,11 +596,11 @@ export const PHASE_EXECUTORS = Object.freeze({
       {
         script: "extract-design-occurrences.mjs",
         args: (ctx) => {
-          exigir(ctx, ["applicationRoot", "runRoot", "runId", "runConfigPath"], "extract-design-occurrences/re");
-          // Sai em `reinventory/`, nao por cima do inventario inicial: o laco de
-          // residuo COMPARA os dois, e sobrescrever a origem apagaria o termo de
-          // comparacao — a iteracao passaria a convergir contra si mesma.
-          return ["--root", ctx.applicationRoot, "--out", `${artefatos(ctx)}/reinventory`, "--run-id", ctx.runId, ...sourceRootsDoConfig(ctx)];
+          exigir(ctx, ["applicationRoot", "runRoot", "runId", "runConfigPath", "sourceFingerprint"], "extract-design-occurrences/re");
+          // Uma pasta por fingerprint impede a segunda volta de sobrescrever a
+          // primeira geração pós-âncora, já referenciada pelo journal.
+          return ["--root", ctx.applicationRoot, "--out", artefatosDaGeracao(ctx), "--run-id", ctx.runId,
+                  ...sourceRootsDoConfig(ctx, { sourceFingerprint: ctx.sourceFingerprint })];
         },
         outcomes: { 2: "ocorrencias opacas a reconciliar; artefatos escritos" },
         emits: "design-occurrence",
@@ -544,7 +609,7 @@ export const PHASE_EXECUTORS = Object.freeze({
         script: "discover-axes.mjs",
         args: (ctx) => {
           exigir(ctx, ["runRoot", "runConfigPath"], "discover-axes/re");
-          const base = `${artefatos(ctx)}/reinventory`;
+          const base = artefatosDaGeracao(ctx);
           return ["--occurrences", `${base}/design-occurrences.ndjson`,
                   "--extraction-summary", `${base}/extraction-summary.json`,
                   "--out", `${base}/axis-discovery.json`,
@@ -811,24 +876,10 @@ export function artefatosPorTipo(tipos, runRoot) {
   }
   arquivos.push(`${runRoot}/final-proof.json`);
   for (const caminho of arquivos) {
-    let texto = "";
-    try { texto = readFileSync(caminho, "utf8"); } catch { continue; }
-    let objetos = [];
-    try {
-      const raiz = JSON.parse(texto);
-      objetos = Array.isArray(raiz) ? raiz : [raiz];
-    } catch {
-      for (const linha of texto.split(/\r?\n/)) {
-        if (!linha.trim()) continue;
-        try { objetos.push(JSON.parse(linha)); } catch { /* arquivo não-artefato */ }
-      }
-    }
-    for (const objeto of objetos) {
-      const tipo = objeto?.artifactType;
-      if (!achados.has(tipo)) continue;
-      const lista = achados.get(tipo);
-      if (!lista.includes(caminho)) lista.push(caminho);
-    }
+    const tipo = tipoDoArtefato(caminho);
+    if (!achados.has(tipo)) continue;
+    const lista = achados.get(tipo);
+    if (!lista.includes(caminho)) lista.push(caminho);
   }
   return achados;
 }

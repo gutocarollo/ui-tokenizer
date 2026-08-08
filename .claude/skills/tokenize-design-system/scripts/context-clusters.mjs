@@ -398,6 +398,11 @@ if (emitDir) {
   const { envelopeFrom, fingerprint } = await import("../../../../scripts/lib/artifact-envelope.mjs");
   const { mkdirSync: mkd, writeFileSync: wf, existsSync: ex } = await import("node:fs");
   const env = envelopeFrom(runConfigPath);
+  const emittedSourceFingerprint = arg("--source-fingerprint") ?? env.sourceFingerprint;
+  const emittedHeader = (artifactType) => ({
+    ...env.header(artifactType),
+    sourceFingerprint: emittedSourceFingerprint,
+  });
   mkd(emitDir, { recursive: true });
 
   /*
@@ -441,7 +446,7 @@ if (emitDir) {
       equivalenceLevel: porValor.size === 1 ? "OBSERVED_EQUIVALENT" : "NOT_EQUIVALENT",
     }));
     return {
-      ...env.header("cluster-packet"),
+      ...emittedHeader("cluster-packet"),
       clusterId: c.clusterId,
       occurrenceIds: [...new Set(c.occurrences.map(sitioId))],
       contextFingerprint: fingerprint(c.key ?? c.sample ?? {}),
@@ -474,7 +479,7 @@ if (emitDir) {
 
   const baixaConfianca = lista.filter((c) => c.confidence.band === "low");
   const relatorio = {
-    ...env.header("inventory-report"),
+    ...emittedHeader("inventory-report"),
     reportId: "classified/ownerless",
     inventoryKind: "ownerless",
     inputArtifactRefs: [

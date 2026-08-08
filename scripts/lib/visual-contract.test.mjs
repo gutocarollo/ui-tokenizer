@@ -19,6 +19,7 @@ import {
   bindVisualReview,
   buildEvidenceManifest,
   buildVisualReviewInput,
+  calculateErrorDelta,
   compareEvidenceManifests,
   comparePngFiles,
   expandVisualPolicyToScenarioMatrix,
@@ -469,6 +470,7 @@ test("comparison enforces preserve, change, and mixed policies over the exact ma
 
   const mixed = compareEvidenceManifests({
     ...common,
+    artifactReferenceRoot: root,
     policy: {
       expectedVisualEffect: "mixed",
       expectedChangedScenarioIds: ["settings/hover"],
@@ -477,6 +479,8 @@ test("comparison enforces preserve, change, and mixed policies over the exact ma
   });
   assert.equal(mixed.deterministicVerdict, "pass");
   assert.equal(mixed.verdict, "review");
+  assert.equal(mixed.beforeManifest.path, "before/manifest.json");
+  assert.equal(mixed.afterManifest.path, "after/manifest.json");
   assert.equal(
     mixed.pairs.every((pair) => pair.deterministicPolicyVerdict === "pass"),
     true
@@ -548,6 +552,54 @@ test("new console, page, network, axe, or overflow signals fail an otherwise pre
   ]);
 });
 
+test("equivalent errors with different build stacks are not regressions", () => {
+  const before = {
+    consoleErrors: [
+      "TypeError: Failed to fetch\n    at queryFn (http://localhost:3100/_next/static/chunks/dev.js:1:2)",
+    ],
+    pageErrors: [],
+    networkFailures: [],
+    axeViolationIds: [],
+    overflow: false,
+  };
+  const after = {
+    ...before,
+    consoleErrors: [
+      "TypeError: Failed to fetch\n    at queryFn (http://localhost:4200/_next/static/chunks/prod.js:9:8)",
+    ],
+  };
+
+  const delta = calculateErrorDelta(before, after);
+  assert.equal(delta.hasRegression, false);
+  assert.deepEqual(delta.added.console, []);
+});
+
+test("normalization preserves increased multiplicity of one semantic signal", () => {
+  const before = {
+    consoleErrors: [
+      "Error fetching filter options: TypeError: Failed to fetch\n    at queryFn (http://localhost:3100/_next/static/chunks/a.js:1:2)",
+    ],
+    pageErrors: [],
+    networkFailures: [],
+    axeViolationIds: [],
+    overflow: false,
+  };
+  const after = {
+    ...before,
+    consoleErrors: [
+      "Error fetching filter options: TypeError: Failed to fetch\n    at queryFn (http://localhost:3101/_next/static/chunks/b.js:9:8)",
+      "Error fetching filter options: TypeError: Failed to fetch\n    at strictEffect (http://localhost:3101/_next/static/chunks/c.js:10:4)",
+    ],
+  };
+
+  const delta = calculateErrorDelta(before, after);
+  assert.equal(delta.hasRegression, true);
+  assert.equal(delta.counts.console, 1);
+  assert.deepEqual(delta.added.console, [
+    "Error fetching filter options: TypeError: Failed to fetch",
+  ]);
+});
+
 test("visual review input is non-empty and output is exact, bound, and non-blank", (t) => {
   const root = temporaryDirectory(t);
   const before = makeEvidence({
@@ -589,6 +641,9 @@ test("visual review input is non-empty and output is exact, bound, and non-blank
     schemaVersion: ARTIFACT_SCHEMA_VERSION,
     artifactType: "visual-review",
     runId: comparison.runId,
+    sourceFingerprint: comparison.sourceFingerprint,
+    toolchainFingerprint: comparison.toolchainFingerprint,
+    generatedAt: "2026-08-03T00:00:00.000Z",
     batchId: comparison.batchId,
     comparisonFingerprint: sha256Value(comparison),
     reviewerId: "visual-reviewer-test",
@@ -658,6 +713,8 @@ test("compare CLI emits a pending review packet, then deterministically accepts 
     after.manifestPath,
     "--policy",
     policyPath,
+    "--run-root",
+    root,
     "--out",
     comparisonPath,
     "--review-input",
@@ -668,12 +725,17 @@ test("compare CLI emits a pending review packet, then deterministically accepts 
   });
   assert.equal(pending.status, 3, pending.stderr);
   const comparison = JSON.parse(readFileSync(comparisonPath, "utf8"));
+  assert.equal(comparison.beforeManifest.path, "before/manifest.json");
+  assert.equal(comparison.afterManifest.path, "after/manifest.json");
   const reviewInput = JSON.parse(readFileSync(reviewInputPath, "utf8"));
   const pair = comparison.pairs[0];
   const review = {
     schemaVersion: ARTIFACT_SCHEMA_VERSION,
     artifactType: "visual-review",
     runId: comparison.runId,
+    sourceFingerprint: comparison.sourceFingerprint,
+    toolchainFingerprint: comparison.toolchainFingerprint,
+    generatedAt: "2026-08-03T00:00:00.000Z",
     batchId: comparison.batchId,
     comparisonFingerprint: reviewInput.comparisonFingerprint,
     reviewerId: "cli-reviewer",
@@ -697,9 +759,14 @@ test("compare CLI emits a pending review packet, then deterministically accepts 
     { encoding: "utf8" }
   );
   assert.equal(accepted.status, 0, accepted.stderr);
+  const immutableComparison = JSON.parse(
+    readFileSync(comparisonPath, "utf8")
+  );
+  assert.equal(immutableComparison.verdict, "review");
+  assert.equal(immutableComparison.visualReviewVerdict, "pending");
   assert.equal(
-    JSON.parse(readFileSync(comparisonPath, "utf8")).verdict,
-    "pass"
+    JSON.parse(readFileSync(reviewInputPath, "utf8")).comparison.sha256,
+    sha256Value(immutableComparison)
   );
 });
 

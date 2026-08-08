@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { resolveAppRoot, resolveRepoRoot } from "./lib/app-roots.mjs";
@@ -12,7 +12,9 @@ import {
   buildEvidenceBindings,
   loadEvidenceSelection,
 } from "./lib/evidence-matrix.mjs";
+import { withMaterializedEvidenceRegistry } from "./lib/evidence-registry.mjs";
 import { envelopeFrom } from "./lib/artifact-envelope.mjs";
+import { readImpactedScenarioIds } from "./lib/impacted-evidence-selection.mjs";
 import { VisualContractError } from "./lib/visual-contract.mjs";
 
 const FRONTEND_ROOT = resolveAppRoot(
@@ -40,7 +42,9 @@ function usage() {
     "Usage: node scripts/prepare-evidence-run.mjs " +
       "--run-config <run-config.json> --phase <global-before|before|after|final> " +
       "--selection-out <selection.json> --manifest-config-out <config.json> " +
-      "[--root <app>] [--batch-id B0001] [--routes /a,/b] [--scenario-ids id/a,id/b] " +
+      "[--root <app>] [--batch-id B0001] [--batch-contract <batch.json>] " +
+      "[--impacted-context <impacted-B0001.json>] " +
+      "[--routes /a,/b] [--scenario-ids id/a,id/b] " +
       "[--themes light,dark] [--projects mobile-sm,desktop] " +
       "[--locales en-US] [--writing-modes ltr]"
   );
@@ -56,6 +60,8 @@ function usage() {
  */
 const runConfigPath = valueAfter("--run-config");
 const batchId = valueAfter("--batch-id");
+const batchContractPath = valueAfter("--batch-contract");
+const impactedContextPath = valueAfter("--impacted-context");
 const phase = valueAfter("--phase");
 const selectionPath = valueAfter("--selection-out");
 const manifestConfigPath = valueAfter("--manifest-config-out");
@@ -66,6 +72,9 @@ if (!runConfigPath || !phase || !selectionPath || !manifestConfigPath) {
 }
 
 try {
+  const runConfig = JSON.parse(
+    readFileSync(path.resolve(runConfigPath), "utf8")
+  );
   if (!["global-before", "after", "before", "final"].includes(phase)) {
     throw new VisualContractError(`Unsupported evidence phase: ${phase}`);
   }
@@ -77,67 +86,134 @@ try {
       `${phase} evidence requires an explicit batchId`
     );
   }
-
-  const envelope = envelopeFrom(path.resolve(runConfigPath), {
-    applicationRoot: FRONTEND_ROOT,
-  });
-  const selection = loadEvidenceSelection({
-    frontendRoot: FRONTEND_ROOT,
-    matrix: envelope.config.matrix,
-    routePaths: csv("--routes"),
-    scenarioIds: csv("--scenario-ids"),
-    themes: csv("--themes"),
-    projects: csv("--projects"),
-    locales: csv("--locales"),
-    writingModes: csv("--writing-modes"),
-  });
-  /*
-   * `assertBase` só nas fases de REFERÊNCIA. Numa captura `before` a fonte tem
-   * de ser idêntica à ancorada — se ela já andou, o par before/after nasce sobre
-   * bases diferentes e não compara nada. Nas fases `after`/`final` a divergência
-   * é o esperado: é justamente a mutação que se quer medir.
-   */
-  const header = envelope.measuredHeader("evidence-manifest", {
-    assertBase: ["global-before", "before"].includes(phase),
-  });
-  const bindings = buildEvidenceBindings({
-    repoRoot: REPO_ROOT,
-    frontendRoot: FRONTEND_ROOT,
-    header,
-  });
-  const config = {
-    header,
-    batchId: batchId ?? null,
-    phase,
-    expectedScenarioIds: selection.expectedScenarioIds,
-    bindings,
-  };
-  for (const outputPath of [selectionPath, manifestConfigPath]) {
-    mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
+  let batchContract = null;
+  if (batchContractPath) {
+    const absoluteBatch = path.resolve(batchContractPath);
+    if (!existsSync(absoluteBatch)) {
+      throw new VisualContractError(`Batch contract does not exist: ${absoluteBatch}`);
+    }
+    batchContract = JSON.parse(readFileSync(absoluteBatch, "utf8"));
+    if (batchContract.batchId !== batchId) {
+      throw new VisualContractError(
+        `Batch contract ${batchContract.batchId ?? "(missing)"} does not match ${batchId}`
+      );
+    }
   }
-  writeFileSync(
-    path.resolve(selectionPath),
-    `${JSON.stringify(selection, null, 2)}\n`
-  );
-  writeFileSync(
-    path.resolve(manifestConfigPath),
-    `${JSON.stringify(config, null, 2)}\n`
-  );
-  console.log(
-    JSON.stringify({
-      status: "pass",
-      runId: header.runId,
-      sourceFingerprint: header.sourceFingerprint,
-      selection: path.resolve(selectionPath),
-      manifestConfig: path.resolve(manifestConfigPath),
-      scenarios: selection.scenarios.length,
-      captures: selection.expectedScenarioIds.length,
-      projects: selection.projects,
-      themes: selection.themes,
-      locales: selection.locales,
-      writingModes: selection.writingModes,
-    })
-  );
+  if (phase === "before" && !batchContract) {
+    throw new VisualContractError("before evidence requires --batch-contract");
+  }
+  const explicitScenarioIds = csv("--scenario-ids");
+  let effectiveScenarioIds = explicitScenarioIds;
+  if (impactedContextPath) {
+    if (!batchId) {
+      throw new VisualContractError(
+        "--impacted-context requires an explicit batchId"
+      );
+    }
+    const impactedScenarioIds = readImpactedScenarioIds({
+      impactedContextPath,
+      batchId,
+      matrix: runConfig.matrix,
+    });
+    if (
+      explicitScenarioIds.length > 0 &&
+      JSON.stringify([...explicitScenarioIds].sort()) !==
+        JSON.stringify(impactedScenarioIds)
+    ) {
+      throw new VisualContractError(
+        "--scenario-ids diverges from the impacted-context selection"
+      );
+    }
+    effectiveScenarioIds = impactedScenarioIds;
+  }
+
+  await withMaterializedEvidenceRegistry({
+    frontendRoot: FRONTEND_ROOT,
+    stagingRoot: path.dirname(path.resolve(selectionPath)),
+    consume: async ({ registryRoot, stagedNetworkFixturePath }) => {
+      const envelope = envelopeFrom(path.resolve(runConfigPath), {
+        applicationRoot: FRONTEND_ROOT,
+      });
+      const scenarioPath = path.join(registryRoot, "scenarios.json");
+      const contextPath = path.join(registryRoot, "contexts.json");
+      const networkFixturePath = path.join(registryRoot, "network-fixtures.json");
+      const selection = loadEvidenceSelection({
+        frontendRoot: FRONTEND_ROOT,
+        scenarioPath,
+        matrix: envelope.config.matrix,
+        routePaths: csv("--routes"),
+        scenarioIds: effectiveScenarioIds,
+        themes: csv("--themes"),
+        projects: csv("--projects"),
+        locales: csv("--locales"),
+        writingModes: csv("--writing-modes"),
+      });
+      /*
+       * `assertBase` só nas fases de REFERÊNCIA. Numa captura `before` a fonte
+       * tem de ser idêntica à ancorada; after/final medem a mutação.
+       */
+      const header = envelope.measuredHeader("evidence-manifest", {
+        assertBase: phase === "global-before",
+      });
+      if (
+        phase === "before" &&
+        header.sourceFingerprint !== batchContract.rollbackSourceFingerprint
+      ) {
+        throw new VisualContractError(
+          `before source diverges from ${batchId} rollback fingerprint`,
+          {
+            expected: batchContract.rollbackSourceFingerprint,
+            actual: header.sourceFingerprint,
+          }
+        );
+      }
+      const bindings = buildEvidenceBindings({
+        repoRoot: REPO_ROOT,
+        frontendRoot: FRONTEND_ROOT,
+        header,
+        contextPath,
+        scenarioPath,
+        networkFixturePath,
+      });
+      const config = {
+        header,
+        batchId: batchId ?? null,
+        phase,
+        expectedScenarioIds: selection.expectedScenarioIds,
+        bindings,
+      };
+      for (const outputPath of [selectionPath, manifestConfigPath]) {
+        mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
+      }
+      writeFileSync(
+        path.resolve(selectionPath),
+        `${JSON.stringify(selection, null, 2)}\n`
+      );
+      writeFileSync(
+        path.resolve(manifestConfigPath),
+        `${JSON.stringify(config, null, 2)}\n`
+      );
+      writeFileSync(
+        path.join(path.dirname(path.resolve(selectionPath)), "network-fixture-path"),
+        `${stagedNetworkFixturePath}\n`
+      );
+      console.log(
+        JSON.stringify({
+          status: "pass",
+          runId: header.runId,
+          sourceFingerprint: header.sourceFingerprint,
+          selection: path.resolve(selectionPath),
+          manifestConfig: path.resolve(manifestConfigPath),
+          scenarios: selection.scenarios.length,
+          captures: selection.expectedScenarioIds.length,
+          projects: selection.projects,
+          themes: selection.themes,
+          locales: selection.locales,
+          writingModes: selection.writingModes,
+        })
+      );
+    },
+  });
 } catch (error) {
   const payload =
     error instanceof VisualContractError

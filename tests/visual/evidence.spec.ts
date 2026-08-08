@@ -97,6 +97,24 @@ const MASK_SELECTORS = (process.env.HARNESS_UI_EVIDENCE_MASK_SELECTORS || "")
   .split(",")
   .map((selector) => selector.trim())
   .filter(Boolean);
+const MASK_COLOR = "#6b7280";
+
+/**
+ * Playwright rounds a locator's fractional border box before painting `mask`.
+ * The excluded element can still contribute one antialiased edge pixel outside
+ * that integer box (measured on the dashboard iframe at y=887). Paint a
+ * one-pixel outline in the same mask colour during the screenshot so the mask
+ * covers the composited edge as well as the element interior. `outline` does
+ * not affect layout, and no tolerance budget is introduced.
+ */
+function stabilityMaskEdgeStyle(stabilityMaskSelectors: string[]) {
+  return [...stabilityMaskSelectors, ...MASK_SELECTORS]
+    .map(
+      (selector) =>
+        `:where(${selector}) { outline: 1px solid ${MASK_COLOR} !important; outline-offset: 0 !important; }`
+    )
+    .join("\n");
+}
 
 function normalizedPathname(url: string) {
   return new URL(url).pathname.replace(/\/$/, "") || "/";
@@ -308,6 +326,7 @@ async function waitForDomAndAssets(page: Page, frozenClock = false) {
         }, 8_000);
       })
   );
+  await settleDocumentFonts(page);
   await page.evaluate(async () => {
     const elementImages = Array.from(document.images).map((image) => {
       if (image.complete) return Promise.resolve();
@@ -344,6 +363,47 @@ async function waitForDomAndAssets(page: Page, frozenClock = false) {
   });
 }
 
+async function settleDocumentFonts(page: Page) {
+  await page.evaluate(async () => {
+    // Chromium can re-resolve web fonts while preparing a screenshot
+    // (Playwright issue #29968). Waiting only for FontFaceSet.ready is not
+    // sufficient when unicode-ranged/variable faces have not been selected
+    // with the glyphs that are actually visible on the page.
+    await document.fonts.ready;
+    // A face may be intentionally unreachable in the read-only network
+    // fixture. Its fallback is still a valid settled state; one rejection
+    // must not abort the capture while the remaining faces are loaded.
+    await Promise.allSettled([...document.fonts].map((font) => font.load()));
+
+    const glyphsByFont = new Map<string, Set<string>>();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const element = node.parentElement;
+      const text = node.textContent?.trim();
+      if (!element || !text) continue;
+      const style = getComputedStyle(element);
+      if (style.display === "none" || style.visibility === "hidden") continue;
+      const glyphs = glyphsByFont.get(style.font) ?? new Set<string>();
+      for (const glyph of text) glyphs.add(glyph);
+      glyphsByFont.set(style.font, glyphs);
+    }
+    await Promise.allSettled(
+      [...glyphsByFont].map(([font, glyphs]) =>
+        document.fonts.load(font, [...glyphs].join(""))
+      )
+    );
+    await document.fonts.ready;
+
+    // Materialize the post-font layout before the stability screenshots. Two
+    // frames keep the durable screenshot from becoming the first consumer of
+    // the newly selected glyph metrics.
+    void document.documentElement.offsetWidth;
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+  });
+}
+
 const DEV_TOOLING_SELECTORS = [
   '[data-react-scan="true"]',
   "#react-scan-root",
@@ -377,9 +437,11 @@ async function evidenceMasks(
 
 async function waitForVisualStability(
   page: Page,
-  stabilityMaskSelectors: string[] = []
+  stabilityMaskSelectors: string[] = [],
+  fullPage = true
 ): Promise<Locator[]> {
   const masks = await evidenceMasks(page, stabilityMaskSelectors);
+  const maskEdgeStyle = stabilityMaskEdgeStyle(stabilityMaskSelectors);
   let prior: string | null = null;
   let identicalStreak = 0;
   for (let attempt = 0; attempt < 12; attempt += 1) {
@@ -388,8 +450,10 @@ async function waitForVisualStability(
     const bytes = await page.screenshot({
       animations: "disabled",
       caret: "hide",
-      fullPage: true,
-      ...(masks.length ? { mask: masks, maskColor: "#6b7280" } : {}),
+      fullPage,
+      ...(masks.length
+        ? { mask: masks, maskColor: MASK_COLOR, style: maskEdgeStyle }
+        : {}),
     });
     const digest = createHash("sha256").update(bytes).digest("hex");
     identicalStreak = digest === prior ? identicalStreak + 1 : 0;
@@ -609,10 +673,6 @@ for (const scenario of selection.scenarios) {
           await applyTheme(page, theme, locale, writingMode);
           if (scenario.assertReady)
             await applyAssertion(page, scenario.assertReady);
-          const stabilityMasks = await waitForVisualStability(
-            page,
-            scenario.stabilityMaskSelectors ?? []
-          );
 
           expect(
             normalizedPathname(page.url()),
@@ -635,6 +695,27 @@ for (const scenario of selection.scenarios) {
           }
           const overflow = await detectHorizontalOverflow(page);
           await suppressDevTooling(page);
+          // Axe and dev-tool suppression can invalidate Chromium's font
+          // selection/layout caches. Re-select the visible glyphs after those
+          // probes, then let the screenshot-only stability proof run last.
+          await settleDocumentFonts(page);
+          // Axe, overflow inspection and dev-tool suppression can invalidate
+          // paint/font caches even when they do not mutate the DOM.  The
+          // stability proof must therefore be the final operation before the
+          // durable screenshot; otherwise we certify probes and persist a
+          // different raster.
+          const fullPage = await page.evaluate(
+            () =>
+              Math.max(
+                document.documentElement.scrollHeight,
+                document.body.scrollHeight
+              ) > window.innerHeight + 1
+          );
+          const stabilityMasks = await waitForVisualStability(
+            page,
+            scenario.stabilityMaskSelectors ?? [],
+            fullPage
+          );
           const stem = captureStem(matrixId);
           const pngPath = path.join(outputDirectory, `${stem}.png`);
           const screenshotOptions = {
@@ -644,7 +725,10 @@ for (const scenario of selection.scenarios) {
             ...(stabilityMasks.length
               ? {
                   mask: stabilityMasks,
-                  maskColor: "#6b7280",
+                  maskColor: MASK_COLOR,
+                  style: stabilityMaskEdgeStyle(
+                    scenario.stabilityMaskSelectors ?? []
+                  ),
                 }
               : {}),
           };
@@ -653,7 +737,7 @@ for (const scenario of selection.scenarios) {
               .locator(scenario.captureRegion)
               .screenshot(screenshotOptions);
           } else {
-            await page.screenshot({ ...screenshotOptions, fullPage: true });
+            await page.screenshot({ ...screenshotOptions, fullPage });
           }
 
           const viewport = page.viewportSize();

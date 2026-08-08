@@ -575,7 +575,7 @@ function schemaFixtures() {
     requiredReviewScenarioIds: ["S1"],
     visualReviewVerdict: "pending",
     waivedBindings: [],
-    verdict: "pass",
+    verdict: "review",
   });
   fixtures.set("visual-review", {
     ...header("visual-review", SOURCE_B),
@@ -976,6 +976,39 @@ test("MIGRATED validates against the prior census until REINVENTORIED emits the 
   );
 });
 
+test("REINVENTORIED accepts the new census before its new normalized projection exists", () => {
+  const validator = createArtifactValidator({ root: APPLICATION_ROOT });
+  const fixtures = schemaFixtures();
+  const state = {
+    ...fixtures.get("run-state"),
+    ...header("run-state", SOURCE_B),
+    currentPhase: "ACCEPTED",
+    activeBatchId: "B0001",
+  };
+  const currentDesign = designOccurrence({ sourceFingerprint: SOURCE_B });
+  const currentDiscovery = axisDiscovery({ sourceFingerprint: SOURCE_B });
+  const result = validateArtifactSet({
+    records: [
+      runConfig(),
+      state,
+      currentDesign,
+      currentDiscovery,
+      fixtures.get("mutation-manifest"),
+    ],
+    runRoot: mkdtempSync(path.join(os.tmpdir(), "artifact-contract-")),
+    validator,
+    targetPhase: "REINVENTORIED",
+    resolveReferences: false,
+    transitionRecords: [currentDesign, currentDiscovery],
+  });
+  assert.equal(
+    result.violations.some(
+      ({ invariant }) => invariant === "class-projection-parity"
+    ),
+    false
+  );
+});
+
 test("reference integrity rejects bytes changed after the ref was created", () => {
   const validator = createArtifactValidator({ root: APPLICATION_ROOT });
   const runRoot = mkdtempSync(path.join(os.tmpdir(), "artifact-contract-"));
@@ -1111,6 +1144,151 @@ test("pairing and effect policy reject changed pixels in a preserve batch", () =
       (item) =>
         item.invariant === "effect-policy" && item.reentryCode === "E-MIGRATION"
     )
+  );
+});
+
+test("pairing accepts only the exact in-run AST proof for a fixture binding delta", () => {
+  const validator = createArtifactValidator({ root: APPLICATION_ROOT });
+  const fixtures = schemaFixtures();
+  const runRoot = mkdtempSync(path.join(os.tmpdir(), "artifact-contract-"));
+  const proofPath = path.join(
+    runRoot,
+    "artifacts/B0001/contract-source-delta.json"
+  );
+  mkdirSync(path.dirname(proofPath), { recursive: true });
+  const proof = {
+    schemaVersion: "1.0.0",
+    tool: "verify-contract-source-delta",
+    baseRef: "base",
+    entityModule: "design-entities",
+    field: "fixtureRegistryFingerprint",
+    fieldBefore: SOURCE_A,
+    fieldAfter: SOURCE_B,
+    permittedCategories: ["jsx-classname-attribute-value"],
+    contractSourcesInspected: 1,
+    changedContractSources: ["frontend/app/Page.tsx"],
+    failures: [],
+    verdict: "PASS",
+  };
+  writeFileSync(proofPath, `${JSON.stringify(proof, null, 2)}\n`);
+
+  const before = {
+    ...fixtures.get("evidence-manifest"),
+    fixtureRegistryFingerprint: SOURCE_A,
+  };
+  const after = {
+    ...before,
+    ...header("evidence-manifest", SOURCE_B),
+    phase: "after",
+    fixtureRegistryFingerprint: SOURCE_B,
+  };
+  const waiver = {
+    field: "fixtureRegistryFingerprint",
+    before: SOURCE_A,
+    after: SOURCE_B,
+    owner: "tokenization-runner",
+    reason: "AST-proven presentation-only delta",
+    scope: "batch B0001",
+    review: "visual review remains mandatory",
+    evidence: proofPath,
+    changedContractSources: ["frontend/app/Page.tsx"],
+    permittedCategories: ["jsx-classname-attribute-value"],
+  };
+  const comparison = {
+    ...fixtures.get("comparison"),
+    waivedBindings: [waiver],
+  };
+
+  const validate = (candidate = comparison) =>
+    validateArtifactSet({
+      records: [
+        runConfig(),
+        fixtures.get("batch-contract"),
+        scenario(),
+        before,
+        after,
+        candidate,
+      ],
+      runRoot,
+      validator,
+      targetPhase: "COMPARED",
+      resolveReferences: false,
+    });
+
+  const accepted = validate();
+  assert.equal(
+    accepted.violations.some(
+      (item) =>
+        item.invariant === "pairing" &&
+        /fixture dimension changed without/u.test(item.message)
+    ),
+    false,
+    JSON.stringify(accepted.violations, null, 2)
+  );
+
+  for (const invalidWaiver of [
+    { ...waiver, after: SOURCE_A },
+    { ...waiver, evidence: path.join(os.tmpdir(), "outside-proof.json") },
+    { ...waiver, permittedCategories: ["network-contract"] },
+  ]) {
+    const rejected = validate({ ...comparison, waivedBindings: [invalidWaiver] });
+    assert.equal(rejected.valid, false);
+    assert.ok(
+      rejected.violations.some(
+        (item) =>
+          item.invariant === "pairing" &&
+          item.reentryCode === "E-COMPARE" &&
+          /fixture dimension changed without/u.test(item.message)
+      ),
+      JSON.stringify(rejected.violations, null, 2)
+    );
+  }
+});
+
+test("batch IDs-base partition the expanded comparison matrix while review is pending", () => {
+  const validator = createArtifactValidator({ root: APPLICATION_ROOT });
+  const fixtures = schemaFixtures();
+  const expandedId = "S1::theme/light::project/desktop::locale/en::writing-mode/horizontal-tb";
+  const before = {
+    ...fixtures.get("evidence-manifest"),
+    requestedScenarioIds: [expandedId],
+    producedScenarioIds: [expandedId],
+    captures: [capture(expandedId)],
+  };
+  const after = { ...before, phase: "after" };
+  const pair = {
+    ...fixtures.get("comparison").pairs[0],
+    scenarioId: expandedId,
+    beforeCapture: { ...BINARY_REF, sha256: before.captures[0].sha256 },
+    afterCapture: { ...BINARY_REF, sha256: after.captures[0].sha256 },
+  };
+  const comparison = {
+    ...fixtures.get("comparison"),
+    expectedUnchangedScenarioIds: [expandedId],
+    pairs: [pair],
+    requiredReviewScenarioIds: [expandedId],
+    visualReviewVerdict: "pending",
+    verdict: "review",
+  };
+  const result = validateArtifactSet({
+    records: [
+      runConfig(),
+      fixtures.get("batch-contract"),
+      scenario({ scenarioId: expandedId }),
+      before,
+      after,
+      comparison,
+    ],
+    runRoot: mkdtempSync(path.join(os.tmpdir(), "artifact-contract-")),
+    validator,
+    targetPhase: "COMPARED",
+    resolveReferences: false,
+  });
+
+  assert.equal(
+    result.violations.some((item) => item.invariant === "effect-policy"),
+    false,
+    JSON.stringify(result.violations, null, 2)
   );
 });
 

@@ -45,13 +45,26 @@ import {
  * Logo o teste declara um lote, em vez de o código aceitar a ausência dele.
  */
 const RUN_ROOT = mkdtempSync(path.join(os.tmpdir(), "phase-exec-"));
+const APPLICATION_ROOT = mkdtempSync(path.join(os.tmpdir(), "phase-app-"));
 mkdirSync(path.join(RUN_ROOT, "artifacts"), { recursive: true });
+writeFileSync(
+  path.join(APPLICATION_ROOT, "tokenization.config.json"),
+  JSON.stringify({
+    tokenFile: "tokens/color.tokens.json",
+    themeFile: "app/styles/generated/theme.css",
+  })
+);
 writeFileSync(
   path.join(RUN_ROOT, "artifacts", "batch-B0001.json"),
   JSON.stringify({
     artifactType: "batch-contract",
     batchId: "B0001",
-    plannedFiles: ["src/components/Button/index.jsx", "src/pages/Home/index.jsx"],
+    plannedFiles: [
+      "src/components/Button/index.jsx",
+      "src/pages/Home/index.jsx",
+      "tokens/color.tokens.json",
+      "app/styles/generated/theme.css",
+    ],
   })
 );
 
@@ -69,16 +82,18 @@ writeFileSync(
     artifactType: "run-config",
     runId: "tokenize-x",
     sourceRoots: ["src"],
+    sourceFingerprint: "a".repeat(64),
     toolchainFingerprint: "f".repeat(64),
     axisRegistry: [{ axis: "color" }, { axis: "spacing" }],
   })
 );
 
 const CTX = {
-  applicationRoot: "/tmp/app",
+  applicationRoot: APPLICATION_ROOT,
   runRoot: RUN_ROOT,
   runConfigPath: path.join(RUN_ROOT, "config.json"),
   runId: "tokenize-x",
+  sourceFingerprint: "b".repeat(64),
   batchId: "B0001",
 };
 
@@ -216,6 +231,43 @@ test("a fase de referência e a de mutação pedem fases DIFERENTES ao preparado
   assert.equal(fase("AFTER_CAPTURED")[fase("AFTER_CAPTURED").indexOf("--phase") + 1], "after");
 });
 
+test("before e after atravessam o mesmo preparador de registry visual", () => {
+  const visualStep = (phase) =>
+    resolveSteps(phase, CTX).find((step) =>
+      step.argv.some((value) => String(value).endsWith("scripts/ui-evidence.sh"))
+    );
+  const before = visualStep("BEFORE_CAPTURED");
+  const after = visualStep("AFTER_CAPTURED");
+  assert.ok(before, "BEFORE_CAPTURED sem ui-evidence");
+  assert.ok(after, "AFTER_CAPTURED sem ui-evidence");
+  assert.equal(before.argv[0], after.argv[0]);
+  for (const step of [before, after]) {
+    assert.equal(
+      step.argv[step.argv.indexOf("--impacted-context") + 1],
+      path.join(RUN_ROOT, "artifacts", "impacted-B0001.json")
+    );
+  }
+});
+
+test("emissor de cenários consome o impacted-context do mesmo lote", () => {
+  const passo = resolveSteps("BEFORE_CAPTURED", CTX).find(
+    ({ argv }) => argv.some((value) => String(value).endsWith("scripts/gen-visual-routes.mjs"))
+  );
+  assert.ok(passo, "BEFORE_CAPTURED sem emissor de cenários");
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--impacted-context") + 1],
+    path.join(RUN_ROOT, "artifacts", "impacted-B0001.json")
+  );
+});
+
+test("impacto de rota exclui token/theme sem retirá-los do contrato do lote", () => {
+  const impact = resolveSteps("BEFORE_CAPTURED", CTX)[0].argv;
+  assert.equal(
+    impact[impact.indexOf("--files") + 1],
+    "src/components/Button/index.jsx,src/pages/Home/index.jsx"
+  );
+});
+
 test("COMPARED usa o comparador do processo e o batch-contract como policy única", () => {
   const [passo] = resolveSteps("COMPARED", CTX);
   assert.equal(passo.command, process.execPath);
@@ -230,6 +282,18 @@ test("COMPARED usa o comparador do processo e o batch-contract como policy únic
   assert.equal(
     passo.argv[passo.argv.indexOf("--out") + 1],
     path.join(RUN_ROOT, "artifacts", "B0001", "comparison.json")
+  );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--application-root") + 1],
+    CTX.applicationRoot
+  );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--apply-plan") + 1],
+    path.join(RUN_ROOT, "artifacts", "apply-B0001.json")
+  );
+  assert.equal(
+    passo.argv[passo.argv.indexOf("--run-root") + 1],
+    RUN_ROOT
   );
   assert.equal(
     passo.argv[passo.argv.indexOf("--scenarios") + 1],
@@ -249,7 +313,45 @@ test("o reinventário NÃO escreve por cima do inventário inicial", () => {
     return argv[argv.indexOf("--out") + 1];
   };
   assert.notEqual(saida("REINVENTORIED"), saida("INVENTORIED"));
-  assert.match(saida("REINVENTORIED"), /reinventory/);
+  assert.match(
+    saida("REINVENTORIED"),
+    new RegExp(`artifacts/generations/${"b".repeat(64)}$`)
+  );
+  const fingerprint = (phase) => {
+    const argv = resolveSteps(phase, CTX)[0].argv;
+    return argv[argv.indexOf("--source-fingerprint") + 1];
+  };
+  assert.equal(fingerprint("INVENTORIED"), "a".repeat(64));
+  assert.equal(fingerprint("REINVENTORIED"), "b".repeat(64));
+});
+
+test("normalização e classificação pós-migração consomem a geração do reinventário", () => {
+  const normalized = resolveSteps("NORMALIZED", CTX)[0].argv;
+  assert.match(
+    normalized[normalized.indexOf("--input") + 1],
+    new RegExp(`artifacts/generations/${"b".repeat(64)}/`)
+  );
+  assert.match(
+    normalized[normalized.indexOf("--out") + 1],
+    new RegExp(`artifacts/generations/${"b".repeat(64)}$`)
+  );
+
+  const classified = resolveSteps("CLASSIFIED", CTX);
+  const contextual = classified.find(
+    ({ argv }) => argv[0].endsWith("context-clusters.mjs")
+  ).argv;
+  assert.equal(contextual[contextual.indexOf("--run-root") + 1], RUN_ROOT);
+  const classify = classified.find(
+    ({ argv }) => argv[0].endsWith("classify-design-occurrences.mjs")
+  ).argv;
+  assert.match(
+    classify[classify.indexOf("--input") + 1],
+    new RegExp(`artifacts/generations/${"b".repeat(64)}/`)
+  );
+  assert.equal(
+    classify[classify.indexOf("--source-fingerprint") + 1],
+    "b".repeat(64)
+  );
 });
 
 test("COMPLETE passa as duas raízes obrigatórias ao avaliador absoluto", () => {
@@ -279,6 +381,13 @@ test("scanner de artefatos alcança lotes aninhados, final/ e final-proof canôn
   writeFileSync(
     path.join(runRoot, "final", "evidence-manifest.json"),
     JSON.stringify({ artifactType: "evidence-manifest" })
+  );
+  writeFileSync(
+    path.join(runRoot, "final", "manifest-config.json"),
+    JSON.stringify({
+      header: { artifactType: "evidence-manifest" },
+      note: "configuração auxiliar não é artefato raiz",
+    })
   );
   writeFileSync(
     path.join(runRoot, "final", "review.json"),

@@ -13,6 +13,12 @@ const desktop = { width: 1440, height: 900 };
 // One worker avoids contention in a shared development database and stack.
 export default defineConfig({
   testDir: "./tests/visual",
+  // The first Next dev route compile took 22.4 s in the real 54-scenario run;
+  // the evidence contract then allows up to 8 s for a DOM quiet window before
+  // fonts/assets, stability screenshots and axe. Playwright's 30 s default is
+  // therefore lower than the measured legitimate path and killed /accounts at
+  // page.screenshot. Keep failures bounded, but budget the whole measured test.
+  timeout: 60_000,
   fullyParallel: false,
   workers: 1,
   reporter: [
@@ -44,6 +50,9 @@ export default defineConfig({
         "--disable-gpu",
         "--disable-gpu-compositing",
         "--disable-partial-raster",
+        "--disable-checker-imaging",
+        "--disable-threaded-animation",
+        "--run-all-compositor-stages-before-draw",
         "--disable-skia-runtime-opts",
         "--disable-lcd-text",
         "--disable-font-subpixel-positioning",

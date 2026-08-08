@@ -34,6 +34,11 @@ test("affected-routes emite impacted-context schema-válido com fan-out causal",
     JSON.stringify({
       artifactType: "batch-contract",
       batchId: "B0001",
+      plannedFiles: [
+        "src/Button.tsx",
+        "tokens/color.tokens.json",
+        "app/styles/generated/theme.css",
+      ],
       expectedVisualEffect: "preserve",
       expectedChangedScenarioIds: [],
       expectedUnchangedScenarioIds: [],
@@ -75,9 +80,22 @@ test("affected-routes emite impacted-context schema-válido com fan-out causal",
     runConfigPath: configPath,
     batchContractPath: batchPath,
     batchId: "B0001",
+    sourceFingerprint: "c".repeat(64),
   });
   assert.deepEqual(artifact.fanOutReasons, ["planned-callsite", "reverse-import"]);
   assert.match(artifact.scenarioIds[0], /::theme\/light::project\/desktop/);
+  assert.equal(artifact.sourceFingerprint, "c".repeat(64));
+  assert.deepEqual(artifact.plannedFiles, [
+    "app/styles/generated/theme.css",
+    "src/Button.tsx",
+    "tokens/color.tokens.json",
+  ]);
+  assert.deepEqual(artifact.consumerFiles, [
+    "app/styles/generated/theme.css",
+    "src/Button.tsx",
+    "src/Home.tsx",
+    "tokens/color.tokens.json",
+  ]);
   const validation = createArtifactValidator({ root: process.cwd() }).validate(artifact);
   assert.deepEqual(validation.errors, []);
   assert.equal(validation.valid, true);

@@ -46,6 +46,7 @@ const applicationRoot = path.resolve(arg("--root", process.cwd()));
 const inputPath = arg("--input");
 const normalizedPath = arg("--normalized");
 const outPath = arg("--out");
+const sourceFingerprint = arg("--source-fingerprint");
 for (const [flag, value] of [
   ["--run-config", runConfigPath],
   ["--input", inputPath],
@@ -73,6 +74,10 @@ const normalizedByDesignId = new Map(
 if (!raw.length) throw new Error("censo raw vazio; classificacao vacua e recusada");
 
 const env = envelopeFrom(runConfigPath);
+const classifiedHeader = () => ({
+  ...env.header("design-occurrence"),
+  ...(sourceFingerprint ? { sourceFingerprint } : {}),
+});
 const rawRef = env.ref("design-occurrence", inputPath, {
   relativeTo: path.dirname(runConfigPath),
 });
@@ -194,7 +199,7 @@ const classified = raw.map((record) => {
   counts.byStatus[verdict.status] = (counts.byStatus[verdict.status] ?? 0) + 1;
   return {
     ...record,
-    ...env.header("design-occurrence"),
+    ...classifiedHeader(),
     recordStage: "classified",
     supersedes: {
       occurrenceId: record.occurrenceId,

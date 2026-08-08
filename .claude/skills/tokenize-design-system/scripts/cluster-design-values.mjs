@@ -17,6 +17,7 @@ import {
 import { axesForClassName } from "./lib/axis-discovery.mjs";
 import { confidenceEvidence } from "./lib/confidence-policy.mjs";
 import {
+  arbitraryPhysicalCandidates,
   isArbitraryPhysicalUtility,
   isSimplePhysicalLiteral,
 } from "./lib/design-value-classifier.mjs";
@@ -37,6 +38,7 @@ const required = (flag) => {
 };
 
 const runConfigPath = required("--run-config");
+const sourceFingerprint = arg("--source-fingerprint");
 const classifiedPath = required("--classified");
 const normalizedPath = required("--normalized");
 const outDir = path.resolve(arg("--out", path.dirname(classifiedPath)));
@@ -82,9 +84,19 @@ for (const occurrence of design) {
     occurrence.occurrenceKind === "utility-class" &&
     isArbitraryPhysicalUtility(normalizedOccurrence)
   ) {
-    for (const candidate of normalizedOccurrence.candidates ?? []) {
+    /*
+     * Uma className pode misturar divida fisica e consumo ja centralizado:
+     *
+     *   text-[var(--typography-component-columns-text)] max-w-[280px]
+     *
+     * `isArbitraryPhysicalUtility` decide que A OCORRENCIA e acionavel por
+     * causa de 280px. Isso nao autoriza promover todo candidato entre
+     * colchetes: `var(--token)` e referencia central, nao outro hardcode. A
+     * versao anterior iterava todos os candidatos e recriava o token acabado
+     * no lote seguinte, tornando o loop incapaz de convergir.
+     */
+    for (const candidate of arbitraryPhysicalCandidates(normalizedOccurrence)) {
       const wrapped = String(candidate.value ?? "");
-      if (!/^\[.*\]$/s.test(wrapped)) continue;
       const axis = axesForClassName(candidate.raw)[0] ?? occurrence.axis;
       candidates.push({
         occurrence,
@@ -145,6 +157,10 @@ for (const item of candidates) {
 const refConfig = env.ref("run-config", runConfigPath, {
   relativeTo: path.dirname(runConfigPath),
 });
+const emittedHeader = (artifactType) => ({
+  ...env.header(artifactType),
+  ...(sourceFingerprint ? { sourceFingerprint } : {}),
+});
 const refDesign = env.ref("design-occurrence", classifiedPath, {
   relativeTo: path.dirname(runConfigPath),
 });
@@ -187,7 +203,7 @@ for (const [key, items] of [...groups.entries()].sort(([a], [b]) => a.localeComp
     byAdapter.get(item.adapter).push(item);
   }
   packets.push({
-    ...env.header("cluster-packet"),
+    ...emittedHeader("cluster-packet"),
     clusterId,
     occurrenceIds,
     contextFingerprint: fingerprint({ owner, property, state, axis: sample.axis }),
@@ -224,7 +240,7 @@ writeFileSync(proposalPath, `${JSON.stringify({ schemaVersion: "value-proposals.
 const high = packets.filter((packet) => packet.confidence.band === "high");
 const low = packets.filter((packet) => packet.confidence.band === "low");
 const report = {
-  ...env.header("inventory-report"),
+  ...emittedHeader("inventory-report"),
   reportId: "classified/design-values",
   inventoryKind: "hardcodes",
   inputArtifactRefs: [refConfig, refDesign],

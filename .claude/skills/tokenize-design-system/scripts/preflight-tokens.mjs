@@ -153,6 +153,71 @@ function contarFolhas(no) {
     .reduce((soma, [, filho]) => soma + contarFolhas(filho), 0);
 }
 
+/**
+ * Prova que o CSS gerado participa do grafo CSS que nasce em
+ * `@import "tailwindcss"`.
+ *
+ * Existir no disco não basta: o attempt-17 escreveu um `@theme` perfeito em
+ * `app/styles/generated/theme.css`, o Next build saiu 0, mas nenhum entry CSS
+ * importava o arquivo. A classe `px-[var(--token)]` foi emitida com uma custom
+ * property indefinida e o browser descartou a declaração inteira. O BEFORE
+ * tinha 63px; o AFTER tinha zero.
+ *
+ * O grafo é deliberadamente estreito: só imports CSS relativos são seguidos e
+ * as raízes precisam importar `tailwindcss`. Um CSS morto que importe o tema
+ * não fabrica alcance. Pipeline que injeta CSS por outro mecanismo deve
+ * declarar/adaptar esse mecanismo; omissão não vira PASS.
+ */
+function temaAlcancavelPeloEntryCss(raiz, sourceRoots, themeFile) {
+  const theme = path.resolve(raiz, themeFile);
+  const cssFiles = [];
+  const walk = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (["node_modules", ".next", ".git"].includes(entry.name)) continue;
+      const absolute = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(absolute);
+      else if (entry.isFile() && entry.name.endsWith(".css")) cssFiles.push(absolute);
+    }
+  };
+  for (const sourceRoot of sourceRoots) walk(path.resolve(raiz, sourceRoot));
+
+  const imports = new Map();
+  const entries = [];
+  for (const file of cssFiles) {
+    const css = readFileSync(file, "utf8");
+    if (/@import\s+(?:url\()?\s*["']tailwindcss(?:\/[^"']*)?["']/u.test(css)) {
+      entries.push(file);
+    }
+    const resolved = [];
+    for (const match of css.matchAll(/@import\s+(?:url\()?\s*["']([^"']+)["']/gu)) {
+      const specifier = match[1];
+      if (!specifier.startsWith(".")) continue;
+      const candidate = path.resolve(path.dirname(file), specifier);
+      const target = existsSync(candidate)
+        ? candidate
+        : existsSync(`${candidate}.css`)
+          ? `${candidate}.css`
+          : null;
+      if (target) resolved.push(target);
+    }
+    imports.set(file, resolved);
+  }
+
+  const visited = new Set();
+  const queue = [...entries];
+  while (queue.length) {
+    const file = queue.shift();
+    if (visited.has(file)) continue;
+    visited.add(file);
+    for (const imported of imports.get(file) ?? []) queue.push(imported);
+  }
+  return {
+    reachable: visited.has(theme),
+    entries: entries.map((file) => path.relative(raiz, file).split(path.sep).join("/")),
+  };
+}
+
 if (themeFile) {
   const alvoCss = path.join(root, themeFile);
   const temCss = existsSync(alvoCss) && readFileSync(alvoCss, "utf8").trim().length > 0;
@@ -180,7 +245,29 @@ if (themeFile) {
     );
     process.exit(2);
   }
-  console.log(JSON.stringify({ status: "ok", root, gerenciador: pm, themeFile, tokensNoDTCG: folhas }));
+  const cfg = JSON.parse(readFileSync(cfgTopologia, "utf8"));
+  const importacao = temaAlcancavelPeloEntryCss(
+    root,
+    cfg.sourceRoots ?? ["src", "app", "components"],
+    themeFile
+  );
+  if (!importacao.reachable) {
+    console.error(
+      `preflight-tokens: ${themeFile} existe, mas NÃO está alcançável por @import ` +
+        `a partir de um CSS de entrada que importe tailwindcss. Entries encontrados: ` +
+        `${importacao.entries.join(", ") || "nenhum"}. CSS gerado fora do bundle deixa ` +
+        "custom properties indefinidas mesmo com build verde."
+    );
+    process.exit(1);
+  }
+  console.log(JSON.stringify({
+    status: "ok",
+    root,
+    gerenciador: pm,
+    themeFile,
+    tokensNoDTCG: folhas,
+    themeReachableFrom: importacao.entries,
+  }));
   process.exit(0);
 }
 

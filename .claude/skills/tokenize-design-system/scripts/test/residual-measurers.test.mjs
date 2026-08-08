@@ -6,6 +6,7 @@ import path from "node:path";
 
 import {
   MEDIDORES_ABSOLUTOS,
+  lerRegistrosDoRun,
   medirResiduosAbsolutos,
 } from "../lib/residual-measurers.mjs";
 
@@ -84,6 +85,24 @@ function fixture() {
     },
     {
       artifactType: "evidence-manifest",
+      phase: "before",
+      batchId: "B0001",
+      requestedScenarioIds: ["home/default"],
+      producedScenarioIds: ["home/default"],
+      exactCoverage: true,
+      captures: [
+        {
+          scenarioId: "home/default",
+          consoleErrors: ["baseline error"],
+          pageErrors: [],
+          networkFailures: [],
+          axeViolationIds: [],
+          overflow: false,
+        },
+      ],
+    },
+    {
+      artifactType: "evidence-manifest",
       phase: "after",
       batchId: "B0001",
       requestedScenarioIds: ["home/default"],
@@ -92,7 +111,7 @@ function fixture() {
       captures: [
         {
           scenarioId: "home/default",
-          consoleErrors: [],
+          consoleErrors: ["baseline error"],
           pageErrors: [],
           networkFailures: [],
           axeViolationIds: [],
@@ -153,6 +172,25 @@ test("os 14 predicados absolutos têm medidor e uma fixture completa mede todos"
   }
 });
 
+test("o leitor durável inclui artefatos JSON e NDJSON", () => {
+  const { runRoot } = fixture();
+  const jsonPath = path.join(runRoot, "artifacts", "standalone.json");
+  writeFileSync(
+    jsonPath,
+    JSON.stringify({ artifactType: "final-proof", proofId: "json-is-visible" })
+  );
+  const registros = lerRegistrosDoRun(runRoot);
+  assert.ok(
+    registros.some(
+      ({ artifact, sourcePath }) =>
+        artifact.proofId === "json-is-visible" && sourcePath === jsonPath
+    )
+  );
+  assert.ok(
+    registros.some(({ sourcePath }) => sourcePath.endsWith("all.ndjson"))
+  );
+});
+
 test("batch-effects lê deterministicPolicyVerdict — o campo que o emissor grava", () => {
   const { root, runRoot, runConfig } = fixture();
   const file = path.join(runRoot, "artifacts", "all.ndjson");
@@ -165,6 +203,29 @@ test("batch-effects lê deterministicPolicyVerdict — o campo que o emissor gra
     runConfig,
   });
   assert.equal(resultados.get("rendered.batch-effects-satisfied").residuo, 1);
+});
+
+test("runtime mede regressão before→after, não problemas preexistentes", () => {
+  const { root, runRoot, runConfig } = fixture();
+  const file = path.join(runRoot, "artifacts", "all.ndjson");
+  const records = readNdjson(file);
+  const after = records.find(
+    (record) => record.artifactType === "evidence-manifest" && record.phase === "after"
+  );
+  let resultados = medirResiduosAbsolutos({
+    applicationRoot: root,
+    runRoot,
+    runConfig,
+  }).resultados;
+  assert.equal(resultados.get("rendered.runtime-regressions-zero").residuo, 0);
+  after.captures[0].consoleErrors.push("new regression");
+  writeFileSync(file, `${records.map((record) => JSON.stringify(record)).join("\n")}\n`);
+  resultados = medirResiduosAbsolutos({
+    applicationRoot: root,
+    runRoot,
+    runConfig,
+  }).resultados;
+  assert.equal(resultados.get("rendered.runtime-regressions-zero").residuo, 1);
 });
 
 test("cardinalidade sem alvo explícito fica não medida, não vira decisão inventada", () => {
@@ -181,6 +242,51 @@ test("cardinalidade sem alvo explícito fica não medida, não vira decisão inv
     runConfig,
   });
   assert.equal(resultados.get("tokens.scale-cardinalities-approved"), null);
+});
+
+test("nomeação durável exige decisão aprovada dentro de lote aceito", () => {
+  const { root, runRoot, runConfig } = fixture();
+  const converged = path.join(root, ".tokenize", "converged.json");
+  writeFileSync(converged, JSON.stringify({ clusters: [] }));
+  const file = path.join(runRoot, "artifacts", "all.ndjson");
+  const records = readNdjson(file);
+  const contract = records.find(
+    (record) => record.artifactType === "batch-contract"
+  );
+  contract.targetClusterIds = ["cluster-1", "cluster-2"];
+  contract.decisionIds = ["D1"];
+  records.push(
+    {
+      artifactType: "cluster-packet",
+      clusterId: "cluster-1",
+      occurrenceIds: ["value-1"],
+    },
+    {
+      artifactType: "cluster-packet",
+      clusterId: "cluster-2",
+      occurrenceIds: ["class-1"],
+    },
+    {
+      artifactType: "decision",
+      decisionId: "D1",
+      clusterIds: ["cluster-1"],
+      status: "approved",
+      proposal: { name: "component.button.padding" },
+    }
+  );
+  writeFileSync(file, `${records.map((record) => JSON.stringify(record)).join("\n")}\n`);
+  const { resultados } = medirResiduosAbsolutos({
+    applicationRoot: root,
+    runRoot,
+    runConfig,
+  });
+  assert.deepEqual(
+    resultados.get("tokens.naming-and-application-zero") && {
+      population: resultados.get("tokens.naming-and-application-zero").populacao,
+      residual: resultados.get("tokens.naming-and-application-zero").residuo,
+    },
+    { population: 2, residual: 1 }
+  );
 });
 
 function readNdjson(file) {

@@ -45,7 +45,11 @@ function arquivos(dir) {
     const p = path.join(dir, nome);
     const st = statSync(p);
     if (st.isDirectory()) saida.push(...arquivos(p));
-    else if (/\.nd?json$/u.test(nome)) saida.push(p);
+    // `.nd?json` aceita `.njson`/`.ndjson`, mas NÃO `.json`. O typo deixava
+    // invisíveis justamente os manifests, contratos, comparações e aceites
+    // duráveis (JSON), enquanto a fixture monolítica em NDJSON mascarava o
+    // defeito. Os dois formatos do contrato são explícitos aqui.
+    else if (/\.(?:json|ndjson)$/u.test(nome)) saida.push(p);
   }
   return saida;
 }
@@ -85,6 +89,11 @@ export function lerRegistrosDoRun(runRoot) {
 
 function doTipo(registros, tipo) {
   return registros.filter(({ artifact }) => artifact.artifactType === tipo);
+}
+
+function fingerprintAtivo(registros, runConfig) {
+  const states = doTipo(registros, "run-state");
+  return states.at(-1)?.artifact?.sourceFingerprint ?? runConfig?.sourceFingerprint ?? null;
 }
 
 /** O reinventário vence o inventário inicial; misturar os dois dobra população. */
@@ -201,33 +210,126 @@ function medirHardcodes({ registros, runRoot }) {
 
 function medirNomeacao({ applicationRoot, registros }) {
   const convergedPath = path.join(applicationRoot, ".tokenize", "converged.json");
-  if (!existsSync(convergedPath)) return null;
-  let converged;
-  try {
-    converged = JSON.parse(readFileSync(convergedPath, "utf8"));
-  } catch {
-    return null;
+  if (existsSync(convergedPath)) {
+    let converged;
+    try {
+      converged = JSON.parse(readFileSync(convergedPath, "utf8"));
+    } catch {
+      converged = null;
+    }
+    const clusters = converged?.clustersFinais ?? converged?.clusters ?? [];
+    if (clusters.length) {
+      const semNome = clusters.filter((cluster) => !cluster.proposedName);
+      return resultado(
+        clusters.reduce((soma, cluster) => soma + (cluster.count ?? 1), 0),
+        semNome.reduce((soma, cluster) => soma + (cluster.count ?? 1), 0),
+        "ocorrências em contratos convergidos sem nome derivável pela lei",
+        doTipo(registros, "decision")
+      );
+    }
   }
-  const clusters = converged.clustersFinais ?? converged.clusters ?? [];
-  if (!clusters.length) return null;
-  const semNome = clusters.filter((cluster) => !cluster.proposedName);
-  return resultado(
-    clusters.reduce((soma, cluster) => soma + (cluster.count ?? 1), 0),
-    semNome.reduce((soma, cluster) => soma + (cluster.count ?? 1), 0),
-    "ocorrências em contratos convergidos sem nome derivável pela lei",
-    doTipo(registros, "decision")
+
+  /*
+   * A corrida durável nova não produz `.tokenize/converged.json`: sua fonte de
+   * verdade é cluster-packet → decision → batch-contract → acceptance. Um nome
+   * apenas proposto não prova aplicação; o cluster só sai do resíduo quando a
+   * decisão aprovada pertence a um lote aceito. Assim o medidor não transforma
+   * handoff/model em conclusão e também não depende do artefato legado.
+   */
+  const packets = doTipo(registros, "cluster-packet");
+  const decisions = doTipo(registros, "decision");
+  const contracts = doTipo(registros, "batch-contract");
+  const acceptances = doTipo(registros, "acceptance");
+  if (packets.length) {
+    const approvedDecisions = new Map(
+      decisions
+        .filter(
+          ({ artifact }) =>
+            artifact.status === "approved" &&
+            typeof artifact.proposal?.name === "string" &&
+            artifact.proposal.name.length > 0
+        )
+        .map((record) => [record.artifact.decisionId, record.artifact])
+    );
+    const acceptedBatches = new Set(
+      acceptances
+        .filter(({ artifact }) => artifact.verdict === "accepted")
+        .map(({ artifact }) => artifact.batchId)
+    );
+    const resolved = new Set();
+    for (const { artifact: contract } of contracts) {
+      if (!acceptedBatches.has(contract.batchId)) continue;
+      const batchDecisions = (contract.decisionIds ?? [])
+        .map((id) => approvedDecisions.get(id))
+        .filter(Boolean);
+      for (const clusterId of contract.targetClusterIds ?? []) {
+        if (
+          batchDecisions.some((decision) =>
+            (decision.clusterIds ?? []).includes(clusterId)
+          )
+        ) {
+          resolved.add(clusterId);
+        }
+      }
+    }
+    const clusterIds = new Set(
+      packets.map(({ artifact }) => artifact.clusterId).filter(Boolean)
+    );
+    const residual = [...clusterIds].filter((id) => !resolved.has(id)).length;
+    return resultado(
+      clusterIds.size,
+      residual,
+      "clusters classificados sem nome aprovado e aplicação em lote aceito",
+      [...packets, ...decisions, ...contracts, ...acceptances]
+    );
+  }
+
+  // Zero cluster só é mensurável contra o mesmo relatório de verdade-vácua que
+  // o contrato aceita: população examinada não-vácua, escopo e critério.
+  const zeroReport = doTipo(registros, "inventory-report").find(
+    ({ artifact }) =>
+      artifact.counts?.clusters === 0 &&
+      Number.isInteger(artifact.counts?.population) &&
+      artifact.counts.population > 0 &&
+      Array.isArray(artifact.scope?.occurrenceKinds) &&
+      artifact.scope.occurrenceKinds.length > 0 &&
+      typeof artifact.scope?.criterion === "string" &&
+      artifact.scope.criterion.length > 0
   );
+  return zeroReport
+    ? resultado(
+        zeroReport.artifact.counts.population,
+        0,
+        "sítios examinados por classificador com zero cluster declarado e escopo nomeado",
+        [zeroReport]
+      )
+    : null;
 }
 
-function medirClassesEmitidas({ registros, runRoot }) {
-  const normalized = preferirReinventario(
-    doTipo(registros, "normalized-occurrence")
-  );
-  if (!normalized.length) return null;
+function medirClassesEmitidas({ registros, runRoot, runConfig }) {
+  const activeFingerprint = fingerprintAtivo(registros, runConfig);
   const design = unicosPor(
     designAtivo(registros, runRoot),
     (artifact) => artifact.occurrenceId
   );
+  const classDesign = design.filter(({ artifact }) =>
+    ["utility-class", "generated-class"].includes(artifact.occurrenceKind)
+  );
+  const normalized = doTipo(registros, "normalized-occurrence").filter(
+    ({ artifact }) =>
+      !activeFingerprint || artifact.sourceFingerprint === activeFingerprint
+  );
+  if (!normalized.length) {
+    return classDesign.length
+      ? resultado(
+          classDesign.length,
+          classDesign.length,
+          "ocorrências de classe da fonte ativa ainda sem projeção normalizada",
+          classDesign,
+          { reentryCode: "E-NORMALIZE" }
+        )
+      : null;
+  }
   const status = new Map(
     design.map(({ artifact }) => [
       artifact.occurrenceId,
@@ -462,25 +564,47 @@ function medirPares({ registros }) {
 }
 
 function medirRuntime({ registros }) {
-  const manifestos = manifestosFinaisOuAfter(registros);
-  if (!manifestos.length) return null;
-  const capturas = manifestos.flatMap(({ artifact }) => artifact.captures ?? []);
-  if (!capturas.length) return null;
-  const residuo = capturas.reduce(
-    (soma, capture) =>
-      soma +
-      (capture.consoleErrors?.length ?? 0) +
-      (capture.pageErrors?.length ?? 0) +
-      (capture.networkFailures?.length ?? 0) +
-      (capture.axeViolationIds?.length ?? 0) +
-      (capture.overflow ? 1 : 0),
-    0
+  const todos = doTipo(registros, "evidence-manifest");
+  const atuais = manifestosFinaisOuAfter(registros);
+  if (!atuais.length) return null;
+  const beforeByBatch = new Map(
+    todos
+      .filter(({ artifact }) => artifact.phase === "before")
+      .map((record) => [record.artifact.batchId, record])
   );
+  const pares = [];
+  for (const atual of atuais) {
+    const before = beforeByBatch.get(atual.artifact.batchId);
+    if (!before) return null;
+    const baselineByScenario = new Map(
+      (before.artifact.captures ?? []).map((capture) => [capture.scenarioId, capture])
+    );
+    for (const capture of atual.artifact.captures ?? []) {
+      const baseline = baselineByScenario.get(capture.scenarioId);
+      if (!baseline) return null;
+      pares.push({ capture, baseline, atual, before });
+    }
+  }
+  if (!pares.length) return null;
+  const campos = [
+    "consoleErrors",
+    "pageErrors",
+    "networkFailures",
+    "axeViolationIds",
+  ];
+  const residuo = pares.reduce((soma, { capture, baseline }) => {
+    let novos = 0;
+    for (const campo of campos) {
+      const anteriores = new Set(baseline[campo] ?? []);
+      novos += (capture[campo] ?? []).filter((item) => !anteriores.has(item)).length;
+    }
+    return soma + novos + (capture.overflow && !baseline.overflow ? 1 : 0);
+  }, 0);
   return resultado(
-    capturas.length,
+    pares.length,
     residuo,
-    "capturas sem novos erros de console/página/rede, Axe ou overflow",
-    manifestos
+    "pares before/after sem novos erros de console/página/rede, Axe ou overflow",
+    [...new Set(pares.flatMap(({ atual, before }) => [atual, before]))]
   );
 }
 

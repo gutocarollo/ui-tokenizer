@@ -123,6 +123,7 @@ function parseSource(code, label) {
       sourceType: "module",
       plugins: [
         "jsx",
+        "typescript",
         "classProperties",
         "optionalChaining",
         "nullishCoalescingOperator",

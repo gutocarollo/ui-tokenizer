@@ -32,14 +32,24 @@ export function filterDevToolingConsoleErrors(errors) {
 }
 
 /**
- * Canonicalize only server-generated CSP nonce tokens. A nonce changes on
- * every document response even when the violated directive and the product
- * behavior are identical; retaining the directive while replacing that token
- * prevents a random response secret from becoming a synthetic error delta.
+ * Canonicalize volatile diagnostic transport while retaining error identity.
+ * A CSP nonce changes on every document response. V8 stack frames bind the
+ * same error message to build-generated chunks, offsets, and server origins.
+ * Neither is product behavior, so preserve the message/directive and remove
+ * only those volatile parts.
  */
 export function normalizeVolatileDiagnosticSignal(value) {
-  return String(value).replace(
-    /nonce-(?!\.\.\.)([A-Za-z0-9+/_=-]+)/gu,
-    "nonce-<dynamic>"
-  );
+  return String(value)
+    .replace(
+      /nonce-(?!\.\.\.)([A-Za-z0-9+/_=-]+)/gu,
+      "nonce-<dynamic>"
+    )
+    .replace(/\n\s+at(?:\s+|$)[\s\S]*$/u, "")
+    // The evidence server is intentionally relocatable (before and after may
+    // run in distinct worktrees/ports). Keep scheme, loopback host, path,
+    // method and status, but make only the ephemeral local port non-semantic.
+    .replace(
+      /(https?:\/\/(?:localhost|127\.0\.0\.1)):\d+/gu,
+      "$1:<dynamic-port>"
+    );
 }

@@ -17,6 +17,12 @@ import path from "node:path";
 import { envelopeFrom } from "../../../../scripts/lib/artifact-envelope.mjs";
 import { applicationRelativePathspecs } from "../../../../scripts/lib/git-pathspecs.mjs";
 import { fingerprintSourceRoots } from "../../../../scripts/lib/source-fingerprint.mjs";
+import { generationArtifactsDir } from "./lib/active-generation.mjs";
+import {
+  findUtilityClassLiteral,
+  variableUtilityCandidate,
+} from "./lib/utility-class-ast.mjs";
+import { assertReversibleShard } from "./lib/value-batch-sharding.mjs";
 
 const argv = process.argv.slice(2);
 const arg = (flag, fallback = null) => {
@@ -31,24 +37,58 @@ const runConfigPath = path.resolve(arg("--run-config") ?? fail("--run-config e o
 const runRoot = path.resolve(arg("--run-root") ?? fail("--run-root e obrigatorio"));
 const batchId = arg("--batch") ?? fail("--batch e obrigatorio");
 const artifacts = path.join(runRoot, "artifacts");
+const statePath = path.join(runRoot, "state.json");
 const batchPath = path.join(artifacts, `batch-${batchId}.json`);
 const planPath = path.join(artifacts, `apply-${batchId}.json`);
-const classifiedPath = path.join(artifacts, "classified-design-occurrences.ndjson");
-const normalizedPath = path.join(artifacts, "normalized-occurrences.ndjson");
-for (const file of [runConfigPath, batchPath, planPath, classifiedPath, normalizedPath]) {
+for (const file of [runConfigPath, statePath, batchPath, planPath]) {
   if (!existsSync(file)) fail(`insumo ausente: ${file}`);
 }
 
 const env = envelopeFrom(runConfigPath, { applicationRoot });
+const state = JSON.parse(readFileSync(statePath, "utf8"));
+const generationArtifacts = generationArtifactsDir({
+  runRoot,
+  configuredSourceFingerprint: env.sourceFingerprint,
+  activeSourceFingerprint: state.sourceFingerprint,
+});
+const classifiedPath = path.join(generationArtifacts, "classified-design-occurrences.ndjson");
+const normalizedPath = path.join(generationArtifacts, "normalized-occurrences.ndjson");
+for (const file of [classifiedPath, normalizedPath]) {
+  if (!existsSync(file)) fail(`insumo da geracao ativa ausente: ${file}`);
+}
 const batch = JSON.parse(readFileSync(batchPath, "utf8"));
 const applyPlan = JSON.parse(readFileSync(planPath, "utf8"));
-const proposal = applyPlan.proposal;
+const proposals = Array.isArray(applyPlan.proposals)
+  ? applyPlan.proposals
+  : applyPlan.proposal
+    ? [applyPlan.proposal]
+    : [];
 if (batch.batchId !== batchId || applyPlan.batchId !== batchId) fail("batchId diverge entre contrato e plano");
-if (batch.rollbackSourceFingerprint !== env.sourceFingerprint) fail("rollback do lote nao aponta para a ancora");
-if (proposal.confidence?.band !== "high" || proposal.confidence?.blockers?.length) {
+if (state.activeBatchId !== batchId) fail("lote nao e o activeBatchId da corrida");
+if (batch.rollbackSourceFingerprint !== state.sourceFingerprint) fail("rollback do lote nao aponta para a geracao ativa");
+if (!proposals.length) fail("plano nao contem proposals");
+if (proposals.some(
+  (proposal) =>
+    proposal.confidence?.band !== "high" ||
+    proposal.confidence?.blockers?.length
+)) {
   fail("somente cluster high sem blocker pode entrar no APPLY");
 }
-const adapters = proposal.adapters ?? [proposal.adapter];
+try {
+  assertReversibleShard(proposals);
+} catch (error) {
+  fail(error instanceof Error ? error.message : String(error));
+}
+const plannedClusterIds = proposals.map((proposal) => proposal.clusterId);
+if (
+  JSON.stringify(plannedClusterIds) !== JSON.stringify(batch.targetClusterIds) ||
+  batch.decisionIds?.length !== proposals.length
+) {
+  fail("clusters/decisoes divergem entre batch-contract e apply plan");
+}
+const adapters = proposals.flatMap(
+  (proposal) => proposal.adapters ?? [proposal.adapter]
+);
 const unsupported = adapters.filter((adapter) => !["inline-style", "utility-class"].includes(adapter));
 if (unsupported.length) fail(`adapter sem codemod comprovado: ${unsupported.join(", ")}`);
 
@@ -65,15 +105,35 @@ if (git("status", "--porcelain")) fail("arvore do alvo precisa estar limpa antes
 if (git("rev-parse", "HEAD") !== applyPlan.baseCommit) fail("HEAD nao e o baseCommit congelado no lote");
 const branch = `tokenize/${env.runId}/${batchId.toLowerCase()}`;
 const existingBranches = git("branch", "--list", branch);
-if (existingBranches) fail(`branch ja existe: ${branch}`);
-git("switch", "-c", branch);
+if (existingBranches) {
+  /*
+   * O APPLY cria a branch antes de percorrer o AST. Se o codemod recusar sem
+   * escrever bytes, uma segunda tentativa precisa ser possivel sem apagar
+   * estado Git. A unica reentrada segura e a propria branch, limpa e ainda no
+   * baseCommit — as duas ultimas condicoes ja foram verificadas acima.
+   */
+  if (git("branch", "--show-current") !== branch) {
+    fail(`branch ja existe fora do checkout atual: ${branch}`);
+  }
+} else {
+  git("switch", "-c", branch);
+}
 
 const parseNdjson = (file) =>
   readFileSync(file, "utf8")
     .split(/\r?\n/u)
     .filter(Boolean)
     .map((line) => JSON.parse(line));
-const wanted = new Set(proposal.occurrenceIds);
+const proposalByOccurrence = new Map();
+for (const proposal of proposals) {
+  for (const occurrenceId of proposal.occurrenceIds) {
+    if (proposalByOccurrence.has(occurrenceId)) {
+      fail(`ocorrencia ${occurrenceId} pertence a mais de um cluster do lote`);
+    }
+    proposalByOccurrence.set(occurrenceId, proposal);
+  }
+}
+const wanted = new Set(proposalByOccurrence.keys());
 const occurrences = parseNdjson(classifiedPath).filter(
   (item) => wanted.has(item.occurrenceId) && item.recordStage === "classified"
 );
@@ -86,10 +146,13 @@ const normalized = new Map(
 
 const requireFromTarget = createRequire(path.join(applicationRoot, "package.json"));
 let ts;
+let ColorJS;
 try {
   ts = requireFromTarget("typescript");
+  const colorModule = requireFromTarget("colorjs.io");
+  ColorJS = colorModule.default ?? colorModule;
 } catch (error) {
-  fail(`TypeScript do alvo indisponivel: ${error instanceof Error ? error.message : String(error)}`);
+  fail(`toolchain AST/cor do alvo indisponivel: ${error instanceof Error ? error.message : String(error)}`);
 }
 const scriptKind = (file) =>
   file.endsWith(".tsx")
@@ -119,28 +182,73 @@ const UNITLESS = new Set([
   "z-index",
   "scale",
 ]);
-function cssValue() {
+function cssValue(proposal) {
   const raw = String(proposal.physicalValue).trim();
   if (/^-?(?:\d+(?:\.\d+)?|\.\d+)$/u.test(raw) && !UNITLESS.has(proposal.property)) {
     return `${raw}px`;
   }
   return raw;
 }
-const value = cssValue();
-const nameParts = proposal.proposedName.split(".").map((part) => part.replace(/[^a-z0-9-]/gi, "-").toLowerCase());
-const cssVariable = `--${[proposal.axis, ...nameParts].join("-")}`;
-const cssReference = `var(${cssVariable})`;
+const tokenShape = (proposal) => {
+  const value = cssValue(proposal);
+  const nameParts = proposal.proposedName
+    .split(".")
+    .map((part) => part.replace(/[^a-z0-9-]/gi, "-").toLowerCase());
+  const cssVariable = `--${[proposal.axis, ...nameParts].join("-")}`;
+  return {
+    value,
+    nameParts,
+    cssVariable,
+    cssReference: `var(${cssVariable})`,
+    colorValue: proposal.axis === "color" ? dtcgColorValue(value) : null,
+  };
+};
+const DTCG_COLOR_SPACE = new Map([
+  ["p3", "display-p3"],
+  ["a98rgb", "a98-rgb"],
+  ["prophoto", "prophoto-rgb"],
+]);
+const dtcgColorValue = (value) => {
+  let color;
+  try {
+    color = new ColorJS(value);
+  } catch (error) {
+    fail(
+      `cor fisica não é literal CSS parseável (${value}): ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  const components = color.coords.map((component) =>
+    Number.isNaN(component) ? "none" : Number(component)
+  );
+  return {
+    colorSpace: DTCG_COLOR_SPACE.get(color.space.id) ?? color.space.id,
+    components,
+    ...(Number(color.alpha) === 1
+      ? {}
+      : { alpha: Number.isNaN(Number(color.alpha)) ? "none" : Number(color.alpha) }),
+  };
+};
+const shapes = new Map(
+  proposals.map((proposal) => [proposal.clusterId, tokenShape(proposal)])
+);
 
 const changesByFile = new Map();
 for (const occurrence of occurrences) {
+  const proposal = proposalByOccurrence.get(occurrence.occurrenceId);
+  if (!proposal) fail(`ocorrencia sem proposal: ${occurrence.occurrenceId}`);
+  if (!proposal.plannedFiles.includes(occurrence.location.file)) {
+    fail(
+      `ocorrencia ${occurrence.occurrenceId} esta em ${occurrence.location.file}, fora do plannedFiles do cluster`
+    );
+  }
   const absolute = path.join(applicationRoot, occurrence.location.file);
   if (!existsSync(absolute)) fail(`callsite ausente: ${occurrence.location.file}`);
   if (!changesByFile.has(absolute)) changesByFile.set(absolute, []);
-  changesByFile.get(absolute).push(occurrence);
+  changesByFile.get(absolute).push({ occurrence, proposal });
 }
 
 const changedSourceFiles = [];
-for (const [absolute, fileOccurrences] of changesByFile) {
+for (const [absolute, fileEntries] of changesByFile) {
   const original = readFileSync(absolute, "utf8");
   const sourceFile = ts.createSourceFile(
     path.relative(applicationRoot, absolute),
@@ -150,7 +258,9 @@ for (const [absolute, fileOccurrences] of changesByFile) {
     scriptKind(absolute)
   );
   const edits = [];
-  for (const occurrence of fileOccurrences) {
+  const physicalUtilityEdits = new Set();
+  for (const { occurrence, proposal } of fileEntries) {
+    const { cssReference } = shapes.get(proposal.clusterId);
     if (occurrence.occurrenceKind === "inline-style") {
       let found = null;
       const visit = (node) => {
@@ -180,27 +290,25 @@ for (const [absolute, fileOccurrences] of changesByFile) {
         return /^\[.*\]$/s.test(inner) && inner.slice(1, -1).trim() === proposal.physicalValue;
       });
       if (!candidate) fail(`candidate arbitrario do cluster nao encontrado em ${occurrence.occurrenceId}`);
-      let found = null;
-      const visit = (node) => {
-        if (found) return;
-        if (
-          (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
-          lineColumn(sourceFile, node.getStart(sourceFile)).line === occurrence.location.line &&
-          sourceText(node, sourceFile).includes(candidate.raw)
-        ) {
-          found = node;
-          return;
-        }
-        ts.forEachChild(node, visit);
-      };
-      visit(sourceFile);
+      const found = findUtilityClassLiteral({
+        ts,
+        sourceFile,
+        line: occurrence.location.line,
+        candidateRaw: candidate.raw,
+      });
       if (!found) fail(`literal de classe nao encontrado em ${occurrence.location.file}:${occurrence.location.line}`);
-      const text = sourceText(found, sourceFile);
-      const replacementCandidate = candidate.raw.replace(/\[[\s\S]*\]/u, `[${cssReference}]`);
+      const physicalKey = `${found.start}:${found.end}:${candidate.raw}`;
+      if (physicalUtilityEdits.has(physicalKey)) continue;
+      physicalUtilityEdits.add(physicalKey);
+      const replacementCandidate = variableUtilityCandidate({
+        candidateRaw: candidate.raw,
+        cssReference,
+        axis: proposal.axis,
+      });
       edits.push({
-        start: found.getStart(sourceFile),
-        end: found.getEnd(),
-        replacement: text.replace(candidate.raw, replacementCandidate),
+        start: found.start,
+        end: found.end,
+        replacement: found.text.replace(candidate.raw, replacementCandidate),
         occurrenceId: occurrence.occurrenceId,
       });
     }
@@ -218,35 +326,40 @@ for (const [absolute, fileOccurrences] of changesByFile) {
 
 const tokenFile = path.join(applicationRoot, applyPlan.tokenFile);
 const dtcg = JSON.parse(readFileSync(tokenFile, "utf8"));
-let cursor = dtcg;
-const tokenPath = [proposal.axis, ...nameParts];
-for (const segment of tokenPath) {
-  cursor[segment] = cursor[segment] ?? {};
-  cursor = cursor[segment];
+for (const proposal of proposals) {
+  const { nameParts, value, colorValue } = shapes.get(proposal.clusterId);
+  let cursor = dtcg;
+  const tokenPath = [proposal.axis, ...nameParts];
+  for (const segment of tokenPath) {
+    cursor[segment] = cursor[segment] ?? {};
+    cursor = cursor[segment];
+  }
+  const type = proposal.axis === "color"
+    ? "color"
+    : ["opacity", "z-index"].includes(proposal.axis) || UNITLESS.has(proposal.property)
+      ? "number"
+      : /^(?:-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem))$/u.test(value)
+        ? "dimension"
+        : "string";
+  const dtcgValue = type === "color"
+    ? colorValue
+    : type === "dimension"
+      ? (() => {
+        const match = value.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem|em|%|vh|vw|vmin|vmax|ch|ex)$/u);
+        if (!match) fail(`dimensao DTCG sem unidade reconhecida: ${value}`);
+        return { value: Number(match[1]), unit: match[2] };
+      })()
+      : value;
+  if (
+    Object.hasOwn(cursor, "$value") &&
+    JSON.stringify(cursor.$value) !== JSON.stringify(dtcgValue)
+  ) {
+    fail(`token ${tokenPath.join(".")} ja existe com outro valor`);
+  }
+  cursor.$type = cursor.$type ?? type;
+  cursor.$value = cursor.$value ?? dtcgValue;
+  cursor.$description = cursor.$description ?? `${proposal.occurrenceIds.length} callsites; lote ${batchId}; preserva ${value}`;
 }
-const type = proposal.axis === "color"
-  ? "color"
-  : ["opacity", "z-index"].includes(proposal.axis) || UNITLESS.has(proposal.property)
-    ? "number"
-    : /^(?:-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem))$/u.test(value)
-      ? "dimension"
-      : "string";
-const dtcgValue = type === "dimension"
-  ? (() => {
-      const match = value.match(/^(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem|em|%|vh|vw|vmin|vmax|ch|ex)$/u);
-      if (!match) fail(`dimensao DTCG sem unidade reconhecida: ${value}`);
-      return { value: Number(match[1]), unit: match[2] };
-    })()
-  : value;
-if (
-  Object.hasOwn(cursor, "$value") &&
-  JSON.stringify(cursor.$value) !== JSON.stringify(dtcgValue)
-) {
-  fail(`token ${tokenPath.join(".")} ja existe com outro valor`);
-}
-cursor.$type = cursor.$type ?? type;
-cursor.$value = cursor.$value ?? dtcgValue;
-cursor.$description = cursor.$description ?? `${proposal.occurrenceIds.length} callsites; lote ${batchId}; preserva ${value}`;
 writeFileSync(tokenFile, `${JSON.stringify(dtcg, null, 2)}\n`);
 
 const packageManager = existsSync(path.join(applicationRoot, "pnpm-lock.yaml"))
@@ -261,8 +374,11 @@ const built = spawnSync(packageManager[0], packageManager[1], {
 });
 if (built.status !== 0) fail(`tokens:build falhou: ${built.stderr || built.stdout}`);
 const themeFile = path.join(applicationRoot, applyPlan.themeFile);
-if (!existsSync(themeFile) || !readFileSync(themeFile, "utf8").includes(`${cssVariable}:`)) {
-  fail(`CSS gerado nao contem ${cssVariable}`);
+const themeText = existsSync(themeFile) ? readFileSync(themeFile, "utf8") : "";
+for (const { cssVariable } of shapes.values()) {
+  if (!themeText.includes(`${cssVariable}:`)) {
+    fail(`CSS gerado nao contem ${cssVariable}`);
+  }
 }
 
 const measuredAfter = fingerprintSourceRoots({
@@ -286,15 +402,30 @@ const manifest = {
   beforeSourceFingerprint: measuredBefore.fingerprint,
   afterSourceFingerprint: measuredAfter.fingerprint,
   actualMutationFiles,
-  changes: actualMutationFiles.map((file) => ({
-    file,
-    changeType: file === applyPlan.tokenFile
-      ? "token-definition"
-      : file === applyPlan.themeFile
-        ? "generated-artifact"
-        : "callsite",
-    decisionIds: batch.decisionIds,
-  })),
+  changes: actualMutationFiles.map((file) => {
+    const proposalIndex = proposals.findIndex((proposal) =>
+      proposal.plannedFiles.includes(file)
+    );
+    if (
+      file !== applyPlan.tokenFile &&
+      file !== applyPlan.themeFile &&
+      proposalIndex < 0
+    ) {
+      fail(`callsite ${file} nao pertence a nenhuma decisao do shard`);
+    }
+    return {
+      file,
+      changeType: file === applyPlan.tokenFile
+        ? "token-definition"
+        : file === applyPlan.themeFile
+          ? "generated-artifact"
+          : "callsite",
+      decisionIds:
+        file === applyPlan.tokenFile || file === applyPlan.themeFile
+          ? batch.decisionIds
+          : [batch.decisionIds[proposalIndex]],
+    };
+  }),
   generatedArtifactRefs: [],
 };
 mkdirSync(path.join(artifacts, batchId), { recursive: true });
@@ -309,6 +440,15 @@ const gitPathspecs = applicationRelativePathspecs(
   actualMutationFiles.map((file) => path.join(applicationRoot, file))
 );
 git("add", "--", ...gitPathspecs);
-git("commit", "-m", `tokenize(${batchId}): ${proposal.proposedName}`);
+git("commit", "-m", `tokenize(${batchId}): ${proposals.length} component token${proposals.length === 1 ? "" : "s"}`);
 const commit = git("rev-parse", "HEAD");
-console.log(JSON.stringify({ batchId, branch, commit, cssVariable, value, occurrences: occurrences.length, files: actualMutationFiles, manifest: manifestPath }, null, 2));
+console.log(JSON.stringify({
+  batchId,
+  branch,
+  commit,
+  cssVariables: [...shapes.values()].map(({ cssVariable }) => cssVariable),
+  occurrences: occurrences.length,
+  clusters: proposals.length,
+  files: actualMutationFiles,
+  manifest: manifestPath,
+}, null, 2));

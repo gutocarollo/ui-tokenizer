@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
+  artefatoDoLoteOuGlobal,
   artefatosExigidosDaFonteAtiva,
   contadoresDe,
   proximoLote,
@@ -186,6 +187,23 @@ test("tipos repetidos apresentam só todas as instâncias da fonte ativa, nunca 
     ).map((p) => path.basename(p)),
     ["after.json", "after-2.json"]
   );
+});
+
+test("artefatos batch-scoped não vazam da rodada anterior", () => {
+  const runRoot = novoRunRoot();
+  escreverArtefato(runRoot, "global.json", { artifactType: "axis-discovery" });
+  escreverArtefato(runRoot, "b1.json", {
+    artifactType: "evidence-manifest",
+    batchId: "B0001",
+  });
+  escreverArtefato(runRoot, "b2.json", {
+    artifactType: "evidence-manifest",
+    batchId: "B0002",
+  });
+  const file = (name) => path.join(runRoot, "artifacts", name);
+  assert.equal(artefatoDoLoteOuGlobal(file("global.json"), "B0002"), true);
+  assert.equal(artefatoDoLoteOuGlobal(file("b1.json"), "B0002"), false);
+  assert.equal(artefatoDoLoteOuGlobal(file("b2.json"), "B0002"), true);
 });
 
 /* ─────────────────────────────────────────────── o laço com deps fake ────── */

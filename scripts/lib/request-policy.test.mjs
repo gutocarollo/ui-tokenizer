@@ -51,3 +51,53 @@ test("CSP response nonces are canonicalized without removing the violation", () 
   assert.match(normalizeVolatileDiagnosticSignal(left), /blocked/);
   assert.match(normalizeVolatileDiagnosticSignal(left), /nonce-\.\.\./);
 });
+
+test("V8 build frames are canonicalized without removing the error message", () => {
+  const dev =
+    "[GlobalAcquisition] Error fetching KPIs: TypeError: Failed to fetch\n" +
+    "    at Object.fetch (http://localhost:3100/_next/static/chunks/dev-a.js:1:10)\n" +
+    "    at queryFn (http://localhost:3100/_next/static/chunks/dev-b.js:2:20)";
+  const production =
+    "[GlobalAcquisition] Error fetching KPIs: TypeError: Failed to fetch\n" +
+    "    at Object.fetch (http://localhost:4200/_next/static/chunks/prod-x.js:9:90)";
+
+  assert.equal(
+    normalizeVolatileDiagnosticSignal(dev),
+    "[GlobalAcquisition] Error fetching KPIs: TypeError: Failed to fetch"
+  );
+  assert.equal(
+    normalizeVolatileDiagnosticSignal(dev),
+    normalizeVolatileDiagnosticSignal(production)
+  );
+});
+
+test("multiline messages without V8 frames remain intact", () => {
+  const message = "Validation failed:\nfield email is required";
+  assert.equal(normalizeVolatileDiagnosticSignal(message), message);
+});
+
+test("loopback capture ports are canonicalized without erasing request identity", () => {
+  const before = "HTTP 401 GET http://localhost:3102/api/calendar/events";
+  const after = "HTTP 401 GET http://localhost:3100/api/calendar/events";
+
+  assert.equal(
+    normalizeVolatileDiagnosticSignal(before),
+    normalizeVolatileDiagnosticSignal(after)
+  );
+  assert.equal(
+    normalizeVolatileDiagnosticSignal(before),
+    "HTTP 401 GET http://localhost:<dynamic-port>/api/calendar/events"
+  );
+  assert.notEqual(
+    normalizeVolatileDiagnosticSignal(before),
+    normalizeVolatileDiagnosticSignal(
+      "HTTP 500 POST http://localhost:3100/api/calendar/events"
+    )
+  );
+  assert.notEqual(
+    normalizeVolatileDiagnosticSignal(before),
+    normalizeVolatileDiagnosticSignal(
+      "HTTP 401 GET http://localhost:3100/api/calendar/other"
+    )
+  );
+});

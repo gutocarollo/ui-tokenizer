@@ -11,7 +11,7 @@ import {
   isRouteImpactCandidate,
 } from "./lib/route-impact.mjs";
 import { discoverReadOnlyFixtures } from "./lib/read-only-fixtures.mjs";
-import { materializeVisualRegistry } from "../tests/visual/visual-registry.mjs";
+import { materializeTargetVisualRegistry } from "./gen-visual-routes.mjs";
 import { envelopeFrom } from "./lib/artifact-envelope.mjs";
 import { materializeContractScenarios } from "./lib/evidence-matrix.mjs";
 
@@ -68,9 +68,11 @@ export async function affectedRoutes({
     environment,
     inspectLocalData,
   });
-  const visual = materializeVisualRegistry({
+  const { registry: visual } = materializeTargetVisualRegistry({
     routes: impact.affectedRoutes,
-    environment: fixtureDiscovery.environment,
+    frontendRoot: FRONTEND_ROOT,
+    environment,
+    fixtureEnvironment: fixtureDiscovery.environment,
   });
   const fixtureGaps = visual.skipped;
   const coverageComplete =
@@ -105,6 +107,7 @@ export function impactedContextArtifact({
   runConfigPath,
   batchContractPath,
   batchId,
+  sourceFingerprint = null,
 }) {
   if (!runConfigPath || !batchContractPath || !batchId) {
     throw new Error(
@@ -118,11 +121,15 @@ export function impactedContextArtifact({
   const batchContract = JSON.parse(
     readFileSync(path.resolve(batchContractPath), "utf8")
   );
+  const header = (artifactType) => ({
+    ...env.header(artifactType),
+    ...(sourceFingerprint ? { sourceFingerprint } : {}),
+  });
   const scenarioArtifacts = materializeContractScenarios({
     scenarios: result.scenarios,
     matrix: runConfig.matrix,
     batchContract,
-    header: env.header("scenario"),
+    header: header("scenario"),
   });
   const contextByPath = new Map(
     (result.contexts ?? []).map((context) => [context.path, context])
@@ -139,10 +146,16 @@ export function impactedContextArtifact({
       fixtureId: context.fixtureId ?? null,
     };
   });
-  const plannedFiles = result.changedFiles.map(({ file }) => file);
+  const plannedFiles = [...new Set(batchContract.plannedFiles ?? [])].sort();
+  if (plannedFiles.length === 0) {
+    throw new Error(
+      `batch ${batchId} sem plannedFiles — impacted-context não pode provar escopo de mutação`
+    );
+  }
   const consumerFiles = [
     ...new Set([
       ...plannedFiles,
+      ...result.changedFiles.map(({ file }) => file),
       ...(result.contexts ?? []).flatMap((context) =>
         (context.componentModules ?? []).filter(Boolean)
       ),
@@ -155,7 +168,7 @@ export function impactedContextArtifact({
     ...(result.fixtureGaps ?? []).map(({ pattern }) => pattern),
   ].sort();
   return {
-    ...env.header("impacted-context"),
+    ...header("impacted-context"),
     batchId,
     plannedFiles,
     consumerFiles,
@@ -189,6 +202,7 @@ async function runCli() {
       runConfigPath,
       batchContractPath: argumentValue(argv, "--batch-contract"),
       batchId: argumentValue(argv, "--batch-id"),
+      sourceFingerprint: argumentValue(argv, "--source-fingerprint"),
     });
     const absolute = path.resolve(emitPath);
     mkdirSync(path.dirname(absolute), { recursive: true });

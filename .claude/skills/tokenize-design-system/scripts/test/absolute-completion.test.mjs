@@ -437,7 +437,6 @@ function buildFixture({
       designRef,
       axisRef,
       scenarioRef,
-      normalizedRef,
       reportRef,
     ],
   };

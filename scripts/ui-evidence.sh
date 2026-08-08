@@ -7,6 +7,8 @@
 #     --run-config <config.json> [--root <app>] [--run-root <run>]
 #     [--batch-id B0001]
 #     [--phase global-before|before|after|final]
+#     [--attempt 2]                     # retry imutável: before-r2/after-r2
+#     [--impacted-context <impacted-B0001.json>]
 #     [--routes /a,/b]
 #     [--scenario-ids route/default,...]
 #     [--themes light,dark]
@@ -38,6 +40,8 @@ THEMES=""
 PROJECTS=""
 LOCALES=""
 WRITING_MODES=""
+ATTEMPT="1"
+IMPACTED_CONTEXT=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -47,6 +51,8 @@ while [ "$#" -gt 0 ]; do
     --root) WEB_DIR="${2:-}"; shift 2 ;;
     --batch-id) BATCH_ID="${2:-}"; shift 2 ;;
     --phase) PHASE="${2:-}"; shift 2 ;;
+    --attempt) ATTEMPT="${2:-}"; shift 2 ;;
+    --impacted-context) IMPACTED_CONTEXT="${2:-}"; shift 2 ;;
     --routes) ROUTES="${2:-}"; shift 2 ;;
     --scenario-ids) SCENARIO_IDS="${2:-}"; shift 2 ;;
     --themes) THEMES="${2:-}"; shift 2 ;;
@@ -104,6 +110,10 @@ if [ -n "$BATCH_ID" ] && [[ ! "$BATCH_ID" =~ ^B[0-9]{4,}$ ]]; then
   echo "ui-evidence: batch ID must match B[0-9]{4,}." >&2
   exit 2
 fi
+if [[ ! "$ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ui-evidence: --attempt must be a positive integer." >&2
+  exit 2
+fi
 
 code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$WEB_URL" 2>/dev/null || true)"
 if [ -z "$code" ] || [[ "$code" =~ ^0+$ ]] || [ "${#code}" -lt 3 ]; then
@@ -125,7 +135,11 @@ else
   EVIDENCE_ROOT="$REPO_ROOT/.claude/evidence"
 fi
 if [ -n "$RUN_ROOT" ]; then
-  OUT_DIR="$EVIDENCE_ROOT/$PHASE"
+  if [ "$ATTEMPT" = "1" ]; then
+    OUT_DIR="$EVIDENCE_ROOT/$PHASE"
+  else
+    OUT_DIR="$EVIDENCE_ROOT/${PHASE}-r${ATTEMPT}"
+  fi
 else
   OUT_DIR="$EVIDENCE_ROOT/$LABEL"
 fi
@@ -180,6 +194,8 @@ PREPARE_ARGS=(
   --manifest-config-out "$MANIFEST_CONFIG"
 )
 [ -n "$BATCH_ID" ] && PREPARE_ARGS+=(--batch-id "$BATCH_ID")
+[ -n "$RUN_ROOT" ] && PREPARE_ARGS+=(--batch-contract "$RUN_ROOT/artifacts/batch-$BATCH_ID.json")
+[ -n "$IMPACTED_CONTEXT" ] && PREPARE_ARGS+=(--impacted-context "$IMPACTED_CONTEXT")
 [ -n "$ROUTES" ] && PREPARE_ARGS+=(--routes "$ROUTES")
 [ -n "$SCENARIO_IDS" ] && PREPARE_ARGS+=(--scenario-ids "$SCENARIO_IDS")
 [ -n "$THEMES" ] && PREPARE_ARGS+=(--themes "$THEMES")
@@ -216,6 +232,7 @@ PLAYWRIGHT_WEB_URL="$WEB_URL" \
 UI_EVIDENCE_LABEL="$LABEL" \
 UI_EVIDENCE_SELECTION_FILE="$SELECTION_FILE" \
 UI_EVIDENCE_OUTPUT_DIR="$STAGING_DIR" \
+UI_EVIDENCE_NETWORK_FIXTURE_FILE="$(tr -d '\r\n' < "$STAGING_DIR/network-fixture-path")" \
 HARNESS_UI_EVIDENCE_ERROR_SELECTOR="${HARNESS_UI_EVIDENCE_ERROR_SELECTOR:-$ERROR_SELECTOR_VALUE}" \
 HARNESS_UI_EVIDENCE_MASK_SELECTORS="${HARNESS_UI_EVIDENCE_MASK_SELECTORS:-$MASK_SELECTORS_VALUE}" \
   npx playwright test -c "$TOOL_ROOT/playwright.visual.config.ts" "$TOOL_ROOT/tests/visual/evidence.spec.ts" \

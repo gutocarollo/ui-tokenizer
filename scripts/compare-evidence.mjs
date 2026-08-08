@@ -11,6 +11,8 @@ import {
   expandVisualPolicyToScenarioMatrix,
   VisualContractError,
 } from "./lib/visual-contract.mjs";
+import { proveFixtureBindingDelta } from "./lib/contract-source-waiver.mjs";
+import { fileURLToPath } from "node:url";
 
 function valueAfter(flag) {
   const index = process.argv.indexOf(flag);
@@ -37,6 +39,9 @@ const outputPath = valueAfter("--out");
 const reviewInputPath = valueAfter("--review-input");
 const reviewOutputPath = valueAfter("--review-output");
 const scenariosPath = valueAfter("--scenarios");
+const runRoot = valueAfter("--run-root");
+const applicationRoot = valueAfter("--application-root");
+const applyPlanPath = valueAfter("--apply-plan");
 
 if (
   !beforePath ||
@@ -53,7 +58,44 @@ try {
   const absoluteOutputPath = path.resolve(outputPath);
   const outputDirectory = path.dirname(absoluteOutputPath);
   mkdirSync(outputDirectory, { recursive: true });
-  const rawPolicy = readJson(policyPath);
+  let rawPolicy = readJson(policyPath);
+  const beforeManifest = readJson(beforePath);
+  const afterManifest = readJson(afterPath);
+  if (
+    beforeManifest.fixtureRegistryFingerprint !==
+      afterManifest.fixtureRegistryFingerprint &&
+    !(rawPolicy.approvedBindingExceptions ?? []).some(
+      (entry) =>
+        entry?.field === "fixtureRegistryFingerprint" &&
+        entry?.before === beforeManifest.fixtureRegistryFingerprint &&
+        entry?.after === afterManifest.fixtureRegistryFingerprint
+    )
+  ) {
+    if (!applicationRoot || !applyPlanPath) {
+      throw new VisualContractError(
+        "Fixture binding mismatch requires --application-root and --apply-plan"
+      );
+    }
+    const proofPath = path.join(outputDirectory, "contract-source-delta.json");
+    const exception = proveFixtureBindingDelta({
+      applicationRoot: path.resolve(applicationRoot),
+      applyPlan: readJson(applyPlanPath),
+      batchPolicy: rawPolicy,
+      before: beforeManifest.fixtureRegistryFingerprint,
+      after: afterManifest.fixtureRegistryFingerprint,
+      proofPath,
+      verifierPath: fileURLToPath(
+        new URL("./verify-contract-source-delta.mjs", import.meta.url)
+      ),
+    });
+    rawPolicy = {
+      ...rawPolicy,
+      approvedBindingExceptions: [
+        ...(rawPolicy.approvedBindingExceptions ?? []),
+        exception,
+      ],
+    };
+  }
   const scenarios = scenariosPath
     ? readFileSync(path.resolve(scenariosPath), "utf8")
         .split(/\r?\n/u)
@@ -63,13 +105,14 @@ try {
   const policy = scenarios
     ? expandVisualPolicyToScenarioMatrix(rawPolicy, scenarios)
     : rawPolicy;
-  let comparison = compareEvidenceManifests({
-    beforeManifest: readJson(beforePath),
+  const comparison = compareEvidenceManifests({
+    beforeManifest,
     beforeManifestPath: path.resolve(beforePath),
-    afterManifest: readJson(afterPath),
+    afterManifest,
     afterManifestPath: path.resolve(afterPath),
     policy,
     outputDirectory,
+    ...(runRoot ? { artifactReferenceRoot: path.resolve(runRoot) } : {}),
   });
   const reviewInput = buildVisualReviewInput(
     comparison,
@@ -81,22 +124,27 @@ try {
     `${JSON.stringify(reviewInput, null, 2)}\n`
   );
 
-  if (reviewOutputPath) {
-    comparison = bindVisualReview(comparison, readJson(reviewOutputPath));
-  }
+  /* COMPARED is immutable and precedes REVIEWED. Validate the separate review
+   * against these exact pending-comparison bytes, but never overwrite the
+   * comparison with the derived bound verdict: doing so invalidates the
+   * fingerprint already emitted in visual-review-input. */
+  const bound = reviewOutputPath
+    ? bindVisualReview(comparison, readJson(reviewOutputPath))
+    : null;
   writeFileSync(absoluteOutputPath, `${JSON.stringify(comparison, null, 2)}\n`);
+  const effective = bound ?? comparison;
   console.log(
     JSON.stringify({
-      status: comparison.verdict,
+      status: effective.verdict,
       comparison: absoluteOutputPath,
       reviewInput: path.resolve(reviewInputPath),
       pairs: comparison.pairs.length,
       deterministicVerdict: comparison.deterministicVerdict,
-      visualReviewVerdict: comparison.visualReviewVerdict,
+      visualReviewVerdict: effective.visualReviewVerdict,
     })
   );
-  if (comparison.verdict === "review") process.exit(3);
-  if (comparison.verdict !== "pass") process.exit(1);
+  if (effective.verdict === "review") process.exit(3);
+  if (effective.verdict !== "pass") process.exit(1);
 } catch (error) {
   const payload =
     error instanceof VisualContractError

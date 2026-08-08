@@ -156,6 +156,26 @@ export function matrixScenarioId({
   );
 }
 
+export function baseScenarioIdFromMatrixId(matrixId) {
+  if (typeof matrixId !== "string" || !matrixId.trim()) {
+    throw new VisualContractError("Matrix scenario ID must be a non-empty string");
+  }
+  const marker = "::theme/";
+  const index = matrixId.indexOf(marker);
+  if (index <= 0) {
+    throw new VisualContractError(`Invalid matrix scenario ID: ${matrixId}`);
+  }
+  const suffix = matrixId.slice(index);
+  if (
+    !/^::theme\/[^:]+::project\/[^:]+::locale\/[^:]+::writing-mode\/.+$/u.test(
+      suffix
+    )
+  ) {
+    throw new VisualContractError(`Invalid matrix scenario ID: ${matrixId}`);
+  }
+  return matrixId.slice(0, index);
+}
+
 /**
  * Projeta o registro visual na forma `scenario` do contrato durável.
  *

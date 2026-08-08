@@ -17,10 +17,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   ArtifactContractError,
+  artifactProjectionGroup,
+  artifactProjectionResetGroups,
   createArtifactValidator,
+  evidenceProjectionSlot,
   inferArtifactType,
   makeArtifactRef,
   nextForwardPhases,
+  projectJournalArtifactRefs,
   readArtifactRecords,
   reentryCodeForArtifact,
   resolveArtifactRefPath,
@@ -262,7 +266,15 @@ function artifactRefsFromPaths(runRoot, artifactPaths) {
   return { refs, records };
 }
 
-function mergeArtifactRefs(previous, additions) {
+function evidenceManifestSlot(artifactRef, runRoot) {
+  if (artifactRef.artifactType !== "evidence-manifest") return null;
+  const records = readArtifactRecords(resolveArtifactRefPath(runRoot, artifactRef));
+  if (records.length !== 1) return null;
+  const artifact = records[0].artifact;
+  return evidenceProjectionSlot(artifact);
+}
+
+export function mergeArtifactRefs(previous, additions) {
   const byPath = new Map();
   for (const artifactRef of previous) byPath.set(artifactRef.path, artifactRef);
   for (const artifactRef of additions) {
@@ -627,14 +639,28 @@ function commandTransition(options) {
     reentryCode,
     artifactRefs: refs,
   };
+  // Reuse of an immutable path is checked against the complete history, not
+  // merely the active projection (which legitimately omits superseded refs).
+  mergeArtifactRefs(
+    state.journal.flatMap((entry) => entry.artifactRefs),
+    refs
+  );
+  const nextJournal = [...state.journal, transition];
   const nextState = {
     ...state,
     sourceFingerprint,
     generatedAt: now,
     currentPhase: targetPhase,
     activeBatchId,
-    journal: [...state.journal, transition],
-    artifacts: mergeArtifactRefs(state.artifacts, refs),
+    journal: nextJournal,
+    artifacts: projectJournalArtifactRefs(
+      nextJournal,
+      (artifactRef) => evidenceManifestSlot(artifactRef, runRoot),
+      {
+        groupForRef: artifactProjectionGroup,
+        resetGroupsForRef: artifactProjectionResetGroups,
+      }
+    ),
   };
 
   const configRecord = readConfig(runRoot);

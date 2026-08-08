@@ -50,12 +50,19 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 import { OCCURRENCE_KINDS, sha256CanonicalJson } from "./lib/artifact-contract.mjs";
 import { SOURCE_KIND_REGISTRY } from "./lib/axis-discovery.mjs";
 import { ABSOLUTE_COMPLETION_PREDICATE_IDS } from "./lib/absolute-completion-contract.mjs";
 import { fingerprintSourceRoots } from "./lib/absolute-completion.mjs";
 import { resolveRoot } from "./lib/paths.mjs";
+import { fingerprintProcessPath } from "../../../../scripts/lib/process-toolchain.mjs";
+
+const PROCESS_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../.."
+);
 
 const argv = process.argv.slice(2);
 const arg = (flag, fallback = null) => {
@@ -142,11 +149,20 @@ for (const p of CANDIDATAS) {
 const CONFIGS = [
   "package.json",
   "tokens/tokenization.config.json",
-  "tokens/color.tokens.json",
+  // Contratos visuais versionados do ALVO. Eles governam quais estados,
+  // fixtures read-only, exceções de transporte e dimensões entram na prova.
+  // Se mudarem depois da âncora, a mesma corrida não pode continuar fingindo
+  // que mede a matriz anterior.
+  "tests/visual/evidence-fixtures.json",
+  "tests/visual/evidence-route-policy.json",
+  "tests/visual/evidence-matrix.json",
   "tailwind.config.js",
   "tailwind.config.ts",
   "postcss.config.js",
 ];
+// O arquivo DTCG é SAÍDA mutável da corrida, medido por
+// tokenSourceFingerprint/generatedCssFingerprint. Ancorá-lo também como
+// configuração tornava qualquer APPLY inválido por construção no gate final.
 /*
  * A CHAVE PRECISA DO PREFIXO `file:` — defeito meu, achado pelo mapeamento dos
  * contratos de artefato em 2026-08-01.
@@ -166,6 +182,20 @@ for (const rel of CONFIGS) {
   const p = path.join(ROOT, rel);
   if (!existsSync(p)) continue;
   configurationFingerprints[`file:${rel}`] = createHash("sha256").update(readFileSync(p)).digest("hex");
+}
+const PROCESS_TOOLCHAIN_PATHS = [
+  ".claude/skills/tokenize-design-system",
+  "scripts",
+  "tests/visual",
+  "playwright.visual.config.ts",
+  "package.json",
+  "package-lock.json",
+];
+for (const rel of PROCESS_TOOLCHAIN_PATHS) {
+  configurationFingerprints[`process-path:${rel}`] = fingerprintProcessPath(
+    PROCESS_ROOT,
+    rel
+  );
 }
 if (!Object.keys(configurationFingerprints).length) {
   falhar(
@@ -345,6 +375,12 @@ if (argv.includes("--json")) {
   process.exitCode = veredito.ok ? 0 : 1;
 } else {
   const out = arg("--out", path.join(ROOT, ".tokenize/run-config.json"));
+  if (existsSync(out)) {
+    falhar(
+      `a saída imutável já existe: ${out}`,
+      "use outro runId/run root; uma âncora existente nunca é sobrescrita"
+    );
+  }
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(runConfig, null, 1) + "\n");
   console.log(`ANCHOR ok — ${path.relative(ROOT, out)}`);

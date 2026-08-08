@@ -11,8 +11,13 @@ import { fileURLToPath } from "node:url";
 import { discoverRoutes } from "./lib/route-impact.mjs";
 import { discoverReadOnlyFixtures } from "./lib/read-only-fixtures.mjs";
 import { materializeVisualRegistry } from "../tests/visual/visual-registry.mjs";
+import { validateFixtureDocument } from "../tests/visual/network-fixtures.mjs";
 import { envelopeFrom } from "./lib/artifact-envelope.mjs";
 import { materializeContractScenarios } from "./lib/evidence-matrix.mjs";
+import {
+  readImpactedScenarioIds,
+  selectImpactedScenarios,
+} from "./lib/impacted-evidence-selection.mjs";
 
 const FRONTEND_ROOT = resolveAppRoot(
   path.join(path.dirname(new URL(import.meta.url).pathname), "..")
@@ -23,6 +28,15 @@ const EMPTY_NETWORK_FIXTURES = jsonFile({
   readOnly: true,
   fixtures: [],
 });
+const EXTERNAL_FIXTURE_SOURCE = "evidence-fixtures.json";
+
+export const VISUAL_REGISTRY_OUTPUT_FILES = Object.freeze([
+  "routes.json",
+  "routes.skipped.json",
+  "contexts.json",
+  "scenarios.json",
+  "network-fixtures.json",
+]);
 
 function argumentValue(argv, name) {
   const index = argv.indexOf(name);
@@ -35,6 +49,198 @@ function sha256(value) {
 
 function jsonFile(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+export function loadExternalEvidenceFixtures(frontendRoot) {
+  const file = path.join(frontendRoot, "tests", "visual", EXTERNAL_FIXTURE_SOURCE);
+  if (!existsSync(file)) return null;
+  const document = JSON.parse(readFileSync(file, "utf8"));
+  validateFixtureDocument(document, file);
+  if (
+    document.semanticReadTransports !== undefined &&
+    (!document.semanticReadTransports ||
+      typeof document.semanticReadTransports !== "object" ||
+      Array.isArray(document.semanticReadTransports))
+  ) {
+    throw new Error("semanticReadTransports must be an object keyed by route pattern.");
+  }
+  for (const [routePattern, transports] of Object.entries(
+    document.semanticReadTransports ?? {}
+  )) {
+    if (!routePattern.startsWith("/") || !Array.isArray(transports) || !transports.length) {
+      throw new Error(`semanticReadTransports.${routePattern} must not be empty.`);
+    }
+    for (const transport of transports) {
+      if (
+        transport?.method !== "POST" ||
+        typeof transport.path !== "string" ||
+        !transport.path.startsWith("/api/") ||
+        transport.path.includes("?") ||
+        !Array.isArray(transport.contractSources) ||
+        !transport.contractSources.length ||
+        transport.contractSources.some(
+          (source) =>
+            typeof source !== "string" ||
+            !source ||
+            path.isAbsolute(source) ||
+            source.split(/[\\/]/u).includes("..")
+        )
+      ) {
+        throw new Error(
+          `semanticReadTransports.${routePattern} must declare POST, a concrete /api path, and repository-relative contractSources.`
+        );
+      }
+    }
+  }
+  for (const fixture of document.fixtures) {
+    const scenario = fixture.scenario;
+    if (!scenario || !Array.isArray(scenario.actions) || !scenario.actions.length) {
+      throw new Error(`${fixture.id}.scenario.actions must not be empty.`);
+    }
+    if (
+      scenario.actions.some(
+        (step) =>
+          !step ||
+          !["goto", "click", "wait-for", "hover"].includes(step.type) ||
+          (step.type !== "goto" && typeof step.target !== "string")
+      )
+    ) {
+      throw new Error(
+        `${fixture.id}.scenario actions must use only read-only goto/click/wait-for/hover steps.`
+      );
+    }
+    if (scenario.actions[0].type !== "goto" || scenario.actions[0].value !== "$route") {
+      throw new Error(`${fixture.id}.scenario must begin with goto $route.`);
+    }
+    if (
+      !Array.isArray(scenario.assertions) ||
+      !scenario.assertions.length ||
+      scenario.assertions.some(
+        (step) =>
+          step?.type !== "assert" ||
+          typeof step.target !== "string" ||
+          !["attached", "visible", "hidden", "enabled", "disabled"].includes(step.value)
+      )
+    ) {
+      throw new Error(`${fixture.id}.scenario.assertions must contain typed DOM assertions.`);
+    }
+  }
+  return { file, document };
+}
+
+export function externalFixtureRegistry(document) {
+  if (!document) return {};
+  return Object.fromEntries(
+    document.fixtures.map((fixture) => [
+      fixture.routePattern,
+      [
+        {
+          fixtureId: fixture.id,
+          networkFixtureId: fixture.id,
+          name: fixture.name ?? fixture.id,
+          params: fixture.routeParams,
+          source: "target-versioned-network-read-only",
+        },
+      ],
+    ])
+  );
+}
+
+export function applyExternalFixtureScenarios(registry, document) {
+  if (!document) return registry;
+  const networkFixtureRegistryFingerprint = sha256(jsonFile(document));
+  const fixtureById = new Map(document.fixtures.map((fixture) => [fixture.id, fixture]));
+  const scenarios = registry.scenarios.map((scenario) => {
+    const fixture = fixtureById.get(scenario.networkFixtureId);
+    const semanticReadTransports =
+      document.semanticReadTransports?.[scenario.routePattern] ??
+      scenario.semanticReadTransports;
+    if (!fixture) return { ...scenario, semanticReadTransports };
+    const definition = fixture.scenario;
+    return {
+      ...scenario,
+      interactionState: definition.interactionState ?? "fixture",
+      actions: definition.actions.map((step) => ({
+        ...step,
+        value: step.value === "$route" ? scenario.route : step.value,
+      })),
+      assertions: definition.assertions,
+      witness: definition.witness ?? null,
+      assertReady: definition.assertReady ?? null,
+      captureRegion: definition.captureRegion ?? null,
+      semanticReadTransports,
+    };
+  });
+  return {
+    ...registry,
+    contexts: registry.contexts.map((context) => ({
+      ...context,
+    })),
+    scenarios,
+    networkFixtureRegistryFingerprint,
+    fixtureRegistryFingerprint: sha256(
+      JSON.stringify({
+        base: registry.fixtureRegistryFingerprint,
+        networkFixtureRegistryFingerprint,
+        externalFixtures: document.fixtures.map(
+          ({ id, routePattern, routeParams, contractSources }) => ({
+            id,
+            routePattern,
+            routeParams,
+            contractSources,
+          })
+        ),
+      })
+    ),
+    scenarioRegistryFingerprint: sha256(
+      JSON.stringify({
+        base: registry.scenarioRegistryFingerprint,
+        externalFixtureScenarios: document.fixtures.map(({ id, scenario }) => ({ id, scenario })),
+        semanticReadTransports: document.semanticReadTransports ?? {},
+      })
+    ),
+  };
+}
+
+/**
+ * Materializa o registro visual com uma única autoridade para fixtures.
+ *
+ * `visual-registry.mjs` pertence ao processo e contém fixtures do próprio
+ * processo. Num alvo externo essas fixtures não são evidência do alvo: somente
+ * `tests/visual/evidence-fixtures.json` do alvo pode preservar uma resposta de
+ * rede. Tanto o gerador da matriz completa quanto `affected-routes` precisam
+ * atravessar exatamente esta fronteira; duplicá-la foi o que deixou
+ * `onboarding-home-v1` escapar para um batch do MakersHub.
+ */
+export function materializeTargetVisualRegistry({
+  routes,
+  frontendRoot = FRONTEND_ROOT,
+  environment = process.env,
+  fixtureEnvironment = environment,
+}) {
+  const externalTarget = path.resolve(frontendRoot) !== PROCESS_ROOT;
+  const externalFixtures = externalTarget
+    ? loadExternalEvidenceFixtures(frontendRoot)
+    : null;
+  const materialized = materializeVisualRegistry({
+    routes,
+    environment: fixtureEnvironment,
+    ...(externalTarget
+      ? { fixtureRegistry: externalFixtureRegistry(externalFixtures?.document) }
+      : {}),
+  });
+  if (!externalTarget) {
+    return { registry: materialized, externalFixtures: null };
+  }
+  const neutral = neutralizeExternalRegistry(
+    materialized,
+    environment,
+    new Set((externalFixtures?.document?.fixtures ?? []).map(({ id }) => id))
+  );
+  return {
+    registry: applyExternalFixtureScenarios(neutral, externalFixtures?.document),
+    externalFixtures,
+  };
 }
 
 function portableModule(file, frontendRoot) {
@@ -130,7 +336,11 @@ function csvEnvironment(value) {
   );
 }
 
-export function neutralizeExternalRegistry(registry, environment = {}) {
+export function neutralizeExternalRegistry(
+  registry,
+  environment = {},
+  preservedNetworkFixtureIds = new Set()
+) {
   const defaultAuthRole =
     String(environment.UI_EVIDENCE_DEFAULT_AUTH_ROLE ?? "").trim() || null;
   const anonymousRoutes = csvEnvironment(
@@ -141,33 +351,39 @@ export function neutralizeExternalRegistry(registry, environment = {}) {
       ? defaultAuthRole
       : currentRole;
   const networkFixtureRegistryFingerprint = sha256(EMPTY_NETWORK_FIXTURES);
-  const contexts = registry.contexts.map((context) => ({
+  const contexts = registry.contexts.map((context) => {
+    const preservesNetwork = preservedNetworkFixtureIds.has(context.networkFixtureId);
+    return {
     ...context,
     authRole: authRoleFor(context.path, context.authRole),
-    fixtureId: context.networkFixtureId
-      ? (authRoleFor(context.path, context.authRole) === "anonymous"
+    fixtureId: preservesNetwork
+      ? context.fixtureId
+      : (authRoleFor(context.path, context.authRole) === "anonymous"
           ? "anonymous-static-v1"
-          : `${authRoleFor(context.path, context.authRole)}-session-v1`)
-      : context.fixtureId,
-    networkFixtureId: null,
-    fixtureSource: context.networkFixtureId ? "route-declaration" : context.fixtureSource,
-  }));
-  const scenarios = registry.scenarios.map((scenario) => ({
+          : `${authRoleFor(context.path, context.authRole)}-session-v1`),
+    networkFixtureId: preservesNetwork ? context.networkFixtureId : null,
+    fixtureSource: preservesNetwork ? context.fixtureSource : "route-declaration",
+  };
+  });
+  const scenarios = registry.scenarios.map((scenario) => {
+    const preservesNetwork = preservedNetworkFixtureIds.has(scenario.networkFixtureId);
+    return {
     ...scenario,
     authRole: authRoleFor(scenario.route, scenario.authRole),
-    fixtureId: scenario.networkFixtureId
-      ? (authRoleFor(scenario.route, scenario.authRole) === "anonymous"
+    fixtureId: preservesNetwork
+      ? scenario.fixtureId
+      : (authRoleFor(scenario.route, scenario.authRole) === "anonymous"
           ? "anonymous-static-v1"
-          : `${authRoleFor(scenario.route, scenario.authRole)}-session-v1`)
-      : scenario.fixtureId,
-    networkFixtureId: null,
-    preconditions: [],
-    assertions: [],
-    witness: null,
-    assertReady: null,
+          : `${authRoleFor(scenario.route, scenario.authRole)}-session-v1`),
+    networkFixtureId: preservesNetwork ? scenario.networkFixtureId : null,
+    preconditions: preservesNetwork ? scenario.preconditions : [],
+    assertions: preservesNetwork ? scenario.assertions : [],
+    witness: preservesNetwork ? scenario.witness : null,
+    assertReady: preservesNetwork ? scenario.assertReady : null,
     expectedRenderedErrorSelector: null,
     semanticReadTransports: [],
-  }));
+  };
+  });
   return {
     ...registry,
     contexts,
@@ -347,13 +563,13 @@ export async function generateVisualRoutes({
     // diagnósticos voláteis em arquivo versionado e suja o alvo após a captura.
     inspectLocalData: externalTarget ? false : inspectLocalData,
   });
-  const materializedRegistry = materializeVisualRegistry({
-    routes: discovery.routes,
-    environment: fixtureDiscovery.environment,
-  });
-  const neutralRegistry = externalTarget
-    ? neutralizeExternalRegistry(materializedRegistry, environment)
-    : materializedRegistry;
+  const { registry: neutralRegistry, externalFixtures } =
+    materializeTargetVisualRegistry({
+      routes: discovery.routes,
+      frontendRoot,
+      environment,
+      fixtureEnvironment: fixtureDiscovery.environment,
+    });
   const routePolicyPath = path.join(
     frontendRoot,
     "tests",
@@ -377,7 +593,11 @@ export async function generateVisualRoutes({
     registry,
     fixtureDiscovery,
     frontendRoot,
-    networkFixtureContent: externalTarget ? EMPTY_NETWORK_FIXTURES : null,
+    networkFixtureContent: externalTarget
+      ? externalFixtures
+        ? jsonFile(externalFixtures.document)
+        : EMPTY_NETWORK_FIXTURES
+      : null,
   });
   const staleFiles = [];
   if (check) {
@@ -419,11 +639,13 @@ export function emitScenarioArtifacts({
   registry,
   runConfigPath,
   batchContractPath,
+  impactedContextPath,
   outPath,
+  sourceFingerprint = null,
 }) {
-  if (!runConfigPath || !batchContractPath || !outPath) {
+  if (!runConfigPath || !batchContractPath || !impactedContextPath || !outPath) {
     throw new Error(
-      "emitir scenario exige --run-config, --batch-contract e --emit-scenarios"
+      "emitir scenario exige --run-config, --batch-contract, --impacted-context e --emit-scenarios"
     );
   }
   const absoluteConfig = path.resolve(runConfigPath);
@@ -431,12 +653,24 @@ export function emitScenarioArtifacts({
   const batchContract = JSON.parse(
     readFileSync(path.resolve(batchContractPath), "utf8")
   );
+  const impactedBaseIds = readImpactedScenarioIds({
+    impactedContextPath,
+    batchId: batchContract.batchId,
+    matrix: runConfig.matrix,
+  });
+  const impactedScenarios = selectImpactedScenarios({
+    scenarios: registry.scenarios,
+    impactedBaseIds,
+  });
   const env = envelopeFrom(absoluteConfig, { applicationRoot: FRONTEND_ROOT });
   const artifacts = materializeContractScenarios({
-    scenarios: registry.scenarios,
+    scenarios: impactedScenarios,
     matrix: runConfig.matrix,
     batchContract,
-    header: env.header("scenario"),
+    header: {
+      ...env.header("scenario"),
+      ...(sourceFingerprint ? { sourceFingerprint } : {}),
+    },
   });
   if (!artifacts.length) {
     throw new Error("registro visual não materializou nenhum scenario durável");
@@ -466,7 +700,9 @@ async function runCli() {
         registry: result.registry,
         runConfigPath: argumentValue(argv, "--run-config"),
         batchContractPath: argumentValue(argv, "--batch-contract"),
+        impactedContextPath: argumentValue(argv, "--impacted-context"),
         outPath: emitPath,
+        sourceFingerprint: argumentValue(argv, "--source-fingerprint"),
       })
     : [];
 

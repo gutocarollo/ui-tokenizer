@@ -543,9 +543,26 @@ export function makeArtifactRef(filePath, { runRoot, artifactType } = {}) {
   };
 }
 
-function collectArtifactRefs(value, refs = [], seen = new Set()) {
+export function collectArtifactRefs(value, refs = [], seen = new Set()) {
   if (!value || typeof value !== "object" || seen.has(value)) return refs;
   seen.add(value);
+  /*
+   * `run-state.journal` is the immutable HISTORY; `run-state.artifacts` is the
+   * deterministic ACTIVE projection of that history. Following both here
+   * reintroduced every superseded visual retry (and every prior census) into
+   * the semantic closure. A comparison then saw three `before` + three
+   * `after` manifests even though the projection correctly contained one of
+   * each, while every transition reparsed gigabytes of historical NDJSON.
+   *
+   * Journal integrity and evidence-slot replay are checked explicitly by
+   * `checkRunState`. The semantic closure must follow only the active refs.
+   */
+  if (value.artifactType === "run-state" && Array.isArray(value.artifacts)) {
+    for (const artifactRef of value.artifacts) {
+      collectArtifactRefs(artifactRef, refs, seen);
+    }
+    return refs;
+  }
   if (
     typeof value.artifactType === "string" &&
     typeof value.path === "string" &&
@@ -853,6 +870,12 @@ function checkSourceFreshness(index, records, runConfig, violations) {
     for (const { artifact } of index.get(type) ?? []) {
       for (const artifactRef of collectArtifactRefs(artifact)) {
         for (const target of targetsFor(artifactRef)) {
+          // run-config é a âncora imutável da CORRIDA, não uma medição da
+          // geração corrente. Depois de uma mutação aceita, artefatos frescos
+          // continuam obrigados a referenciá-lo e seu sourceFingerprint base
+          // diverge legitimamente do state vivo. Evidência de fonte (censo,
+          // normalização, classificação) continua sujeita ao mismatch abaixo.
+          if (target.artifactType === "run-config") continue;
           sourceMismatch(
             violations,
             "source-freshness",
@@ -1195,7 +1218,18 @@ function checkClassProjection(
   activeSourceFingerprint,
   violations
 ) {
-  if (!phaseAtLeast(targetPhase, "NORMALIZED") && targetPhase !== "COMPLETE") {
+  /*
+   * REINVENTORIED abre uma NOVA geração do laço: nesse ponto existem o censo
+   * e os eixos pós-mutação, mas a projeção normalizada dessa geração ainda não
+   * foi produzida. Usar apenas a ordem linear de PHASES mistura esse censo novo
+   * com normalized-occurrence da geração anterior e torna a transição
+   * ACCEPTED→REINVENTORIED impossível. A paridade volta a ser obrigatória na
+   * reentrada NORMALIZED, quando o produtor correto já teve chance de rodar.
+   */
+  if (
+    targetPhase === "REINVENTORIED" ||
+    (!phaseAtLeast(targetPhase, "NORMALIZED") && targetPhase !== "COMPLETE")
+  ) {
     return;
   }
   const design = currentDesignRecords.map((record) => record.artifact);
@@ -1792,7 +1826,72 @@ function checkScenarioCoverage(index, violations) {
   }
 }
 
-function checkPairingAndEffect(index, records, violations) {
+const FIXTURE_BINDING_WAIVER_CATEGORIES = new Set([
+  "jsx-classname-attribute-value",
+  "design-entity-import",
+]);
+
+/**
+ * Confirma a unica divergencia de bind dispensavel sem transformar a dispensa
+ * do comparador em um segundo dono, mais fraco, da regra.
+ *
+ * O comparador ja exige que `verify-contract-source-delta` prove, por AST, que
+ * somente valores de `className`/imports de entidades mudaram. O contrato de
+ * transicao precisa revalidar o MESMO certificado: do contrario ele ou ignora
+ * uma dispensa legitima (o defeito encontrado no attempt-31), ou aceita um
+ * `waivedBindings` fabricado. A prova fica dentro do run root, e campo/par,
+ * categorias e listas observadas devem coincidir byte por byte com o que a
+ * comparacao declarou.
+ */
+function hasProvenFixtureBindingWaiver({
+  comparison,
+  beforeFingerprint,
+  afterFingerprint,
+  runRoot,
+}) {
+  const candidates = (comparison.waivedBindings ?? []).filter(
+    (waiver) =>
+      waiver?.field === "fixtureRegistryFingerprint" &&
+      waiver?.before === beforeFingerprint &&
+      waiver?.after === afterFingerprint
+  );
+  if (candidates.length !== 1) return false;
+
+  const waiver = candidates[0];
+  const evidencePath = path.resolve(waiver.evidence);
+  if (!isWithin(path.resolve(runRoot), evidencePath)) return false;
+  if (!existsSync(evidencePath) || !statSync(evidencePath).isFile()) return false;
+
+  let proof;
+  try {
+    proof = JSON.parse(readFileSync(evidencePath, "utf8"));
+  } catch {
+    return false;
+  }
+  const proofCategories = proof?.permittedCategories ?? [];
+  const declaredCategories = waiver.permittedCategories ?? [];
+  const proofSources = proof?.changedContractSources ?? [];
+  const declaredSources = waiver.changedContractSources ?? [];
+  return (
+    proof?.tool === "verify-contract-source-delta" &&
+    proof?.verdict === "PASS" &&
+    proof?.field === "fixtureRegistryFingerprint" &&
+    proof?.fieldBefore === beforeFingerprint &&
+    proof?.fieldAfter === afterFingerprint &&
+    Array.isArray(proof?.failures) &&
+    proof.failures.length === 0 &&
+    Number.isInteger(proof?.contractSourcesInspected) &&
+    proof.contractSourcesInspected > 0 &&
+    proofCategories.length > 0 &&
+    proofCategories.every((category) =>
+      FIXTURE_BINDING_WAIVER_CATEGORIES.has(category)
+    ) &&
+    sameSet(new Set(proofCategories), new Set(declaredCategories)) &&
+    sameSet(new Set(proofSources), new Set(declaredSources))
+  );
+}
+
+function checkPairingAndEffect(index, records, runRoot, violations) {
   const batchIds = new Set(
     (index.get("comparison") ?? []).map(({ artifact }) => artifact.batchId)
   );
@@ -1857,15 +1956,32 @@ function checkPairingAndEffect(index, records, violations) {
     if (
       beforeManifest.routeRegistryFingerprint !==
         afterManifest.routeRegistryFingerprint ||
-      beforeManifest.fixtureRegistryFingerprint !==
-        afterManifest.fixtureRegistryFingerprint ||
       beforeManifest.toolchainFingerprint !== afterManifest.toolchainFingerprint
     ) {
       violations.push(
         violation(
           "pairing",
           "E-COMPARE",
-          `${batchId} route, fixture, or toolchain dimensions changed between captures`,
+          `${batchId} unwaivable route or toolchain dimensions changed between captures`,
+          comparison
+        )
+      );
+    }
+    if (
+      beforeManifest.fixtureRegistryFingerprint !==
+        afterManifest.fixtureRegistryFingerprint &&
+      !hasProvenFixtureBindingWaiver({
+        comparison,
+        beforeFingerprint: beforeManifest.fixtureRegistryFingerprint,
+        afterFingerprint: afterManifest.fixtureRegistryFingerprint,
+        runRoot,
+      })
+    ) {
+      violations.push(
+        violation(
+          "pairing",
+          "E-COMPARE",
+          `${batchId} fixture dimension changed without an exact in-run AST proof`,
           comparison
         )
       );
@@ -2016,20 +2132,45 @@ function checkPairingAndEffect(index, records, violations) {
       );
     }
 
-    const changed = new Set(contract.expectedChangedScenarioIds);
-    const unchanged = new Set(contract.expectedUnchangedScenarioIds);
+    /*
+     * O batch congela IDs-BASE (`accounts/default`); a comparação opera na
+     * matriz materializada (`accounts/default::theme/light::project/desktop…`).
+     * Comparar os dois conjuntos diretamente torna todo lote inválido assim
+     * que a matriz deixa de ser 1×vazia. O comparador já expande a policy de
+     * forma exata; aqui conferimos as duas camadas: a partição expandida cobre
+     * `requested`, e sua projeção de volta aos IDs-base é exatamente o contrato.
+     */
+    const contractChanged = new Set(contract.expectedChangedScenarioIds);
+    const contractUnchanged = new Set(contract.expectedUnchangedScenarioIds);
+    const changed = new Set(comparison.expectedChangedScenarioIds);
+    const unchanged = new Set(comparison.expectedUnchangedScenarioIds);
     const overlap = [...changed].filter((id) => unchanged.has(id));
     const declared = new Set([...changed, ...unchanged]);
+    const baseId = (scenarioId) => String(scenarioId).split("::", 1)[0];
+    const projectedChanged = new Set([...changed].map(baseId));
+    const projectedUnchanged = new Set([...unchanged].map(baseId));
     let declarationValid =
       overlap.length === 0 &&
       sameSet(declared, requested) &&
+      sameSet(projectedChanged, contractChanged) &&
+      sameSet(projectedUnchanged, contractUnchanged) &&
       contract.expectedVisualEffect === comparison.expectedVisualEffect;
     if (contract.expectedVisualEffect === "preserve") {
-      declarationValid &&= changed.size === 0 && sameSet(unchanged, requested);
+      declarationValid &&=
+        contractChanged.size === 0 &&
+        changed.size === 0 &&
+        sameSet(unchanged, requested);
     } else if (contract.expectedVisualEffect === "change") {
-      declarationValid &&= unchanged.size === 0 && sameSet(changed, requested);
+      declarationValid &&=
+        contractUnchanged.size === 0 &&
+        unchanged.size === 0 &&
+        sameSet(changed, requested);
     } else {
-      declarationValid &&= changed.size > 0 && unchanged.size > 0;
+      declarationValid &&=
+        contractChanged.size > 0 &&
+        contractUnchanged.size > 0 &&
+        changed.size > 0 &&
+        unchanged.size > 0;
     }
     if (!declarationValid) {
       violations.push(
@@ -2038,7 +2179,13 @@ function checkPairingAndEffect(index, records, violations) {
           "E-DECISION",
           `${batchId} effect declaration does not partition the requested scenarios`,
           contract,
-          { overlap }
+          {
+            overlap,
+            contractChanged: [...contractChanged],
+            contractUnchanged: [...contractUnchanged],
+            projectedChanged: [...projectedChanged],
+            projectedUnchanged: [...projectedUnchanged],
+          }
         )
       );
     }
@@ -2104,7 +2251,13 @@ function checkPairingAndEffect(index, records, violations) {
       effectPass &&
       (comparison.missingPairCount !== 0 ||
         comparison.exactCoverage !== true ||
-        comparison.verdict !== "pass")
+        comparison.deterministicVerdict !== "pass" ||
+        !(
+          (comparison.visualReviewVerdict === "pending" &&
+            comparison.verdict === "review") ||
+          (comparison.visualReviewVerdict === "pass" &&
+            comparison.verdict === "pass")
+        ))
     ) {
       violations.push(
         violation(
@@ -2330,7 +2483,22 @@ function checkAcceptance(index, records, violations) {
     }
     if (
       !comparison ||
-      comparison.verdict !== "pass" ||
+      /*
+       * COMPARED grava um artefato IMUTÁVEL antes de REVIEWED. Portanto o
+       * estado honesto de uma comparação determinística aprovada é
+       * `verdict=review` + `visualReviewVerdict=pending`; o parecer visual
+       * posterior vive no artefato `visual-review` separado e referenciado pela
+       * aceitação. Exigir `comparison.verdict=pass` aqui obrigava sobrescrever
+       * bytes já journalados para enxertar a revisão — quebrando a própria
+       * integridade por hash do journal.
+       */
+      comparison.deterministicVerdict !== "pass" ||
+      !(
+        (comparison.visualReviewVerdict === "pending" &&
+          comparison.verdict === "review") ||
+        (comparison.visualReviewVerdict === "pass" &&
+          comparison.verdict === "pass")
+      ) ||
       comparison.exactCoverage !== true ||
       comparison.missingPairCount !== 0 ||
       // `policyVerdict` não existe no artefato: o emissor grava
@@ -2345,7 +2513,7 @@ function checkAcceptance(index, records, violations) {
         violation(
           "acceptance",
           "E-COMPARE",
-          `${acceptance.batchId} comparison is not passing exactly`,
+          `${acceptance.batchId} deterministic comparison is not passing exactly`,
           acceptance
         )
       );
@@ -2622,7 +2790,101 @@ function artifactRefKey(artifactRef) {
   return `${artifactRef.artifactType}:${artifactRef.path}:${artifactRef.sha256}`;
 }
 
-function checkRunState(index, records, violations) {
+export function evidenceProjectionSlot(artifact) {
+  if (
+    artifact?.artifactType !== "evidence-manifest" ||
+    !["before", "after"].includes(artifact.phase) ||
+    typeof artifact.batchId !== "string"
+  ) {
+    return null;
+  }
+  return {
+    batchId: artifact.batchId,
+    phase: artifact.phase,
+    key: `${artifact.batchId}:${artifact.phase}`,
+  };
+}
+
+const CENSUS_PROJECTION_TYPES = new Set([
+  "axis-discovery",
+  "design-occurrence",
+  "normalized-occurrence",
+  "inventory-report",
+  "cluster-packet",
+]);
+
+export function artifactProjectionGroup(artifactRef) {
+  return CENSUS_PROJECTION_TYPES.has(artifactRef?.artifactType)
+    ? "active-census"
+    : null;
+}
+
+export function artifactProjectionResetGroups(artifactRef) {
+  return artifactRef?.artifactType === "axis-discovery"
+    ? ["active-census"]
+    : [];
+}
+
+/**
+ * Replays the journal into the active artifact projection. Historical refs
+ * remain in their immutable journal snapshots; a reentry may supersede only
+ * a visual slot, and a new `before` invalidates the dependent `after`.
+ */
+export function projectJournalArtifactRefs(
+  journal,
+  slotForRef,
+  {
+    groupForRef = () => null,
+    resetGroupsForRef = () => [],
+  } = {}
+) {
+  const byPath = new Map();
+  for (const entry of journal) {
+    const resetGroups = new Set(
+      entry.artifactRefs.flatMap((artifactRef) =>
+        resetGroupsForRef(artifactRef)
+      )
+    );
+    if (resetGroups.size > 0) {
+      for (const [artifactPath, artifactRef] of byPath) {
+        if (resetGroups.has(groupForRef(artifactRef))) {
+          byPath.delete(artifactPath);
+        }
+      }
+    }
+    if (entry.reentryCode) {
+      const replacementSlots = new Map();
+      const resetBatches = new Set();
+      for (const artifactRef of entry.artifactRefs) {
+        const slot = slotForRef(artifactRef);
+        if (!slot) continue;
+        replacementSlots.set(slot.key, artifactRef.path);
+        if (slot.phase === "before") resetBatches.add(slot.batchId);
+      }
+      for (const [artifactPath, artifactRef] of byPath) {
+        const slot = slotForRef(artifactRef);
+        if (!slot) continue;
+        if (
+          resetBatches.has(slot.batchId) ||
+          (replacementSlots.has(slot.key) &&
+            replacementSlots.get(slot.key) !== artifactPath)
+        ) {
+          byPath.delete(artifactPath);
+        }
+      }
+    }
+    for (const artifactRef of entry.artifactRefs) {
+      byPath.set(artifactRef.path, artifactRef);
+    }
+  }
+  return [...byPath.values()].sort((left, right) =>
+    `${left.artifactType}:${left.path}`.localeCompare(
+      `${right.artifactType}:${right.path}`
+    )
+  );
+}
+
+function checkRunState(index, records, runRoot, violations) {
   for (const { artifact } of index.get("run-state") ?? []) {
     let expectedSequence = 1;
     let previousTo = null;
@@ -2666,17 +2928,85 @@ function checkRunState(index, records, violations) {
         )
       );
     }
-    const journalRefKeys = new Set(
-      artifact.journal.flatMap((entry) =>
-        entry.artifactRefs.map(artifactRefKey)
-      )
+    const historicalIntegrity = new Map();
+    const projectionSlotForJournalRef = (artifactRef) => {
+      const targets = referencedTargets(records, artifactRef);
+      if (targets.length === 1) return evidenceProjectionSlot(targets[0]);
+
+      const key = artifactRefKey(artifactRef);
+      if (historicalIntegrity.has(key)) return historicalIntegrity.get(key);
+
+      let slot = null;
+      try {
+        const absolutePath = resolveArtifactRefPath(runRoot, artifactRef);
+        if (!existsSync(absolutePath) || !statSync(absolutePath).isFile()) {
+          violations.push(
+            violation(
+              "reference-integrity",
+              reentryCodeForArtifact(artifactRef.artifactType),
+              `Historical journal artifact does not exist: ${artifactRef.path}`,
+              artifact,
+              { artifactRef }
+            )
+          );
+        } else {
+          const actualSha256 = sha256File(absolutePath);
+          if (actualSha256 !== artifactRef.sha256) {
+            violations.push(
+              violation(
+                "reference-integrity",
+                reentryCodeForArtifact(artifactRef.artifactType),
+                `Historical journal artifact hash mismatch: ${artifactRef.path}`,
+                artifact,
+                { artifactRef, actualSha256 }
+              )
+            );
+          } else if (artifactRef.artifactType === "evidence-manifest") {
+            const historicalRecords = readArtifactRecords(absolutePath);
+            if (
+              historicalRecords.length === 1 &&
+              historicalRecords[0].artifact?.artifactType ===
+                "evidence-manifest"
+            ) {
+              slot = evidenceProjectionSlot(historicalRecords[0].artifact);
+            }
+          }
+        }
+      } catch (error) {
+        if (error instanceof ArtifactContractError) {
+          violations.push(...error.violations);
+        } else {
+          throw error;
+        }
+      }
+      historicalIntegrity.set(key, slot);
+      return slot;
+    };
+
+    /* Verify every historical ref without promoting its records back into the
+     * active semantic closure. Evidence manifests are parsed only to replay
+     * their `(batchId, phase)` projection slot. */
+    for (const entry of artifact.journal) {
+      for (const artifactRef of entry.artifactRefs) {
+        projectionSlotForJournalRef(artifactRef);
+      }
+    }
+
+    const projectedRefs = projectJournalArtifactRefs(
+      artifact.journal,
+      projectionSlotForJournalRef,
+      {
+        groupForRef: artifactProjectionGroup,
+        resetGroupsForRef: artifactProjectionResetGroups,
+      }
     );
-    if (!sameSet(new Set(artifactRefKeys), journalRefKeys)) {
+    const projectedRefKeys = new Set(projectedRefs.map(artifactRefKey));
+    if (!sameSet(new Set(artifactRefKeys), projectedRefKeys)) {
       violations.push(
         violation(
           "run-state-journal",
           "E-EXTRACT",
-          "run-state.artifacts must equal the immutable union of journal artifact refs",
+          "run-state.artifacts must equal the deterministic active projection of journal artifact refs",
           artifact
         )
       );
@@ -3052,7 +3382,12 @@ export function validateArtifactSet({
   );
   checkBatchScope(index, violations);
   checkScenarioCoverage(index, violations);
-  checkPairingAndEffect(index, schemaValidRecords, violations);
+  checkPairingAndEffect(
+    index,
+    schemaValidRecords,
+    path.resolve(runRoot),
+    violations
+  );
   checkReviewCompleteness(index, violations);
   checkAcceptance(index, schemaValidRecords, violations);
   checkFinalProof(
@@ -3062,7 +3397,7 @@ export function validateArtifactSet({
     targetPhase,
     violations
   );
-  checkRunState(index, schemaValidRecords, violations);
+  checkRunState(index, schemaValidRecords, path.resolve(runRoot), violations);
   if (transitionRecords) {
     violations.push(
       ...validateTransitionEvidence({ targetPhase, transitionRecords })

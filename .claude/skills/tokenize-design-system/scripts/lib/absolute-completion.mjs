@@ -8,6 +8,7 @@ import {
   statSync,
 } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /*
  * A medida da fonte MUDOU DE CASA para `scripts/lib/source-fingerprint.mjs`.
@@ -43,6 +44,12 @@ import {
   ABSOLUTE_REPORT_PREDICATES,
   absoluteReportId,
 } from "./absolute-completion-contract.mjs";
+import { fingerprintProcessPath } from "../../../../../scripts/lib/process-toolchain.mjs";
+
+const PROCESS_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../../.."
+);
 
 const TERMINAL_RECONCILIATIONS = new Set([
   "approved-token",
@@ -78,9 +85,24 @@ function evaluateLiveToolchain(applicationRoot, config) {
     problems.push("No toolchain configuration fingerprints are configured");
   } else {
     for (const [key, expected] of configured) {
+      if (key.startsWith("process-path:")) {
+        const relative = key.slice("process-path:".length);
+        try {
+          const actual = fingerprintProcessPath(PROCESS_ROOT, relative);
+          observed[key] = actual;
+          if (actual !== expected) {
+            problems.push(
+              `Process toolchain fingerprint is stale for ${relative}: expected ${expected}, observed ${actual}`
+            );
+          }
+        } catch (error) {
+          problems.push(String(error.message ?? error));
+        }
+        continue;
+      }
       if (!key.startsWith("file:")) {
         problems.push(
-          `Toolchain fingerprint key is not live-verifiable; use file:<application-relative-path>: ${key}`
+          `Toolchain fingerprint key is not live-verifiable; use file:<application-relative-path> or process-path:<process-relative-path>: ${key}`
         );
         continue;
       }
